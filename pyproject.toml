@@ -1,0 +1,15 @@
+# pyproject.toml
+
+[project]
+name = "fcstverif"
+version = "0.1.0"
+description = "Forecast Verification Framework"
+authors = [{name="Gaeun Kim", email="gaeun.kim0921@gmail.com"}]
+dependencies = ["xarray", "numpy", "pandas", "matplotlib", "pygrib"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["fcstverif"]

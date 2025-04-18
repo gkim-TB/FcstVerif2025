@@ -5,28 +5,33 @@ year_start = 2022
 year_end = 2024
 fyears = np.arange(year_start, year_end+1)
 
+# --- 모델 ---
+model = 'GS6'
+
 # --- 주요 디렉토리 경로 ---
 base_dir = '/home/gkim/2025FcstVerif'
-work_dir = f'{base_dir}/FcstVerif_v2.0'
+work_dir = f'{base_dir}/FcstVerif_v2.1'
 
-era5_base_dir = f'{base_dir}/ERA5_monthly_GSgrid'
-hindcast_dir = f'{base_dir}/GS6_KMApost_monthly/hindcast'
-forecast_dir = f'{base_dir}/GS6_KMApost_monthly/forecast'
-fanomaly_dir = f'{base_dir}/GS6_KMApost_monthly/anomaly'
+model_out_dir = f'{base_dir}/{model}_KMApost_monthly'
+hindcast_dir = f'{model_out_dir}/hindcast'
+forecast_dir = f'{model_out_dir}/forecast'
+fanomaly_dir = f'{model_out_dir}/anomaly'
 
-clim_out_dir = f'{era5_base_dir}/clim'
-tercile_out_dir = f'{era5_base_dir}/tercile'
-std_out_dir = f'{era5_base_dir}/tercile'
-obs_anom_dir = f'{era5_base_dir}/anom'
+era5_base_dir = f'{base_dir}/ERA5_monthly_{model}grid'
+era5_out_dir =f'{base_dir}/ERA5_OUT/{model}_grid'
+# clim_out_dir = f'{era5_out_dir}/clim'
+# tercile_out_dir = f'{era5_out_dir}/tercile'
+# std_out_dir = f'{era5_out_dir}/std'
+# obs_anom_dir = f'{era5_out_dir}/anom'
 
 sst_dir = f'{base_dir}/OISST'
-sst_anom_dir = f'{sst_dir}/anom'
+sst_anom_dir = f'{sst_dir}/{model}_grid/anom'
 
-verification_out_dir = f'{work_dir}/OUT'
-output_fig_dir = f'{work_dir}/FIG'
+verification_out_dir = f'{work_dir}/OUT/{model}'
+output_fig_dir = f'{work_dir}/FIG/{model}'
 
 # --- 변수 목록 ---
-variables = ['sst']
+variables = ['t2m']
 #variables = ['t', 'z']
 
 # --- GRIB/NetCDF 변수명 매핑 ---
@@ -39,8 +44,6 @@ ERAvar2rename = {
     'mslp':'msl',
     'prcp': 'tp',
 }
-
-        
 
 var2grib_name = {
     'tsfc': 'Skin temperature',
@@ -61,6 +64,6 @@ PRESSURE_VARS = {'u', 'v', 't', 'q', 'z'}
 # --- 검증 영역 정의 ---
 REGIONS = {
     "GL": (-90, 90, 0, 360),
-    "EA": (20, 50, 120, 150)
+    #"EA": (20, 50, 120, 150)
 }
 
