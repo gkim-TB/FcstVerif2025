@@ -23,8 +23,8 @@ def compute_era5_clim_and_anom(
 ):
     """
     1) (var) 월별 클라이모 계산
-    2) tercile(삼분위) 계산
-    3) (옵션) t2m이면 표준편차도 계산
+    2) (옵션) 월별 tercile(삼분위) 계산
+    3) (var) 월별 표준편차 계산
     4) anom_start~anom_end 구간에서 anomaly 계산
 
     여기서 var가 'msl'이면 최종 파일 변수명은 'mslp',
@@ -94,37 +94,36 @@ def compute_era5_clim_and_anom(
     # 그런데 위에서 이미 concat한 da_merged에 time차원이 있음
     # => 같은 da_merged에서 groupby('time.month').quantile()를 바로 수행
     #    (단, tercile을 구하기 위해서는 mean() 대신 raw 데이터 사용)
+    if var == 'prcp':
+        quantiles = [0.3333, 0.6667]  # 33%, 67%
+        da_tercile = da_merged_interp.groupby('time.month').quantile(quantiles, dim='time')
+        # 결과 shape: (month, quantile, lat, lon)
+        # quantile=2(0.3333, 0.6667)
+        # rename coords
+        da_tercile = da_tercile.rename({'quantile': 'tercile'})
+        da_tercile.coords['tercile'] = ['tercile1', 'tercile2']
 
-    quantiles = [0.3333, 0.6667]  # 33%, 67%
-    da_tercile = da_merged_interp.groupby('time.month').quantile(quantiles, dim='time')
-    # 결과 shape: (month, quantile, lat, lon)
-    # quantile=2(0.3333, 0.6667)
-    # rename coords
-    da_tercile = da_tercile.rename({'quantile': 'tercile'})
-    da_tercile.coords['tercile'] = ['tercile1', 'tercile2']
+        # Dataset 변환
+        ds_tercile = da_tercile.to_dataset(name=var)
+        ds_tercile.attrs['description'] = f"ERA5 {var} tercile (33%,67%) {clim_start}-{clim_end}"
+        #ds_tercile = ds_tercile.rename({'LATITUDE': 'lat', 'LONGITUDE': 'lon'})
 
-    # Dataset 변환
-    ds_tercile = da_tercile.to_dataset(name=var)
-    ds_tercile.attrs['description'] = f"ERA5 {var} tercile (33%,67%) {clim_start}-{clim_end}"
-    #ds_tercile = ds_tercile.rename({'LATITUDE': 'lat', 'LONGITUDE': 'lon'})
-
-    tercile_file = os.path.join(era5_out_dir, f"{var}_tercile_{clim_start}_{clim_end}.nc")
-    ds_tercile.to_netcdf(tercile_file)
-    logger.info(f"Tercile saved => {tercile_file}")
+        tercile_file = os.path.join(era5_out_dir, f"{var}_tercile_{clim_start}_{clim_end}.nc")
+        ds_tercile.to_netcdf(tercile_file)
+        logger.info(f"Tercile saved => {tercile_file}")
 
     #######################
-    # (옵션) t2m이면 std 계산
+    # std 계산
     #######################
-    if var == 't2m':
-        # 월별 표준편차 => groupby('time.month').std('time')
-        da_std = da_merged_interp.groupby('time.month').std('time')
-        ds_std = da_std.to_dataset(name='t2m')
-        ds_std.attrs['description'] = f"ERA5 t2m monthly std {clim_start}-{clim_end}"
-        #ds_std = ds_std.rename({'LATITUDE': 'lat', 'LONGITUDE': 'lon'})
+    #if var == 't2m':
+    # 월별 표준편차 => groupby('time.month').std('time')
+    da_std = da_merged_interp.groupby('time.month').std('time')
+    ds_std = da_std.to_dataset(name=var)
+    ds_std.attrs['description'] = f"ERA5 {var} monthly std {clim_start}-{clim_end}"  # Updated description to match variable
 
-        std_file = os.path.join(era5_out_dir, f"t2m_std_{clim_start}_{clim_end}.nc")
-        ds_std.to_netcdf(std_file)
-        logger.info(f"Standard Deviation saved => {std_file}")
+    std_file = os.path.join(era5_out_dir, f"{var}_std_{clim_start}_{clim_end}.nc")
+    ds_std.to_netcdf(std_file)
+    logger.info(f"Standard Deviation saved => {std_file}")
 
     ##########
     # 3) 아노말리

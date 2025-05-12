@@ -8,388 +8,236 @@ from fcstverif.config import *
 from fcstverif.utils.logging_utils import init_logger
 logger = init_logger()
 
-def open_kma_fcst_to_climpred_format(grib_file, init_date_str, var):
-    """
-    glos_conv_kma_fcst_6mon_mon_t15m_YYYYMMDD.grb2 (앙상블평균) 파일을 열어서
-    climpred용 [init, lead, time, lat, lon] 형태로 변환 예시.
-    lead는 1~6(6개월 예측), time은 init_date + (lead개월) 시점.
-    """
+# ─────────────────────────────────────────────
+# 0. Init‑date 헬퍼 : rule 인자 추가
+# ─────────────────────────────────────────────
+def _get_init_mondays(start: str, end: str, rule: str = 'last') -> list[pd.Timestamp]:
+    """rule 에 따라 초기화 월요일 날짜 반환"""
+    weekly = pd.date_range(start, end, freq='W-MON')
 
-    rename_var = GSvar2rename.get(var,var)
+    def _rule_last(grps):
+        return sorted({d.replace(day=1): d for d in grps}.values())
 
-    # 1) pygrib로 파일 열기
-    grbs = pygrib.open(grib_file)
-    # t15m에 해당하는 grib name을 확인해 아래 변수명 수정
-    if rename_var not in var2grib_name:
-        raise ValueError(f"[ERROR] var='{var}'에 해당하는 GRIB name이 var2grib_name에 없습니다.")
-    grb_var_name = var2grib_name[rename_var]
+    def _rule_mid(grps):
+        mids = []
+        for g in grps:
+            if 9 <= g.day <= 17:
+                mids.append(g)
+        # 월별 대표가 없으면 가장 가까운 월요일을 찾음
+        out = {}
+        for d in weekly:
+            key = d.replace(day=1)
+            cand = [m for m in mids if m.month == key.month and m.year == key.year]
+            if cand:
+                out[key] = cand[0]
+            else:               # 보정: 9–17 범위 월요일이 없으면 마지막 월요일 사용
+                out[key] = max([m for m in weekly if m.month == key.month and m.year == key.year])
+        return sorted(out.values())
+
+    rule_func = {'last': _rule_last, 'mid': _rule_mid}.get(rule)
+    if rule_func is None:
+        raise ValueError(f"지원하지 않는 rule → {rule}")
+    return rule_func(weekly)
     
-    # 2) GRIB 메시지 선택 (예: 리드 6개)
-    selected_grbs = grbs.select(name=grb_var_name)
-    n_grbs = len(selected_grbs)
-    if n_grbs != 6:
-        raise ValueError(f"기대한 리드 개수(6개)와 다릅니다. 실제 GRIB 메시지 수: {n_grbs}")
-    
-    # 3) init 및 time 계산
-    init_date = pd.to_datetime(init_date_str).replace(day=1)
-    # lead=1이면 init 후 1개월 시점, lead=2면 2개월 시점 등
-    lead_coords = [1, 2, 3, 4, 5, 6]
-    # time 좌표: 예) init 2022-01-03 → 2022-02-01, 2022-03-01, ...
-    #  실제 예측 파일에서 start_date(초기달+1)와 정확히 맞추려면 상황에 따라 조정
-    valid_times = pd.date_range(init_date + pd.DateOffset(months=1),
-                                periods=n_grbs, freq='MS')
+# ───────────────────────────────────────────────────────────────
+# 1. _grib_messages_to_dataset  (헬퍼)  ★ once for all ★
+# ───────────────────────────────────────────────────────────────
+def _grib_messages_to_dataset(
+        msgs         : list[pygrib.gribmessage],
+        init_date    : pd.Timestamp,
+        var          : str,
+        stat_type    : str | None = None,
+        rename_output: str | None = None
+    ) -> xr.Dataset:
+    """
+    GRIB message list → climpred 호환 Dataset
+      • 일반 / sigma : GRIB 6개   → lead 6
+      • gaus / qntl  : GRIB 12개  → lead 6 × pert(100/101)
 
-    # 4) lat/lon 추출 (첫 번째 메시지 기준)
-    lats, lons = selected_grbs[0].latlons()
+    모든 경우에 (init=1, lead, [pert], lat, lon) + time 좌표 포함.
+    주요 속성(FillValue, units)도 그대로 보존.
+    """
+    rename_var = GSvar2rename.get(var, var)
+    out_name   = rename_output or f"{var}" + (f"_{stat_type}" if stat_type else "")
 
-    # 5) lead별 DataArray 생성
-    da_list = []
-    for i, grb in enumerate(selected_grbs):
+    nmsg = len(msgs)
+    if   stat_type in (None, 'sigma') and nmsg != 6:
+        raise ValueError(f"{stat_type or 'hindcast'}는 GRIB 6개가 필요 -> {nmsg}")
+    if   stat_type in ('gaus', 'qntl') and nmsg != 12:
+        raise ValueError(f"{stat_type}는 GRIB 12개가 필요 -> {nmsg}")
 
-        # (1) missing value 확인
-        #     GRIB마다 missingValue가 없을 수도 있으므로 try-except
-        try:
-            missing_value = grb.missingValue
-        except AttributeError:
-            missing_value = None
+    # 공통 좌표 및 시간
+    lats, lons = msgs[0].latlons()
+    lead_coords  = np.arange(1, 7)
+    valid_times  = pd.date_range(init_date + pd.DateOffset(months=1), periods=6, freq='MS')
 
-        # (2) parameterUnits로 단위 가져오기
-        #     없을 수도 있으니 기본 None 처리
-        try:
-            param_units = grb.parameterUnits
-        except AttributeError:
-            param_units = None
-
-        data = grb.values
-
+    def _make_da(g):
         da = xr.DataArray(
-            data,
-            dims=['lat','lon'],
-            coords={
-                'lat': (['lat'], lats[:, 0]),
-                'lon': (['lon'], lons[0, :])
+            g.values,
+            dims=('lat', 'lon'),
+            coords={'lat': lats[:, 0], 'lon': lons[0, :]},
+            attrs={
+                'units'     : getattr(g, 'parameterUnits', None),
+                '_FillValue': np.nan if np.isnan(getattr(g, 'missingValue', np.nan)) else g.missingValue
             }
         )
+        return da
 
-        # (4) 속성 기록: FillValue, units 등
-        #     xarray는 메모리 상에서 NaN을 missing으로 취급
-        #     NetCDF 저장 시 '_FillValue'를 적용하려면 encoding 설정도 가능
-        if missing_value is not None:
-            da.attrs['_FillValue'] = np.nan  # xarray 관례상 NaN 사용
-        if param_units is not None:
-            da.attrs['units'] = param_units
+    # ── 일반‧sigma  (lead 6) ────────────────────────────────
+    if stat_type in (None, 'sigma'):
+        da = xr.concat([_make_da(g) for g in msgs], dim='lead')
+        da = da.assign_coords(lead=('lead', lead_coords),
+                              time=('lead', valid_times))
 
-        da_list.append(da)
-    
-    grbs.close()  # 파일 닫기
+    # ── gaus‧qntl  (lead 6 × pert) ─────────────────────────
+    else:
+        above, below = [], []
+        for g in msgs:
+            (above if g.perturbationNumber == 100 else below).append(_make_da(g))
+        if len(above) != 6 or len(below) != 6:
+            raise ValueError(f"{stat_type}: pert 분리 오류 (100={len(above)}, 101={len(below)})")
+        da = xr.concat([xr.concat(above, dim='lead'),
+                        xr.concat(below, dim='lead')],
+                       dim='pert')
+        da = da.assign_coords(
+                lead=('lead', lead_coords),
+                pert=('pert', [100, 101]),
+                time=('lead', valid_times))
 
-    # 6) lead 차원으로 concat
-    #    shape → (lead=6, lat, lon)
-    da_3d = xr.concat(da_list, dim='lead')
-    da_3d = da_3d.assign_coords(
-        lead=('lead', lead_coords),
-        # time을 lead와 같은 길이를 갖는 별도의 좌표로 추가
-        time=('lead', valid_times)
+    # init 차원 확장 및 Dataset 변환
+    da = da.expand_dims('init').assign_coords(init=('init', [init_date]))
+    da['lead'].attrs['units'] = 'months'
+    ds = da.to_dataset(name=out_name).set_coords('time')
+    return ds
+
+# ─────────────────────────────────────────────
+# 2‑1. convert_single_hindcast_file 
+# ─────────────────────────────────────────────
+def convert_single_hindcast_file(
+        init_date_str : str,
+        var           : str,
+        stat_type     : str | None,
+        data_dir      : str,
+        file_prefix   : str,
+        out_dir       : str
+    ):
+    """
+    단일 초기화 날짜(YYYYMMDD)의 hindcast / sigma / gaus / qntl GRIB2 → NetCDF
+    """
+    rename_var = GSvar2rename.get(var, var)
+    date_tag   = pd.to_datetime(init_date_str).strftime('%Y%m%d')
+    stat_part  = "" if stat_type is None else f"{stat_type}_"
+    fpath = os.path.join(
+        data_dir, rename_var,
+        f"{file_prefix}{stat_part}{rename_var}_{date_tag}.grb2"
     )
-    # time을 단순 좌표로 두되, 필요 시 main dimension으로 교체하려면
-    #   da_3d = da_3d.swap_dims({'lead': 'time'})
-    # 와 같이 사용 가능
 
-    # 7) init 차원을 확장
-    #    shape → (init=1, lead=6, lat, lon) + time(lead)
-    da_4d = da_3d.expand_dims('init').assign_coords(init=('init', [init_date]))
-    # climpred가 lead가 달 단위임을 알 수 있게 attrs를 부여
-    da_4d['lead'].attrs['units'] = 'months'
+    if not os.path.isfile(fpath):
+        logger.warning(f"[HIND] 파일 없음: {fpath}")
+        return
 
-    # 8) Dataset으로 변환 (변수명 t15m 가정)
-    ds_out = da_4d.to_dataset(name=var)
-    # time을 좌표로 유지하도록 명시
-    ds_out = ds_out.set_coords('time')
+    grbs = pygrib.open(fpath)
+    msgs = grbs.select(name=var2grib_name[rename_var])
+    grbs.close()
 
-    return ds_out
+    init_date = pd.to_datetime(init_date_str).replace(day=1)
+    ds_out    = _grib_messages_to_dataset(msgs, init_date, var, stat_type)
 
-def make_monthly_ensemble_forecast(
-    forecast_start,
-    forecast_end,
-    var,
-    data_dir,
-    file_prefix,
-    out_dir,
-    grid_option=None
-):
-    """
-    매주 월요일 초기화된 KMA 예측 GRIB2 파일들을 읽어,
-    한 달 안의 자료를 앙상블로 묶어 월별 Dataset 생성 및 저장.
+    yyyymm = init_date.strftime('%Y%m')
+    out_nc = (f"ensMean_{var}_{yyyymm}.nc" if stat_type is None
+              else f"ensMean_{stat_type}_{var}_{yyyymm}.nc")
 
-    Parameters
-    ----------
-    forecast_start : str
-        예: '2022-01-01'
-    forecast_end : str
-        예: '2022-03-30'
-    var : str
-        예측 변수명. t15m, mslp, prcp 등
-    data_dir : str
-        GRIB2 상위 경로. ex) '/home/gkim/2025FcstVerif/GS6_KMApost_raw/hindcast'
-    file_prefix : str
-        파일 접두사. ex) 'glos_conv_kma_hcst_6mon_mon_' 또는 'glos_conv_kma_fcst_6mon_mon_'
-    out_dir : str
-        결과 NetCDF 저장 폴더. 기본값 '.' (현재 폴더)
+    ds_out.to_netcdf(os.path.join(out_dir, out_nc))
+    logger.info(f"[HIND] saved → {out_nc}")
 
 
-    Returns
-    -------
-    None
-    """
+# ─────────────────────────────────────────────
+# 2‑2. 월별 hindcast 변환 (init_rule 적용)
+# ─────────────────────────────────────────────
+def convert_monthly_hindcast(                       
+        forecast_start : str,
+        forecast_end   : str,
+        var            : str,
+        data_dir       : str,
+        file_prefix    : str,
+        out_dir        : str,
+        stats_dir      : str = f'{model_raw_dir}/stats',
+        init_rule      : str = 'last' # last=마지막주 월, mid=9~17일 사이 월요일               
+    ):
 
     rename_var = GSvar2rename.get(var, var)
+    init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)  
 
-    # 1) 매주 월요일 날짜 리스트
-    weekly_mondays = pd.date_range(forecast_start, forecast_end, freq='W-MON')
+    stat_list = ['sigma', 'gaus'] if var == 't2m' else ['qntl'] if var == 'prcp' else ['sigma']
 
-    # 2) 월별 마지막 월요일 리스트 (거꾸로 순회하며 month 바뀌면 기록)
-    current_month = None
-    last_mondays = []
-    for day in weekly_mondays[::-1]:
-        if current_month != day.month:
-            last_mondays.append(day)
-            current_month = day.month
-    last_mondays = sorted(last_mondays)
-
-    logger.info(f"\n Processing var={var}, prefix={file_prefix}")
-    logger.info(f"weekly_mondays: {weekly_mondays}")
-    logger.info(f"last_mondays: {last_mondays}")
-
-    # 한 달 치 월요일 자료(ensemble) 임시 저장
-    monthly_ens_list = []
-
-    for wmonday in weekly_mondays:
-        # ex) glos_conv_kma_hcst_6mon_mon_t15m_20220103.grb2  (hindcast)
-        #     glos_conv_kma_fcst_6mon_mon_t15m_20220103.grb2  (forecast)
-
-        grib_file_path = os.path.join(
-            data_dir,
-            rename_var,
-            f"{file_prefix}{rename_var}_{wmonday.strftime('%Y%m%d')}.grb2"
+    for d in init_dates:
+        dstr = d.strftime('%Y-%m-%d')
+        # (1) hindcast 본체
+        convert_single_hindcast_file(
+            init_date_str=dstr,
+            var=var,
+            stat_type=None,
+            data_dir=data_dir,
+            file_prefix=file_prefix,
+            out_dir=out_dir
         )
-        if not os.path.isfile(grib_file_path):
-            logger.warning(f"[WARNING] File not found: {grib_file_path}")
+        # (2) sigma / gaus / qntl
+        for st in stat_list:
+            convert_single_hindcast_file(
+                init_date_str=dstr,
+                var=var,
+                stat_type=st,
+                data_dir=stats_dir,          # stats 전용 경로
+                file_prefix=file_prefix,     
+                out_dir=out_dir
+            )                                
+
+
+
+# ───────────────────────────────────────────────────────────────
+# 3. forecast(_mem) 파일 → 월별 ens 차원 NetCDF 변환
+# ───────────────────────────────────────────────────────────────
+def convert_monthly_forecast_from_mem(
+        forecast_start : str,
+        forecast_end   : str,
+        var            : str,
+        data_dir       : str,
+        file_prefix    : str,
+        out_dir        : str,
+        init_rule      : str
+    ):
+    """
+    파일 패턴: glos_conv_kma_fcst_6mon_mon_t15m_YYYYMMDD_mem.grb2
+    (lead 6 메시지가 ens 수만큼 반복)
+    """
+    rename_var   = GSvar2rename.get(var, var)
+    init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)
+
+    for d in init_dates:
+        tag   = d.strftime('%Y%m%d')
+        fpath = os.path.join(data_dir, rename_var,
+                             f"{file_prefix}{rename_var}_{tag}_mem.grb2")
+        if not os.path.isfile(fpath):
+            logger.warning(f"[MEM] 파일 없음: {fpath}")
             continue
 
-        # 3) GRIB -> climpred 형식 DS 변환
-        ds = open_kma_fcst_to_climpred_format(
-                grib_file_path, 
-                wmonday.strftime("%Y-%m-%d"), 
-                var = var
-                )
-
-        # 4) 임시 리스트에 추가 (ens 멤버로 봄)
-        monthly_ens_list.append(ds)
-
-        # 5) 만약 이번 날짜가 그 달의 마지막 월요일이면 => ens 차원으로 concat & ens 평균
-        if wmonday in last_mondays:
-            # 예: 2022-01-31이면, 1월 마지막 월요일
-            # monthly_ens_list에는 1월 월요일들의 ds가 들어 있음
-            if not monthly_ens_list:
-                logger.warning(f"No data accumulated for month={wmonday.month}")
-                continue
-
-            # (ens, init, lead, lat, lon), time 등
-            ds_ens = xr.concat(monthly_ens_list, dim='ens')
-
-            # 앙상블 전체(ens)도 저장
-            out_fname = os.path.join(
-                out_dir,
-                f"ens_{var}_{wmonday.strftime('%Y%m')}.nc"
-            )
-            ds_ens.to_netcdf(out_fname)
-
-            # 앙상블 평균 저장
-            ds_ens_mean = ds_ens.mean(dim='ens')
-            out_fname = os.path.join(
-                out_dir,
-                f"ensMean_{var}_{wmonday.strftime('%Y%m')}.nc"
-            )
-            logger.info(f" --> Save monthly ensemble mean to: {out_fname}")
-            print(ds_ens_mean)
-
-            # 최초 1회에 한해 위경도 정보를 target_grid.nc로 저장
-            if grid_option and not os.path.isfile(os.path.join(work_dir, "target_grid.nc")):
-                logger.info(" --> Saving target grid (lat/lon) to target_grid.nc")
-                target_grid = ds_ens_mean[['lat', 'lon']]#.to_dataset()
-                target_grid.to_netcdf(os.path.join(work_dir, "target_grid.nc"))
-
-            # ds_ens_mean 저장
-            ds_ens_mean.to_netcdf(out_fname)
-
-            # 다음 달을 위해 리스트 초기화
-            monthly_ens_list = []
-
-
-def make_monthly_ensemble_forecast_from_mem(
-        forecast_start, 
-        forecast_end, 
-        var, 
-        data_dir, 
-        file_prefix, 
-        out_dir
-        ):
-    
-    rename_var = GSvar2rename.get(var, var)
-    weekly_mondays = pd.date_range(forecast_start, forecast_end, freq='W-MON')
-
-    current_month = None
-    last_mondays = []
-    for day in weekly_mondays[::-1]:
-        if current_month != day.month:
-            last_mondays.append(day)
-            current_month = day.month
-    last_mondays = sorted(last_mondays)
-
-    logger.info(f"[MEM] Processing var={var}, prefix={file_prefix}")
-
-    for wmonday in last_mondays:
-        grib_file_path = os.path.join(data_dir, rename_var, f"{file_prefix}{rename_var}_{wmonday.strftime('%Y%m%d')}_mem.grb2")
-        if not os.path.isfile(grib_file_path):
-            logger.warning(f"[MEM] File not found: {grib_file_path}")
-            continue
-
-        grbs = pygrib.open(grib_file_path)
-        grb_var_name = var2grib_name[rename_var]
-        selected_grbs = grbs.select(name=grb_var_name)
-        logger.info(f"{file_prefix}{rename_var}_{wmonday.strftime('%Y%m%d')}_mem.grb2 => Selected GRIB messages count: {len(selected_grbs)}")
+        grbs = pygrib.open(fpath)
+        msgs = grbs.select(name=var2grib_name[rename_var])
         grbs.close()
 
-        # if len(selected_grbs) != 252:
-        #     logger.warning(f"[MEM] Unexpected number of GRIB messages: {len(selected_grbs)}. Skipping.")
-        #     continue
-
-        init_date = wmonday.replace(day=1)
-        leads = [1, 2, 3, 4, 5, 6]
-        times = pd.date_range(init_date + pd.DateOffset(months=1), periods=6, freq='MS')
-
-        lead_per_member = 6
-        n_total = len(selected_grbs)
-
-        # 예외 처리: 메시지 수가 6으로 나누어떨어지지 않으면 경고
-        if n_total % lead_per_member != 0:
-           logger.warning(f"[MEM] Total GRIB message count {n_total} is not divisible by {lead_per_member}")
-           return
-        
-        n_ens = n_total // lead_per_member
-        logger.info(f"[MEM] Detected {n_ens} ensemble members")
-
-        ens_members = []
-        for e in range(n_ens):
-            member_grbs = selected_grbs[e*lead_per_member:(e+1)*lead_per_member]
-
-            da_list = []
-            for grb in member_grbs:
-                data = grb.values
-                lats, lons = grb.latlons()
-                da = xr.DataArray(data, dims=['lat','lon'], coords={'lat': lats[:, 0], 'lon': lons[0, :]})
-                da_list.append(da)
-            
-            da_3d = xr.concat(da_list, dim='lead')
-            da_3d = da_3d.assign_coords(lead=('lead', leads), time=('lead', times))
-            da_4d = da_3d.expand_dims('init').assign_coords(init=('init', [init_date]))
-            ens_members.append(da_4d)
-
-        ds_ens = xr.concat(ens_members, dim='ens')
-        ds_ens.name = var
-        ds_ens = ds_ens.to_dataset()
-        ds_ens = ds_ens.set_coords('time')
-
-        out_fname_ens = os.path.join(out_dir, f"ensMem_{var}_{wmonday.strftime('%Y%m')}.nc")
-        #out_fname_mean = os.path.join(out_dir, f"ensMeanMEM_{var}_{wmonday.strftime('%Y%m')}.nc")
-
-        ds_ens.to_netcdf(out_fname_ens)
-        logger.info(f"[MEM] Saved full ensemble: {out_fname_ens}")
-
-        #ds_ens_mean = ds_ens.mean(dim='ens')
-        #ds_ens_mean.to_netcdf(out_fname_mean)
-        #logger.info(f"[MEM] Saved ensemble mean: {out_fname_mean}")
-
-def make_monthly_ensemble_hindcast_last_monday_only(
-    forecast_start,
-    forecast_end,
-    var,
-    data_dir,
-    file_prefix,
-    out_dir,
-    grid_option=None
-):
-    
-    rename_var = GSvar2rename.get(var, var)
-    weekly_mondays = pd.date_range(forecast_start, forecast_end, freq='W-MON')
-
-    # 각 월의 마지막 월요일만 추출
-    current_month = None
-    last_mondays = []
-    for day in weekly_mondays[::-1]:
-        if current_month != day.month:
-            last_mondays.append(day)
-            current_month = day.month
-    last_mondays = sorted(last_mondays)
-
-    logger.info(f"[HIND] Last-Monday-only mode activated for var={var}")
-
-    for wmonday in last_mondays:
-        grib_file_path = os.path.join(
-            data_dir,
-            rename_var,
-            f"{file_prefix}{rename_var}_{wmonday.strftime('%Y%m%d')}.grb2"
-        )
-        if not os.path.isfile(grib_file_path):
-            logger.warning(f"[HIND] File not found: {grib_file_path}")
+        if len(msgs) % 6 != 0:
+            logger.warning(f"[MEM] 메시지 수({len(msgs)})가 6의 배수가 아님 → skip")
             continue
+        n_ens = len(msgs) // 6
+        init_date = d.replace(day=1)
 
-        # GRIB → DS
-        ds = open_kma_fcst_to_climpred_format(
-            grib_file_path,
-            wmonday.strftime("%Y-%m-%d"),
-            var=var
-        )
-        # 차원: (init=1, lead=6, lat, lon), time=lead개 좌표
+        ens_ds = []
+        for e in range(n_ens):
+            chunk = msgs[e*6:(e+1)*6]
+            ens_ds.append(_grib_messages_to_dataset(chunk, init_date, var))
 
-        out_fname_mean = os.path.join(
-            out_dir,
-            f"ensMean_{var}_{wmonday.strftime('%Y%m')}.nc"
-        )
-        logger.info(f"[HIND] Saving single-member hindcast => {out_fname_mean}")
+        ds_ens = xr.concat(ens_ds, dim='ens').set_coords('time')
 
-        # 저장
-        ds.to_netcdf(out_fname_mean)
-
-        # 최초 1회 lat/lon 저장
-        if grid_option and not os.path.isfile(os.path.join(work_dir, "target_grid.nc")):
-            logger.info(" --> Saving target grid (lat/lon) to target_grid.nc")
-            target_grid = ds[['lat', 'lon']]
-            target_grid.to_netcdf(os.path.join(work_dir, "target_grid.nc"))
-
- 
-#if __name__ == '__main__':
-#
-#    # Hindcast 
-#    for var in variables:
-#        make_monthly_ensemble_forecast(
-#            forecast_start=f'{year_start}-01-01',
-#            forecast_end=f'{year_end}-12-31',
-#            var=var,
-#            data_dir=f'{base_dir}/GS6_KMApost_raw/hindcast/',
-#            file_prefix='glos_conv_kma_hcst_6mon_mon_',
-#            out_dir=hindcast_dir,
-#            grid_option=True
-#        )
-
-    # Forecast
-#    for var in variables:
-#        make_monthly_ensemble_forecast(
-#            forecast_start=f'{year_start}-01-01',
-#            forecast_end=f'{year_end}-12-31',
-#            var=var,
-#            data_dir=f'{base_dir}/GS6_KMApost_raw/forecast/',
-#            file_prefix='glos_conv_kma_fcst_6mon_mon_',
-#            out_dir=forecast_dir
-#        )
-
+        out_nc = os.path.join(out_dir, f"ensMem_{var}_{d:%Y%m}.nc")
+        ds_ens.to_netcdf(out_nc)
+        logger.info(f"[MEM] saved → {out_nc}")

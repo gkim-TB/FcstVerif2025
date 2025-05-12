@@ -5,6 +5,9 @@ year_start = 2022
 year_end = 2024
 fyears = np.arange(year_start, year_end+1)
 
+clim_start = 1991
+clim_end   = 2020
+
 # --- 모델 ---
 model = 'GS6'
 
@@ -12,10 +15,8 @@ model = 'GS6'
 base_dir = '/home/gkim/2025FcstVerif'
 work_dir = f'{base_dir}/FcstVerif_v2.1'
 
+model_raw_dir = f'{base_dir}/{model}_KMApost_raw/'
 model_out_dir = f'{base_dir}/{model}_KMApost_monthly'
-hindcast_dir = f'{model_out_dir}/hindcast'
-forecast_dir = f'{model_out_dir}/forecast'
-fanomaly_dir = f'{model_out_dir}/anomaly'
 
 era5_base_dir = f'{base_dir}/ERA5_monthly_{model}grid'
 era5_out_dir =f'{base_dir}/ERA5_OUT/{model}_grid'
@@ -31,7 +32,7 @@ verification_out_dir = f'{work_dir}/OUT/{model}'
 output_fig_dir = f'{work_dir}/FIG/{model}'
 
 # --- 변수 목록 ---
-variables = ['t2m']
+variables = ['t2m', 'prcp']
 #variables = ['t', 'z']
 
 # --- GRIB/NetCDF 변수명 매핑 ---

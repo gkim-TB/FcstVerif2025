@@ -13,6 +13,7 @@ import matplotlib.gridspec as gridspec
 import cartopy.crs as ccrs
 import os
 from fcstverif.config import *
+from fcstverif.utils.general_utils import generate_yyyymm_list
 from fcstverif.utils.logging_utils import init_logger
 logger = init_logger()
 
@@ -223,7 +224,8 @@ def plot_skill_by_initialized_line(var, year_start, year_end, region_name, score
     """
     data_dir = os.path.join(verification_out_dir, region_name)
     leads = range(1, 7)
-    init_months = pd.date_range(start=f"{year_start}-01", end=f"{year_end}-12", freq='MS')
+    yyyymm_list = generate_yyyymm_list(year_start, year_end)
+    #yyyymm =init_months = pd.date_range(start=f"{year_start}-01", end=f"{year_end}-12", freq='MS')
 
     # 12개 고유 색상 지정 (월별 색)
     cmap = plt.colormaps['tab20']
@@ -233,8 +235,9 @@ def plot_skill_by_initialized_line(var, year_start, year_end, region_name, score
     # 결과를 저장할 dict: {init_month: [target_month1, ..., target_month6], [score1,..., score6]}
     series_by_init = {}
 
-    for init_date in init_months:
-        yyyymm = init_date.strftime('%Y%m')
+    #for init_date in init_months:
+    for yyyymm in yyyymm_list:
+        #yyyymm = init_date.strftime('%Y%m')
         file_path = os.path.join(data_dir, f"ensScore_{var}_{yyyymm}.nc")
         if not os.path.isfile(file_path):
             continue
@@ -252,14 +255,16 @@ def plot_skill_by_initialized_line(var, year_start, year_end, region_name, score
                 val = np.nan
             scores.append(val)
 
-        series_by_init[init_date] = (target_dates, scores)
+        #series_by_init[init_date] = (target_dates, scores)
+        series_by_init[yyyymm] = (target_dates, scores)
 
     # 시각화
     plt.figure(figsize=(14, 6))
     for init_date, (target_dates, scores) in series_by_init.items():
         month = init_date.month
         color = month_colors[month]
-        label = init_date.strftime('%Y-%m')
+        #label = init_date.strftime('%Y-%m')
+        label = yyyymm
         plt.plot(target_dates, scores, '-o', color=color)
 
     # 색상 범례용 (12개월)
@@ -358,7 +363,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir, vmi
         for lead in range(1, 7):
             init_date = target_date - pd.DateOffset(months=lead)
             init_yyyymm = init_date.strftime('%Y%m')
-            fcst_file = os.path.join(fanomaly_dir, f"ensMem_{var}_anom_{init_yyyymm}.nc")
+            fcst_file = os.path.join(f'{model_out_dir}/anomaly', f"ensMem_{var}_anom_{init_yyyymm}.nc")
 
             if not os.path.isfile(fcst_file):
                 logger.warning(f"[SKIP] {fcst_file} 없음.")

@@ -112,7 +112,7 @@ def calculate_indices(years):
         for mm in range(1, 13):
             yyyymm = f"{yy}{mm:02d}"
 
-            fcst_file = os.path.join(fanomaly_dir, f"sst_anom_{yyyymm}.nc")
+            fcst_file = os.path.join(f'{model_out_dir}/anomaly', f"sst_anom_{yyyymm}.nc")
             if not os.path.isfile(fcst_file):
                 logger.warning(f"[WARN] Missing fcst or obs file for {yyyymm}")
                 continue

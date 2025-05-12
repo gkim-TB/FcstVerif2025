@@ -2,6 +2,7 @@ import xarray as xr
 import numpy as np
 import os
 import pandas as pd
+from fcstverif.utils.general_utils import load_obs_data
 from fcstverif.utils.logging_utils import init_logger
 logger = init_logger()
 
@@ -30,14 +31,19 @@ def compute_regional_scores_from_ensemble(var, years, fcst_dir, obs_dir, out_dir
     region_out_dir = os.path.join(out_dir, region_name)
     os.makedirs(region_out_dir, exist_ok=True)
 
-    obs_list = []
-    for yyyy in years:
-        obs_file = f"{obs_dir}/{var}_anom_{yyyy}.nc"
-        if os.path.isfile(obs_file):
-            obs_list.append(xr.open_dataset(obs_file))
-        else:
-            logger.warning(f"[WARN] Obs file missing: {obs_file}")
-    ds_obs = xr.concat(obs_list, dim='time')
+    # obs_list = []
+    # for yyyy in years:
+    #     obs_file = f"{obs_dir}/{var}_anom_{yyyy}.nc"
+    #     if os.path.isfile(obs_file):
+    #         obs_list.append(xr.open_dataset(obs_file))
+    #     else:
+    #         logger.warning(f"[WARN] Obs file missing: {obs_file}")
+    # ds_obs = xr.concat(obs_list, dim='time')
+    try:
+        ds_obs = load_obs_data(var, years, obs_dir, suffix='anom')
+    except FileNotFoundError as e:
+        logger.warning(str(e))
+        return
 
     for yy in years:
         for mm in range(1, 13):
@@ -72,7 +78,7 @@ def compute_regional_scores_from_ensemble(var, years, fcst_dir, obs_dir, out_dir
             rmse = calc_rmse_vec(fcst_da, obs_sub, region)     # (ens, time)
             logger.info("Calculating Bias (vectorized)...")
             bias = calc_bias_vec(fcst_da, obs_sub, region)     # (ens, time)
-            print(acc)
+            #print(acc)
 
             # 앙상블 평균
             acc_mean = calc_acc_vec(fcst_da.mean("ens"), obs_sub, region)
