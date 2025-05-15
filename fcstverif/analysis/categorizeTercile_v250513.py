@@ -30,8 +30,8 @@ def categorize_obs_tercile(var, years, data_dir):
     ds_std = xr.open_dataset(std_file)
     
     if var == 'prcp':
-        q33 = ds_std[var].sel(tercile='lower')
-        q67 = ds_std[var].sel(tercile='upper')
+        q33 = ds_std[var].sel(tercile='tercile1')
+        q67 = ds_std[var].sel(tercile='tercile2')
     else:
         std = ds_std[var] * 0.43# (month, lat, lon)
         
@@ -65,71 +65,49 @@ def categorize_obs_tercile(var, years, data_dir):
         obs_cate.attrs['description'] = f"Observed tercile category (BN=0, NN=1, AN=2)"
 
         # 5. 저장
-        out_file = os.path.join(era5_out_dir, f"{var}_cate_{year}.nc")
+        out_file = os.path.join(era5_out_dir, f"cate_{var}_{year}.nc")
         obs_cate.to_dataset().to_netcdf(out_file)
         logger.info(f"[TERCILE] Saved: {out_file}")
 
 
-def categorize_fcst_tercile(
-    var,
-    yyyymm,
-    fcst_anom_dir,
-    fcst_stat_dir,
-    out_dir,
-    mode='deterministic'
-):
+def categorize_fcst_tercile_deterministic(
+        var, 
+        yyyymm,
+        fcst_anom_dir, 
+        fcst_stat_dir, 
+        out_dir
+        ):
     """
-    mode='deterministic': 앙상블 평균 기준 BN/NN/AN
-    mode='probabilistic': 멤버별 BN/NN/AN → 확률
+    예측 아노말리와 sigma 기준값을 이용한 3분위 예측 분류 (deterministic)
     """
-    os.makedirs(out_dir, exist_ok=True)
 
+    # 1. 예측 아노말리 불러오기
     fcst_file = os.path.join(fcst_anom_dir, f"ensMem_{var}_anom_{yyyymm}.nc")
-    sigma_file = os.path.join(fcst_stat_dir, f"ensMean_sigma_{var}_{yyyymm}.nc")
-
     if not os.path.isfile(fcst_file):
-        raise FileNotFoundError(f"[FCST] File not found: {fcst_file}")
-    if not os.path.isfile(sigma_file):
-        raise FileNotFoundError(f"[SIGMA] File not found: {sigma_file}")
-
+        logger.warning(f"[TERCILE_FCST] No forecast anomaly: {fcst_file}")
+        return
     ds_fcst = xr.open_dataset(fcst_file)
-    ds_sigma = xr.open_dataset(sigma_file)
+    da_fcst = ds_fcst[var].mean('ens')  # 앙상블 평균 (lead, lat, lon)
 
-    std = ds_sigma[f"{var}_sigma"] * 0.43
+    # 2. 기준값 (±0.43 × σ) 불러오기
+    stat_file = os.path.join(fcst_stat_dir, f"ensMean_sigma_{var}_{yyyymm}.nc")
+    if not os.path.isfile(stat_file):
+        logger.warning(f"[TERCILE_FCST] No sigma file: {stat_file}")
+        return
+    ds_sigma = xr.open_dataset(stat_file)
+    std = ds_sigma[f'{var}_sigma'] * 0.43
 
-    if mode == 'deterministic':
-        da_fcst = ds_fcst[var].mean('ens')  # (lead, lat, lon)
-        fcst_cate = xr.full_like(da_fcst, fill_value=1).astype(np.int8)
-        fcst_cate = fcst_cate.where(da_fcst <= std, 2)   # AN
-        fcst_cate = fcst_cate.where(da_fcst >= -std, 0)  # BN
+    # 3. 기본값 0으로 초기화 후 조건 분류
+    fcst_cate = xr.full_like(da_fcst, fill_value=1).astype(np.int8)
+    fcst_cate = fcst_cate.where(da_fcst <=  std, 2)  # AN
+    fcst_cate = fcst_cate.where(da_fcst >= -std, 0) # BN
+    unique, counts = np.unique(fcst_cate.values, return_counts=True)
+    print(dict(zip(unique, counts))) 
+    
+    # 4. 저장
+    out_file = os.path.join(out_dir, f"cate_det_{var}_{yyyymm}.nc")
+    fcst_cate.name = f"{var}_fcst_cate"
+    fcst_cate.attrs['description'] = f"Deterministic tercile category (BN=0, NN=1, AN=2)"
+    fcst_cate.to_dataset().to_netcdf(out_file)
+    logger.info(f"[TERCILE_FCST] Saved: {out_file}")    
 
-        fcst_cate.name = f"{var}_fcst_cate"
-        fcst_cate.attrs['description'] = "Deterministic tercile category (BN=0, NN=1, AN=2)"
-
-        out_file = os.path.join(out_dir, f"cate_det_{var}_{yyyymm}.nc")
-        fcst_cate.to_dataset().to_netcdf(out_file)
-        logger.info(f"[CATE DET] Saved: {out_file}")
-
-    elif mode == 'probabilistic':
-        da_fcst = ds_fcst[var]  # (ens, lead, lat, lon)
-        is_bn = (da_fcst < -std)
-        is_an = (da_fcst > std)
-        is_nn = ~(is_bn | is_an)
-
-        prob_bn = is_bn.sum(dim='ens') / da_fcst.sizes['ens']
-        prob_nn = is_nn.sum(dim='ens') / da_fcst.sizes['ens']
-        prob_an = is_an.sum(dim='ens') / da_fcst.sizes['ens']
-
-        da_prob = xr.concat([prob_bn, prob_nn, prob_an], dim='category')
-        da_prob = da_prob.assign_coords(category=('category', ['BN', 'NN', 'AN']))
-        da_prob.coords['category'].attrs['long_name'] = 'Tercile Category'
-        da_prob.coords['category'].attrs['description'] = 'BN=Below Normal, NN=Normal, AN=Above Normal'
-
-        ds_prob = da_prob.to_dataset(name=f"{var}_prob")
-        ds_prob.attrs['description'] = f"{var} tercile forecast probability (BN/NN/AN)"
-
-        out_file = os.path.join(out_dir, f"cate_prob_{var}_{yyyymm}.nc")
-        ds_prob.to_netcdf(out_file)
-        logger.info(f"[CATE PROB] Saved: {out_file}")
-
-    return out_file

@@ -5,6 +5,7 @@ import pandas as pd
 import os
 
 from fcstverif.config import *
+from fcstverif.utils.general_utils import convert_prcp_to_mm_per_day, convert_geopotential_to_m
 from fcstverif.utils.logging_utils import init_logger
 logger = init_logger()
 
@@ -143,6 +144,15 @@ def convert_single_hindcast_file(
     init_date = pd.to_datetime(init_date_str).replace(day=1)
     ds_out    = _grib_messages_to_dataset(msgs, init_date, var, stat_type)
 
+    # ▶ GS6 강수량 / 지위 단위 변환
+    for vname in ds_out.data_vars:
+        if not vname.startswith(var):
+            continue
+        if var == 'prcp':
+            ds_out[vname] = convert_prcp_to_mm_per_day(ds_out[vname], source='GS6')
+        elif var in ['z', 'zg', 'geopotential']:
+            ds_out[vname] = convert_geopotential_to_m(ds_out[vname], source='GS6')
+
     yyyymm = init_date.strftime('%Y%m')
     out_nc = (f"ensMean_{var}_{yyyymm}.nc" if stat_type is None
               else f"ensMean_{stat_type}_{var}_{yyyymm}.nc")
@@ -168,7 +178,7 @@ def convert_monthly_hindcast(
     rename_var = GSvar2rename.get(var, var)
     init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)  
 
-    stat_list = ['sigma', 'gaus'] if var == 't2m' else ['qntl'] if var == 'prcp' else ['sigma']
+    stat_list = ['sigma', 'gaus'] if var == 't2m' else ['qntl'] if var == 'prcp' else ['gaus']
 
     for d in init_dates:
         dstr = d.strftime('%Y-%m-%d')
@@ -237,6 +247,13 @@ def convert_monthly_forecast_from_mem(
             ens_ds.append(_grib_messages_to_dataset(chunk, init_date, var))
 
         ds_ens = xr.concat(ens_ds, dim='ens').set_coords('time')
+        
+        # ▶ GS6 강수량 / 지위 단위 변환
+        for vname in [v for v in ds_ens.data_vars if v.startswith(var)]:
+            if var == 'prcp':
+                ds_ens[vname] = convert_prcp_to_mm_per_day(ds_ens[vname], source='GS6')
+            elif var in ['z', 'zg', 'geopotential']:
+                ds_ens[vname] = convert_geopotential_to_m(ds_ens[vname], source='GS6')
 
         out_nc = os.path.join(out_dir, f"ensMem_{var}_{d:%Y%m}.nc")
         ds_ens.to_netcdf(out_nc)

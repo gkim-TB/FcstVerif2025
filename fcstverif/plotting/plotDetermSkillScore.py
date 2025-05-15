@@ -243,6 +243,7 @@ def plot_skill_by_initialized_line(var, year_start, year_end, region_name, score
             continue
 
         ds = xr.open_dataset(file_path)
+        init_date = pd.to_datetime(f"{yyyymm}01")
         target_dates = [init_date + pd.DateOffset(months=l) for l in leads]
         scores = []
 
@@ -260,7 +261,8 @@ def plot_skill_by_initialized_line(var, year_start, year_end, region_name, score
 
     # 시각화
     plt.figure(figsize=(14, 6))
-    for init_date, (target_dates, scores) in series_by_init.items():
+    for yyyymm, (target_dates, scores) in series_by_init.items():
+        init_date = pd.to_datetime(f"{yyyymm}01")
         month = init_date.month
         color = month_colors[month]
         #label = init_date.strftime('%Y-%m')
@@ -294,7 +296,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir, vmi
 
     plot_settings = {
     't2m':   {'clevels': np.arange(-5,5.1,0.5), 'blevels': np.arange(-5, 5.1, 0.5), 'cmap': 'RdBu_r'},
-    'prcp':  {'clevels': np.arange(-50,51,5), 'blevels': np.arange(-20,21,2), 'cmap': 'BrBG'},
+    'prcp':  {'clevels': np.arange(-5,5.1,0.5), 'blevels': np.arange(-5,5.1,0.5), 'cmap': 'BrBG'},
     'mslp':  {'clevels': np.arange(-50,51,5), 'blevels': np.arange(-20,21,2), 'cmap': 'coolwarm'},
     'sst':   {'clevels': np.arange(-5,5.1,0.5), 'blevels': np.arange(-5, 5.1, 0.5), 'cmap': 'RdBu_r'},
 }

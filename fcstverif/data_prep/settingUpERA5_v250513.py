@@ -111,49 +111,39 @@ def compute_era5_clim_and_anom(
         # quantile=2(0.3333, 0.6667)
         # rename coords
         da_tercile = da_tercile.rename({'quantile': 'tercile'})
-        da_tercile.coords['tercile'] = ['lower', 'upper'] # tercile1 = 33.33%, tercile2 = 66.67%
+        da_tercile.coords['tercile'] = ['tercile1', 'tercile2'] # tercile1 = 33.33%, tercile2 = 66.67%
 
         # Dataset 변환
         ds_tercile = da_tercile.to_dataset(name=var)
         ds_tercile.attrs['description'] = f"ERA5 {var} tercile (33%,67%) {clim_start}-{clim_end}"
         #ds_tercile = ds_tercile.rename({'LATITUDE': 'lat', 'LONGITUDE': 'lon'})
 
-        ds_tercile[var] = convert_prcp_to_mm_per_day(ds_tercile[var], source='ERA5')
-        
+        if var == 'prcp':
+            ds_tercile[var] = convert_prcp_to_mm_per_day(ds_tercile[var], source='ERA5')
+        elif var in ['z','zg','geopotential']:
+            ds_tercile[var] = convert_geopotential_to_m(ds_tercile[var], source='ERA5')
+
         tercile_file = os.path.join(era5_out_dir, f"{var}_tercile_{clim_start}_{clim_end}.nc")
         ds_tercile.to_netcdf(tercile_file)
         logger.info(f"Tercile saved => {tercile_file}")
 
     #######################
-    # std & gaussian fitting 계산
+    # std 계산
     #######################
-    if var == 't2m':
-        # 월별 표준편차 => groupby('time.month').std('time')
-        da_std = da_merged_interp.groupby('time.month').std('time')
-        ds_std = da_std.to_dataset(name=var)
-        ds_std.attrs['description'] = f"ERA5 {var} monthly std {clim_start}-{clim_end}"  # Updated description to match variable
+    #if var == 't2m':
+    # 월별 표준편차 => groupby('time.month').std('time')
+    da_std = da_merged_interp.groupby('time.month').std('time')
+    ds_std = da_std.to_dataset(name=var)
+    ds_std.attrs['description'] = f"ERA5 {var} monthly std {clim_start}-{clim_end}"  # Updated description to match variable
 
-        if var in ['z','zg','geopotential']:
-            ds_std[var] = convert_geopotential_to_m(ds_std[var], source='ERA5')
+    if var == 'prcp':
+        ds_std[var] = convert_prcp_to_mm_per_day(ds_std[var], source='ERA5')
+    elif var in ['z','zg','geopotential']:
+        ds_std[var] = convert_geopotential_to_m(ds_std[var], source='ERA5')
 
-        std_file = os.path.join(era5_out_dir, f"{var}_std_{clim_start}_{clim_end}.nc")
-        ds_std.to_netcdf(std_file)
-        logger.info(f"Standard Deviation saved => {std_file}")
-
-        # # 가우시안 분위수 기준값: μ ± 0.43σ ≈ 33.33%, 66.67%
-        # lower = ds_clim[var] - 0.43 * ds_std[var]
-        # upper = ds_clim[var] + 0.43 * ds_std[var]
-
-        # # (month, gaus, lat, lon) 형태로 생성
-        # da_gaus = xr.concat([lower, upper], dim='gaus')
-        # da_gaus = da_gaus.assign_coords(gaus=['lower', 'upper'])
-
-        # ds_gaus = da_gaus.to_dataset(name=var)
-        # ds_gaus.attrs['description'] = f"ERA5 {var} gaussian-based tercile (mean±0.43σ) {clim_start}-{clim_end}"
-        
-        # gaus_file = os.path.join(era5_out_dir, f"{var}_gaus_{clim_start}_{clim_end}.nc")
-        # ds_gaus.to_netcdf(gaus_file)
-        # logger.info(f"Gaussian-based tercile saved => {gaus_file}")
+    std_file = os.path.join(era5_out_dir, f"{var}_std_{clim_start}_{clim_end}.nc")
+    ds_std.to_netcdf(std_file)
+    logger.info(f"Standard Deviation saved => {std_file}")
 
     ##########
     # 3) 아노말리

@@ -1,0 +1,22 @@
+# NetCDF 및 GRIB 파일 (대용량 이진 데이터)
+*.nc
+*.grb2
+
+# Python 캐시 및 컴파일 파일
+__pycache__/
+*.py[cod]
+*.so
+
+# 로그파일 및 디버깅 출력
+*.log
+LOG/
+
+# 시각화 출력 및 결과
+FIG/
+OUT/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# VSCode 관련 설정파일 (선택)
+.vscode/

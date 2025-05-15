@@ -40,7 +40,11 @@ def compute_regional_scores_from_ensemble(var, years, fcst_dir, obs_dir, out_dir
     #         logger.warning(f"[WARN] Obs file missing: {obs_file}")
     # ds_obs = xr.concat(obs_list, dim='time')
     try:
-        ds_obs = load_obs_data(var, years, obs_dir, suffix='anom')
+        obs_data = load_obs_data(
+            var, years, obs_dir, 
+            suffix='anom',
+            var_suffix=var
+            )
     except FileNotFoundError as e:
         logger.warning(str(e))
         return
@@ -64,10 +68,10 @@ def compute_regional_scores_from_ensemble(var, years, fcst_dir, obs_dir, out_dir
             fcst_da = fcst_da.assign_coords(time=('lead', fcst_time.values)).swap_dims({'lead': 'time'})  # → (ens, time, lat, lon)
 
             # 2. obs도 time 기준으로 맞춤
-            obs_sub = ds_obs[var].reindex(time=fcst_time.values)  # → (time, lat, lon)
+            obs_sub = obs_data.reindex(time=fcst_time.values)  # → (time, lat, lon)
 
             # 누락된 시점 확인 (optional)
-            missing_times = fcst_time.to_index().difference(ds_obs.time.to_index())
+            missing_times = fcst_time.to_index().difference(obs_data.time.to_index())
             if len(missing_times) > 0:
                 logger.warning(f"[WARN] obs에 {missing_times.strftime('%Y-%m-%d').tolist()} 이 누락되어 NaN 처리됨")
 
@@ -112,4 +116,4 @@ def compute_regional_scores_from_ensemble(var, years, fcst_dir, obs_dir, out_dir
 
             ds_fcst.close()
 
-    ds_obs.close()
+    #ds_obs.close()

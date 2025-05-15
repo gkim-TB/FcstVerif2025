@@ -3,6 +3,7 @@
 import os
 import xarray as xr
 import pandas as pd
+import calendar
 import numpy as np
 from fcstverif.config import *
 
@@ -37,3 +38,33 @@ def clip_to_region(da, region_box):
     """
     lat_min, lat_max, lon_min, lon_max = region_box
     return da.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+
+def convert_prcp_to_mm_per_day(da, source):
+    """
+    강수량 DataArray를 mm/day 단위로 변환
+    - source='ERA5': 단위 m (월별 적산) -> mm/day
+    - source='GS6': 단위 kg m-2 s-1 (flux) -> mm/day
+    """
+    if source == 'ERA5':
+        # m/day -> mm/day
+        return da * 1000 
+    elif source == 'GS6':
+        # kg/m2/s = mm/s 이므로 86400초 곱해서 mm/day
+        return da * 86400
+    else:
+        raise ValueError(f"Unknown precipitation source: {source}")
+
+def convert_geopotential_to_m(da, source):
+    """
+    지위(geopotential)를 m(geopotential height)로 변환
+    - source='ERA5': 단위 m2/s2 -> m  (divide by g)
+    - source='GS6' : 단위 gpm (geopotential meter) -> m  (1:1)
+    """
+    g = 9.80665
+    if source == 'ERA5':
+        return da / g
+    elif source == 'GS6':
+        # 이미 gpm 단위 → 그대로 m으로 해석
+        return da
+    else:
+        raise ValueError(f"Unknown geopotential source: {source}")
