@@ -2,8 +2,8 @@ import xarray as xr
 import numpy as np
 import os
 import pandas as pd
-from fcstverif.utils.general_utils import load_obs_data
-from fcstverif.utils.logging_utils import init_logger
+from src.utils.general_utils import load_obs_data
+from src.utils.logging_utils import init_logger
 logger = init_logger()
 
 def region_mean(data, region):

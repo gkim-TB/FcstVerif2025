@@ -12,9 +12,9 @@ import matplotlib.cm as cmaps
 import matplotlib.gridspec as gridspec
 import cartopy.crs as ccrs
 import os
-from fcstverif.config import *
-from fcstverif.utils.general_utils import generate_yyyymm_list
-from fcstverif.utils.logging_utils import init_logger
+from config import *
+from src.utils.general_utils import generate_yyyymm_list
+from src.utils.logging_utils import init_logger
 logger = init_logger()
 
   

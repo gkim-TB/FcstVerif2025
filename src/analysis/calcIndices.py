@@ -4,8 +4,8 @@ from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import os
-from fcstverif.config import *
-from fcstverif.utils.logging_utils import init_logger
+from config import *
+from src.utils.logging_utils import init_logger
 logger = init_logger()
 
 # Define ENSO and IOD regions

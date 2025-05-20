@@ -28,11 +28,11 @@ era5_out_dir =f'{base_dir}/ERA5_OUT/{model}_grid'
 sst_dir = f'{base_dir}/OISST'
 sst_anom_dir = f'{sst_dir}/{model}_grid/anom'
 
-verification_out_dir = f'{work_dir}/OUT/{model}'
-output_fig_dir = f'{work_dir}/FIG/{model}'
+verification_out_dir = f'{work_dir}/out/{model}'
+output_fig_dir = f'{work_dir}/fig/{model}'
 
 # --- 변수 목록 ---
-variables = ['t2m', 'prcp']
+variables = ['t2m']
 #variables = ['t', 'z']
 
 # --- GRIB/NetCDF 변수명 매핑 ---

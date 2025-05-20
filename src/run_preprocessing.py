@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 import argparse
-from fcstverif.config import *
-from fcstverif.data_prep import (
+from config import *
+from src.data_prep import (
     settingUpGloSea, settingUpOISST, settingUpERA5, computeGloSeaAnomaly,
 )
-from fcstverif.utils.logging_utils import init_logger
+from src.utils.logging_utils import init_logger
 logger = init_logger()
 
 # 🔽 argparse 추가

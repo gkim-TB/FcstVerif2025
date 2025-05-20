@@ -5,7 +5,7 @@ import xarray as xr
 import pandas as pd
 import calendar
 import numpy as np
-from fcstverif.config import *
+from config import *
 
 def generate_yyyymm_list(start_year, end_year):
     """예: 2022~2024 → ['202201', ..., '202412']"""
@@ -50,7 +50,7 @@ def convert_prcp_to_mm_per_day(da, source):
         return da * 1000 
     elif source == 'GS6':
         # kg/m2/s = mm/s 이므로 86400초 곱해서 mm/day
-        return da * 86400
+        return  da * 86400 
     else:
         raise ValueError(f"Unknown precipitation source: {source}")
 

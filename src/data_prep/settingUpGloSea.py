@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import os
 
-from fcstverif.config import *
-from fcstverif.utils.general_utils import convert_prcp_to_mm_per_day, convert_geopotential_to_m
-from fcstverif.utils.logging_utils import init_logger
+from config import *
+from src.utils.general_utils import convert_prcp_to_mm_per_day, convert_geopotential_to_m
+from src.utils.logging_utils import init_logger
 logger = init_logger()
 
 # ─────────────────────────────────────────────
@@ -58,7 +58,7 @@ def _grib_messages_to_dataset(
     모든 경우에 (init=1, lead, [pert], lat, lon) + time 좌표 포함.
     주요 속성(FillValue, units)도 그대로 보존.
     """
-    rename_var = GSvar2rename.get(var, var)
+    #rename_var = GSvar2rename.get(var, var)
     out_name   = rename_output or f"{var}" + (f"_{stat_type}" if stat_type else "")
 
     nmsg = len(msgs)
@@ -148,7 +148,7 @@ def convert_single_hindcast_file(
     for vname in ds_out.data_vars:
         if not vname.startswith(var):
             continue
-        if var == 'prcp':
+        if var == 'prcp' and stat_type != 'qntl':
             ds_out[vname] = convert_prcp_to_mm_per_day(ds_out[vname], source='GS6')
         elif var in ['z', 'zg', 'geopotential']:
             ds_out[vname] = convert_geopotential_to_m(ds_out[vname], source='GS6')
@@ -175,7 +175,7 @@ def convert_monthly_hindcast(
         init_rule      : str = 'last' # last=마지막주 월, mid=9~17일 사이 월요일               
     ):
 
-    rename_var = GSvar2rename.get(var, var)
+    #rename_var = GSvar2rename.get(var, var)
     init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)  
 
     stat_list = ['sigma', 'gaus'] if var == 't2m' else ['qntl'] if var == 'prcp' else ['gaus']

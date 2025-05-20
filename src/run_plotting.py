@@ -14,9 +14,9 @@ from matplotlib.lines import Line2D
 import matplotlib.cm as cmaps
 import matplotlib.gridspec as gridspec
 import cartopy.crs as ccrs
-from fcstverif.config import *
-from fcstverif.utils.general_utils import generate_yyyymm_list, clip_to_region
-from fcstverif.utils.logging_utils import init_logger
+from config import *
+from src.utils.general_utils import generate_yyyymm_list, clip_to_region
+from src.utils.logging_utils import init_logger
 logger = init_logger()
 
 # argparse 추가: var, region
@@ -29,7 +29,7 @@ region_name = args.region
 region_box = REGIONS[region_name]
 
 # plotting 함수 import
-from fcstverif.plotting.plotDetermSkillScore import (
+from src.plotting.plotDetermSkillScore import (
     plot_skill_initialized_month,
     plot_skill_heatmap_initialized_month,
     plot_skill_target_month,

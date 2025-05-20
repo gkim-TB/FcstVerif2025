@@ -1,12 +1,12 @@
-# fcstverif/analysis/verifyCategoryDeterministic.py
+#dmdl fcstverif/analysis/verifyCategoryDeterministic.py
 
 import os
 import numpy as np
 import xarray as xr
 import pandas as pd
-from fcstverif.config import *
-from fcstverif.utils.general_utils import generate_yyyymm_list, load_obs_data, clip_to_region
-from fcstverif.utils.logging_utils import init_logger
+from config import *
+from src.utils.general_utils import generate_yyyymm_list, load_obs_data, clip_to_region
+from src.utils.logging_utils import init_logger
 logger = init_logger()
 
 def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_box):
@@ -32,7 +32,7 @@ def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_box):
 
     results = []
 
-    if "lead" in ds_fcst[f"{var}_fcst_cate"].dims:
+    if "lead" in ds_fcst[f"{var}_fcst_det"].dims:
         for lead in ds_fcst["lead"].values:
             # 예측 초기값 + lead개월 = 타겟 월
             init_date = pd.to_datetime(f"{yyyymm}01")
@@ -45,7 +45,7 @@ def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_box):
                 logger.warning(f"[VERIFY] No OBS for {target_str}")
                 continue
 
-            fcst_cate = ds_fcst[f"{var}_fcst_cate"].sel(lead=lead)
+            fcst_cate = ds_fcst[f"{var}_fcst_det"].sel(lead=lead)
 
             # 지역 제한
             obs_cate = clip_to_region(obs_cate, region_box)
@@ -84,8 +84,6 @@ def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_box):
 
 def run_verification_loop(var, region_name, obs_dir, fcst_dir):
     region_box = REGIONS[region_name]
-    start = f"{year_start}-01"
-    end   = f"{year_end}-12"
     yyyymm_list = generate_yyyymm_list(year_start, year_end)
 
     results = []

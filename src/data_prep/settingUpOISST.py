@@ -1,8 +1,8 @@
 import xarray as xr
 import pandas as pd
 import numpy as np
-from fcstverif.config import *
-from fcstverif.utils.logging_utils import init_logger
+from config import *
+from src.utils.logging_utils import init_logger
 logger = init_logger()
 
 
