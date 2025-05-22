@@ -1,10 +1,11 @@
 import numpy as np
 
 # --- 기간 설정 ---
-year_start = 2022
+# == 검증하고자 하는 forecast 기간
+year_start = 2024
 year_end = 2024
 fyears = np.arange(year_start, year_end+1)
-
+# == hindcast 기간
 clim_start = 1991
 clim_end   = 2020
 

@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 from config import *
-from src.utils.general_utils import generate_yyyymm_list, load_obs_data, clip_to_region
+from src.utils.general_utils import load_obs_data, clip_to_region
 from src.utils.logging_utils import init_logger
 logger = init_logger()
 
@@ -18,7 +18,7 @@ def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_box):
 
     # 관측 파일: 연도별, 예측 파일: 월별
     try:
-        obs_data = load_obs_data(var, fyears, obs_dir, suffix='cate', var_suffix=f"{var}_obs_cate")
+        obs_data = load_obs_data(var, fyears, obs_dir, suffix='cate', var_suffix=f"obs_cate")
     except FileNotFoundError as e:
         logger.warning(str(e))
         return None
@@ -78,13 +78,12 @@ def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_box):
                 'acc': acc,
                 'hss': hss
             })
-    print(results)
+    #print(results)
     #logger.info(f"[VERIFY] {yyyymm} ACC={np.nanmean([result['acc'] for result in results]):.3f}, HSS={np.nanmean([result['hss'] for result in results]):.3f}")
     return results
 
-def run_verification_loop(var, region_name, obs_dir, fcst_dir):
+def run_verification_loop(var, yyyymm_list, region_name, obs_dir, fcst_dir):
     region_box = REGIONS[region_name]
-    yyyymm_list = generate_yyyymm_list(year_start, year_end)
 
     results = []
     for yyyymm in yyyymm_list:

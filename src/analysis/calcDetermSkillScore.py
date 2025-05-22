@@ -2,6 +2,7 @@ import xarray as xr
 import numpy as np
 import os
 import pandas as pd
+from config import fyears 
 from src.utils.general_utils import load_obs_data
 from src.utils.logging_utils import init_logger
 logger = init_logger()
@@ -23,7 +24,7 @@ def calc_acc_vec(fcst, obs, region):
     denom = np.sqrt(region_mean(f_anom**2, region)) * np.sqrt(region_mean(o_anom**2, region)) + 1e-12
     return num / denom
 
-def compute_regional_scores_from_ensemble(var, years, fcst_dir, obs_dir, out_dir, region_name, region):
+def compute_deterministic_scores(var, yyyymm_list, fcst_dir, obs_dir, out_dir, region_name, region):
     """
     벡터화된 방식으로 ensMem_*.nc 파일을 기반으로 ACC, RMSE, Bias 계산
     결과 저장: (ens, lead) + 평균 (lead)
@@ -31,17 +32,9 @@ def compute_regional_scores_from_ensemble(var, years, fcst_dir, obs_dir, out_dir
     region_out_dir = os.path.join(out_dir, region_name)
     os.makedirs(region_out_dir, exist_ok=True)
 
-    # obs_list = []
-    # for yyyy in years:
-    #     obs_file = f"{obs_dir}/{var}_anom_{yyyy}.nc"
-    #     if os.path.isfile(obs_file):
-    #         obs_list.append(xr.open_dataset(obs_file))
-    #     else:
-    #         logger.warning(f"[WARN] Obs file missing: {obs_file}")
-    # ds_obs = xr.concat(obs_list, dim='time')
     try:
         obs_data = load_obs_data(
-            var, years, obs_dir, 
+            var, fyears, obs_dir, 
             suffix='anom',
             var_suffix=var
             )
@@ -49,9 +42,7 @@ def compute_regional_scores_from_ensemble(var, years, fcst_dir, obs_dir, out_dir
         logger.warning(str(e))
         return
 
-    for yy in years:
-        for mm in range(1, 13):
-            yyyymm = f"{yy}{mm:02d}"
+    for yyyymm in yyyymm_list:
             fcst_file = os.path.join(fcst_dir, f"ensMem_{var}_anom_{yyyymm}.nc")
 
             if not os.path.isfile(fcst_file):
@@ -68,13 +59,22 @@ def compute_regional_scores_from_ensemble(var, years, fcst_dir, obs_dir, out_dir
             fcst_da = fcst_da.assign_coords(time=('lead', fcst_time.values)).swap_dims({'lead': 'time'})  # → (ens, time, lat, lon)
 
             # 2. obs도 time 기준으로 맞춤
-            obs_sub = obs_data.reindex(time=fcst_time.values)  # → (time, lat, lon)
+            common_times = [t for t in fcst_time.values if t in obs_data.time.values]
+            missing_times = [t for t in fcst_time.values if t not in obs_data.time.values]   
+            if missing_times:
+                logger.warning(
+                    f"[OBS] Missing observation times for : {[str(pd.to_datetime(t).date()) for t in missing_times]}"
+                            )
 
-            # 누락된 시점 확인 (optional)
-            missing_times = fcst_time.to_index().difference(obs_data.time.to_index())
-            if len(missing_times) > 0:
-                logger.warning(f"[WARN] obs에 {missing_times.strftime('%Y-%m-%d').tolist()} 이 누락되어 NaN 처리됨")
+            fcst_da = fcst_da.sel(time=common_times)#.reset_coords(drop=True)
+            obs_sub = obs_data.sel(time=common_times)#.reset_coords(drop=True)
+            #print(fcst_da.time)
+            #print(obs_sub.time)
 
+            if len(common_times) == 0:
+                logger.warning(f"[SKIP] {yyyymm}: No data => skipping calculation")
+                continue
+                
             # === 스킬 계산 (벡터 연산) ===
             logger.info("Calculating ACC (vectorized)...")
             acc = calc_acc_vec(fcst_da, obs_sub, region)       # (ens, time)
@@ -110,7 +110,7 @@ def compute_regional_scores_from_ensemble(var, years, fcst_dir, obs_dir, out_dir
             lead_vals = fcst_da['lead'].values
             ds_out = ds_out.assign_coords(lead=('lead', lead_vals))
 
-            out_file = os.path.join(region_out_dir, f"ensScore_{var}_{yyyymm}.nc")
+            out_file = os.path.join(region_out_dir, f"ensScore_det_{var}_{yyyymm}.nc")
             ds_out.to_netcdf(out_file)
             logger.info(f"[SAVE] Ensemble skill score saved to => {out_file}")
 

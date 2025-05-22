@@ -8,6 +8,57 @@ from config import *
 from src.utils.logging_utils import init_logger
 logger = init_logger()
 
+def make_onehot(
+    da: xr.DataArray,
+    categories,
+    code_list=None,
+    cat_dim: str = "category",
+    dtype: str = "int8",
+    transpose_dims: list = None,
+) -> xr.DataArray:
+    """
+    Convert an integer-coded xarray.DataArray into a one-hot encoded DataArray.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        Input data array with integer codes.
+    categories : Sequence
+        List of category labels (e.g., ['BN','NN','AN']).
+    code_list : Sequence, optional
+        List of integer codes corresponding to categories (e.g., [0,1,2]).
+        If None, uses indices of `categories` (0,1,...).
+    cat_dim : str
+        Name of the new category dimension.
+    dtype : str
+        Data type for one-hot values (default 'int8').
+    transpose_dims : list of str, optional
+        Desired output dimension order, including `cat_dim`.
+
+    Returns
+    -------
+    xr.DataArray
+        One-hot encoded DataArray with a new category dimension.
+    """
+    if code_list is None:
+        code_list = list(range(len(categories)))
+    onehot_list = []
+    for code, label in zip(code_list, categories):
+        mask = (da == code).astype(dtype)
+        da_ohe = mask.expand_dims({cat_dim: [label]})
+        onehot_list.append(da_ohe)
+    onehot_da = xr.concat(onehot_list, dim=cat_dim)
+    base = da.name if da.name is not None else cat_dim
+    onehot_da.name = base + "_ohe"
+    onehot_da.coords[cat_dim] = categories
+    #print(onehot_da.dims)
+    # print(onehot_da.coords['init'])
+    # print(onehot_da.coords['lead'])
+    
+    if transpose_dims:
+        onehot_da = onehot_da.transpose(*transpose_dims)
+    return onehot_da
+
 def categorize_obs_tercile(var, years, data_dir):
     """
     관측 아노말리(anomaly)와 표준편차(std, 걍수량은 quantile)를 이용하여
@@ -65,14 +116,25 @@ def categorize_obs_tercile(var, years, data_dir):
         obs_cate = xr.where(cond_an, 2, obs_cate)
         obs_cate = xr.where(cond_bn, 0, obs_cate)
         unique, counts = np.unique(obs_cate.values, return_counts=True)
-        print(dict(zip(unique, counts)))  # { -1: ..., 0: ..., 1: ... }
+        logger.info(dict(zip(unique, counts)))  # { -1: ..., 0: ..., 1: ... }
 
         obs_cate.name = f"{var}_obs_cate"
         obs_cate.attrs['description'] = f"Observed tercile category (BN=0, NN=1, AN=2)"
 
+        obs_ohe = make_onehot(
+            da=obs_cate,
+            categories=['BN','NN','AN'],
+            code_list=[0,1,2],
+            cat_dim='category',
+            transpose_dims=['time','lat','lon','category']
+        )
+        obs_ohe.attrs['description'] = 'One-hot of observed tercile category'
+
         # 5. 저장
         out_file = os.path.join(era5_out_dir, f"{var}_cate_{year}.nc")
-        obs_cate.to_dataset().to_netcdf(out_file)
+        ds_out = obs_cate.to_dataset(name='obs_cate')
+        ds_out['obs_ohe'] = obs_ohe
+        ds_out.to_netcdf(out_file)
         logger.info(f"[TERCILE] Saved: {out_file}")
 
 
@@ -129,13 +191,24 @@ def categorize_fcst_tercile_det(var, yyyymm, fcst_dir, stat_dir, out_dir):
     #print(upper.sel(lat=slice(-5,5), lon=slice(150,180)))
 
     # Category 할당
-    cate = xr.full_like(da, 1).astype(np.int8)
+    fcst_cate = xr.full_like(da, 1).astype(np.int8)
     if var == 't2m':
-        cate = xr.where(da >= upper, 2, cate)
-        cate = xr.where(da <= lower, 0, cate)
+        fcst_cate = xr.where(da >= upper, 2, fcst_cate)
+        fcst_cate = xr.where(da <= lower, 0, fcst_cate)
     #print(cate.sel(lat=slice(-5,5), lon=slice(150,180)))
 
-    ds_out = cate.to_dataset(name=f"{var}_fcst_det")
+    fcst_ohe = make_onehot(
+            da=fcst_cate,
+            categories=['BN','NN','AN'],
+            code_list=[0,1,2],
+            cat_dim='category',
+            transpose_dims=['init','lead','lat','lon','category']
+        )
+    fcst_ohe.attrs['description'] = 'One-hot of deterministic tercile category'
+
+
+    ds_out = fcst_cate.to_dataset(name=f"{var}_fcst_det")
+    ds_out['fcst_det_ohe'] = fcst_ohe
     ds_out.attrs['description'] = "Deterministic tercile category (BN=0, NN=1, AN=2)"
     out_file = os.path.join(out_dir, f"cate_det_{var}_{yyyymm}.nc")
     ds_out.to_netcdf(out_file)
@@ -192,3 +265,23 @@ def categorize_fcst_tercile_prob(var, yyyymm, fcst_dir, stat_dir, out_dir):
     ds_out.to_netcdf(out_file)
     logger.info(f"[CATE PROB] Saved: {out_file}")
     return out_file
+
+def run_categorize_forecast_loop(var, yyyymm_list):
+    # 예측 삼분위 분류
+    for yyyymm in yyyymm_list:
+        if var == 't2m' or var =='prcp':
+            categorize_fcst_tercile_det(
+                var=var,
+                yyyymm=yyyymm,
+                fcst_dir=f'{model_out_dir}',
+                stat_dir=f'{model_out_dir}/hindcast',
+                out_dir=f'{verification_out_dir}/CATE/DET',
+            )
+        
+        categorize_fcst_tercile_prob(
+            var=var,
+            yyyymm=yyyymm,
+            fcst_dir=f'{model_out_dir}/forecast',
+            stat_dir=f'{model_out_dir}/hindcast',
+            out_dir=f'{verification_out_dir}/CATE/PROB',
+        )
