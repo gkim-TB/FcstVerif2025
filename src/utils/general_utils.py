@@ -32,10 +32,13 @@ def load_obs_data(var, years, obs_dir, suffix='anom', var_suffix=None):
     else:
         return ds_all[var]  # 변수명이 var와 동일한 경우
     
-def clip_to_region(da, region_box):
+def clip_to_region(da, region):
     """
-    주어진 DataArray를 지정된 영역 (lat_min, lat_max, lon_min, lon_max)로 자름
+    da: DataArray
+    region: region_box(tuple) or region_name(str)
     """
+    if isinstance(region, str):
+        region_box = REGIONS[region]  # config.py에서 import한 REGIONS
     lat_min, lat_max, lon_min, lon_max = region_box
     return da.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
 

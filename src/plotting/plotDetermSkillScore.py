@@ -17,16 +17,13 @@ from src.utils.general_utils import generate_yyyymm_list
 from src.utils.logging_utils import init_logger
 logger = init_logger()
 
+yyyymm_list = generate_yyyymm_list(year_start, year_end)
   
-def plot_skill_initialized_month(var, year, region_name, score='acc', fig_dir=None):
+def plot_skill_initialized_month(var, region_name, score='acc' , fig_dir=None):
     data_dir = os.path.join(verification_out_dir, region_name)
 
-    months = range(1,13)
-
-    for month in months:
-        yyyymm = f"{year}{month:02d}"
+    for yyyymm in yyyymm_list:
         file_path = os.path.join(data_dir, f"ensScore_{var}_{yyyymm}.nc")
-        
         if not os.path.isfile(file_path):
             logger.info(f"[WARN] {file_path} 없음.")
             continue
@@ -308,16 +305,10 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir, vmi
     clevels, blevels, cmap = settings['clevels'], settings['blevels'], settings['cmap']
 
     # region 크기에 따른 figsize 자동 계산
-    def compute_figsize(region_box, base_width=20):
-        lon_min, lon_max, lat_min, lat_max = region_box
-        lon_range = lon_max - lon_min
-        lat_range = lat_max - lat_min
-        aspect_ratio = lon_range / lat_range if lat_range != 0 else 1
-        height = base_width / aspect_ratio
-        return (base_width, height)
+
 
     region_box = REGIONS[region_name]
-    figsize = compute_figsize(region_box)
+    
 
     for target_month in range(1, 13):
         target_date = pd.Timestamp(f"{target_year}-{target_month:02d}-01")
@@ -336,9 +327,11 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir, vmi
             print(f"[WARN] No OBS for {target_date}")
             continue
 
-        fig = plt.figure(figsize=(20,6), constrained_layout=True) #figsize=figsize,
-        gs = gridspec.GridSpec(3, 6, figure=fig, hspace=0.1, wspace=0.1)
-        axes = np.empty((3, 6), dtype=object)
+        nrows, ncols = 3, 6
+        figsize = (ncols * 6, nrows * 3.5)
+        fig = plt.figure(figsize=figsize, constrained_layout=True) #figsize=figsize,
+        gs = gridspec.GridSpec(nrows, ncols, figure=fig, hspace=0.1, wspace=0.1)
+        axes = np.empty((nrows, ncols), dtype=object)
 
         # OBS 패널 (0,0)
         ax_obs = fig.add_subplot(gs[0, 0], projection=ccrs.PlateCarree())
@@ -422,29 +415,3 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir, vmi
         plt.close()
         logger.info(f"[INFO] Saved pattern comparison figure: {save_fname}")
 
-
-
-# if __name__=='__main__':
-
-#     for region_name, region_box in REGIONS.items():
-#         for var in variables:
-#             for year in fyears:
-#                 #plot_skill_target_month(var='t2m', target_year=2022, region_name='EA', score='acc')
-# #                plot_skill_initialized_month(
-# #                        var=var,
-# #                        year=year,
-# #                        region_name=region_name,
-# #                        score='acc')
-                
-#                 plot_skill_heatmap_initialized_month(
-#                         var=var,
-#                         year=year,
-#                         region_name=region_name,
-#                         score='acc')
-#             plot_skill_by_initialized_line( 
-#                    var=var,    
-#                    year_start=year_start,
-#                    year_end=year_end,
-#                    region_name=region_name,
-#                    score='acc'
-#                    )

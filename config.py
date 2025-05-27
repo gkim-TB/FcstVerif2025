@@ -1,16 +1,32 @@
 import numpy as np
+import os
 
-# --- 기간 설정 ---
-# == 검증하고자 하는 forecast 기간
-year_start = 2024
+# ================ USER SETTINGS =================
+
+# --- 검증하고자 하는 forecast 기간 ---
+year_start = 2022
 year_end = 2024
 fyears = np.arange(year_start, year_end+1)
+
 # == hindcast 기간
 clim_start = 1991
 clim_end   = 2020
 
+# --- 변수 목록 ---
+variables = ['t2m']
+#variables = ['t', 'z']
+
+# --- 검증 영역 정의 ---
+REGIONS = {
+    "GL": (-90, 90, 0, 360),
+    #"EA": (20, 50, 120, 150)
+}
+
 # --- 모델 ---
 model = 'GS6'
+
+#================================================
+
 
 # --- 주요 디렉토리 경로 ---
 base_dir = '/home/gkim/2025FcstVerif'
@@ -32,9 +48,11 @@ sst_anom_dir = f'{sst_dir}/{model}_grid/anom'
 verification_out_dir = f'{work_dir}/out/{model}'
 output_fig_dir = f'{work_dir}/fig/{model}'
 
-# --- 변수 목록 ---
-variables = ['t2m']
-#variables = ['t', 'z']
+def get_det_score_csv_path(var: str, region_name: str) -> str:
+    return os.path.join(
+        verification_out_dir, region_name, f"Det_tercile_score_{var}_{region_name}.csv"
+    )
+
 
 # --- GRIB/NetCDF 변수명 매핑 ---
 GSvar2rename = {
@@ -63,9 +81,4 @@ var2grib_name = {
 SURFACE_VARS = {'t2m', 'prcp', 'mslp', 'tsfc'}
 PRESSURE_VARS = {'u', 'v', 't', 'q', 'z'}
 
-# --- 검증 영역 정의 ---
-REGIONS = {
-    "GL": (-90, 90, 0, 360),
-    #"EA": (20, 50, 120, 150)
-}
 

@@ -1,118 +1,196 @@
 # src/analysis/calcProbSkillScore.py
-#!/usr/bin/env python
+
 import os
 import xarray as xr
 import numpy as np
-from config import *
-from src.utils.logging_utils import init_logger
+import pandas as pd
 import xskillscore as xs
 from sklearn.metrics import roc_curve, roc_auc_score
 from sklearn.calibration import calibration_curve
 
-from src.utils.general_utils import load_obs_data
-import pandas as pd
+from config import *
+from src.utils.logging_utils import init_logger
+from src.utils.general_utils import load_obs_data, clip_to_region
 
 logger = init_logger()
 
-def compute_probabilistic_scores(var, yyyymm_list, obs_dir, prob_dir, out_dir):
+def compute_rps_manual(fcst_prob, obs_ohe):
     """
-    확률예측 검증: leadtime별 ROC curve, Reliability diagram, RPSS(map) 계산 및 저장
+    fcst_prob, obs_ohe: xarray.DataArray with shape (lat, lon, category)
     """
+    # 누적합
+    fcst_cdf = fcst_prob.cumsum(dim='category')
+    obs_cdf  = obs_ohe.cumsum(dim='category')
+    
+    # 차이 제곱합
+    rps = ((fcst_cdf - obs_cdf) ** 2).sum(dim='category')
+    return rps
+
+def compute_rpss_manual(fcst_prob, obs_ohe):
+    """
+    RPSS 계산: 1 - RPS / RPS_climatology
+    """
+    # Forecast RPS
+    rps = compute_rps_manual(fcst_prob, obs_ohe)
+
+    # Climatology: uniform [1/3, 1/3, 1/3]
+    clim_prob = xr.full_like(fcst_prob, 1/3)
+    rps_clim = compute_rps_manual(clim_prob, obs_ohe)
+
+    # RPSS 계산 (0으로 나누는 경우 NaN 처리)
+    rpss = xr.where(rps_clim == 0, float('nan'), 1 - rps / rps_clim)
+
+    return rpss
+
+def compute_roc_auc_all_categories(fcst_prob, obs_ohe, init_time, region_name):
+    """
+    ROC Curve 및 AUC 계산 함수 (초기화 월 단위, 리드 x 카테고리)
+    
+    Parameters
+    ----------
+    fcst_prob : xarray.DataArray
+        Forecast probabilities (time, lat, lon, category)
+    obs_ohe : xarray.DataArray
+        One-hot observed categories (time, lat, lon, category)
+    region_box : tuple
+        (lat_s, lat_n, lon_w, lon_e)
+    init_time : datetime-like
+        Forecast initialization time
+    var : str
+        Variable name (e.g., 't2m')
+    out_dir : str
+        Output directory
+    region_name : str
+        Region name for output file naming
+    """
+    categories = fcst_prob.category.values.tolist()
+
+    # 지역 클리핑
+    fcst_sub = clip_to_region(fcst_prob, region_name)
+    obs_sub  = clip_to_region(obs_ohe, region_name)
+
+    n_lead = fcst_sub.sizes['time']
+    n_cat = len(categories)
+    auc_arr = np.full((n_lead, n_cat), np.nan)
+    all_roc_records = []
+
+    for t_idx in range(n_lead):
+        lead_val = t_idx + 1
+        target_time = pd.to_datetime(fcst_sub.time.values[t_idx])
+
+        for c_idx, cat in enumerate(categories):
+            try:
+                y_score = fcst_sub.isel(time=t_idx).sel(category=cat).values.flatten()
+                y_true = obs_sub.isel(time=t_idx).sel(category=cat).values.flatten().astype(int)
+                mask = (~np.isnan(y_score)) & (~np.isnan(y_true))
+                y_score = y_score[mask]
+                y_true = y_true[mask]
+
+                if len(np.unique(y_true)) < 2:
+                    continue
+
+                fpr, tpr, thr = roc_curve(y_true, y_score)
+                auc_val = roc_auc_score(y_true, y_score)
+                auc_arr[t_idx, c_idx] = auc_val
+
+                for f, t, th in zip(fpr, tpr, thr):
+                    all_roc_records.append({
+                        "init": pd.to_datetime(init_time),
+                        "lead": lead_val,
+                        "time": target_time,
+                        "category": cat,
+                        "fpr": f,
+                        "tpr": t,
+                        "threshold": th
+                    })
+
+            except Exception as e:
+                print(f"[ROC WARN] Skipped lead={lead_val} cat={cat} due to error: {e}")
+                continue
+
+    # AUC 저장 (NetCDF)
+    auc_da = xr.DataArray(
+        auc_arr,
+        dims=['time', 'category'],
+        coords={
+            'time': fcst_sub.time,
+            'category': categories
+        },
+        name='auc'
+    ).expand_dims(init=[init_time])
+
+    return auc_da, all_roc_records
+
+
+def compute_probabilistic_scores(var, yyyymm_list, obs_dir, prob_dir, out_dir, region_name):
     os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(os.path.join(out_dir, region_name), exist_ok=True)
 
-    categories = ['BN', 'NN','AN']
-
-    # 초기화 날짜별로 검증 수행
-    for yyyymm in yyyymm_list:
-
-        # 모델 확률 예측 불러오기
-        ds_prob   = xr.open_dataset(os.path.join(prob_dir, f"cate_prob_{var}_{yyyymm}.nc"))
-        fcst_time = ds_prob['time'] # (lead,) datetime64
-        fcst_prob = ds_prob[f"{var}_fcst_prob"].squeeze("init", drop=True)  # (ens, lead, lat, lon)
-        fcst_prob = fcst_prob.assign_coords(time=('lead', fcst_time.values)).swap_dims({'lead': 'time'})  # → (ens, time, lat, lon)
-        fcst_prob = fcst_prob.transpose('time','lat','lon','category')
-
-        # 관측 카테고리 불러오기
+    try:
         obs_ohe_all = load_obs_data(
             var=var,
-            years=fyears,  # config.py에서 불러온 전체 연도 범위
+            years=fyears,
             obs_dir=obs_dir,
             suffix='cate',
             var_suffix='obs_ohe'
         )
-        #print(obs_ohe)
-        
+    except FileNotFoundError as e:
+        logger.warning(str(e))
+        return
+
+    for yyyymm in yyyymm_list:
+        logger.info(f"[PROB] Processing var={var}, init={yyyymm}")
+        #init_date = pd.to_datetime(f"{yyyymm}01")
+
+        prob_file = os.path.join(prob_dir, f"cate_prob_{var}_{yyyymm}.nc")
+        if not os.path.isfile(prob_file):
+            logger.warning(f"[PROB] Missing forecast prob file: {prob_file}")
+            continue
+
+        ds_prob = xr.open_dataset(prob_file)
+        init_time = ds_prob['init'].values[0]
+
+        fcst_time = ds_prob['time']
+        fcst_prob_full = ds_prob[f"{var}_fcst_prob"].squeeze("init", drop=True)
+        fcst_prob_full = fcst_prob_full.assign_coords(time=("lead", fcst_time.values)).swap_dims({"lead": "time"})
+        fcst_prob_full = fcst_prob_full.transpose("time", "lat", "lon", "category")
+
         common_times = [t for t in fcst_time.values if t in obs_ohe_all.time.values]
-        missing_times = [t for t in fcst_time.values if t not in obs_ohe_all.time.values]   
-        if missing_times:
-            logger.warning(
-                f"[OBS] Missing observation times for : {[str(pd.to_datetime(t).date()) for t in missing_times]}"
-                           )
-
-        fcst_prob = fcst_prob.sel(time=common_times).reset_coords(drop=True)
+        if len(common_times) == 0:
+            logger.warning(f"[SKIP] {yyyymm}: No common time between forecast and obs")
+            continue
+        fcst_prob = fcst_prob_full.sel(time=common_times).reset_coords(drop=True)
         obs_ohe = obs_ohe_all.sel(time=common_times).reset_coords(drop=True)
-        print(fcst_prob.time)
-        print(obs_ohe.time)
+
+        # 1 RPSS
+        rpss = compute_rpss_manual(obs_ohe, fcst_prob)
+        rpss = rpss.expand_dims(dim={"init": 1})
+        rpss = rpss.assign_coords(init=("init", [init_time]))
+        ds_out = xr.Dataset({
+            f"{var}_rpss": rpss,
+        })
+        out_path_rpss = os.path.join(out_dir, region_name, f"rpss_{var}_{yyyymm}.nc")
+        ds_out.to_netcdf(out_path_rpss)
+        logger.info(f"[RPSS] save RPSS map {yyyymm} : {out_path_rpss}")
+        del ds_out
         
-        # 1) ROC curve
-        for t_idx, lead_time in enumerate(fcst_prob.time.values):
+        # 2 ROC + AUC
+        auc_da, all_roc_records =compute_roc_auc_all_categories(
+            fcst_prob=fcst_prob,
+            obs_ohe=obs_ohe,
+            init_time=init_time,
+            region_name=region_name
+        )
 
-            if lead_time not in obs_ohe.time.values:
-                logger.warning(f"[TIME] Lead time {lead_time} not found in observations.")
-                continue
-            
-            for cat in categories:
-                try:
-                    p_cat = fcst_prob.sel(category=cat).values.flatten()
-                    y_cat = obs_ohe.sel(category=cat).values.flatten().astype(int)
+        ds_auc = xr.Dataset({f"{var}_auc": auc_da})
+        out_auc_path = os.path.join(out_dir, region_name, f"auc_{var}_{region_name}_{yyyymm}.nc")
+        ds_auc.to_netcdf(out_auc_path)
+        print(f"[SAVED] AUC to {out_auc_path}")
 
-                    valid = ~np.isnan(p_cat) & ~np.isnan(y_cat)
-                    p_cat = p_cat[valid]
-                    y_cat = y_cat[valid]
+        # ROC 저장 (CSV)
+        df_roc = pd.DataFrame(all_roc_records)
+        out_csv_path = os.path.join(out_dir, region_name, f"roc_{var}_{region_name}_{yyyymm}.csv")
+        df_roc.to_csv(out_csv_path, index=False)
+        print(f"[SAVED] ROC to {out_csv_path}")
 
-                    if len(np.unique(y_cat)) < 2:
-                        logger.warning(f"[ROC] Skipped lead={lead_time} cat={cat} due to only one class.")
-                        continue
-
-                    fpr, tpr, thr = roc_curve(y_cat, p_cat)
-                    auc = roc_auc_score(y_cat, p_cat)
-
-                    df_roc = pd.DataFrame({
-                        'fpr': fpr, 'tpr': tpr, 'threshold': thr, 'auc': auc
-                    })
-                    out_roc = os.path.join(
-                        out_dir,
-                        f"roc_{var}_{yyyymm}_lead{t_idx+1}_{cat}.csv"
-                    )
-                    df_roc.to_csv(out_roc, index=False)
-                    logger.info(f"[PROB] {yyyymm} Saved ROC {cat} lead-{t_idx+1}: AUC={auc:.3f}")
-                    
-                    # 3) Reliability diagram
-                    prob_true, prob_pred = calibration_curve(y_cat, p_cat, n_bins=10, strategy='uniform')
-
-                    rel_df = pd.DataFrame({'prob_pred': prob_pred, 'prob_true': prob_true})
-                    rel_path = os.path.join(out_dir, f"reliability_{var}_{yyyymm}_lead{t_idx+1}_{cat}.csv")
-                    rel_df.to_csv(rel_path, index=False)
-
-                    logger.info(f"[PROB] Saved reliability: lead={t_idx+1} cat={cat}")
-                except Exception as e:
-                    logger.warning(f"[REL] Error on lead={t_idx+1}, cat={cat}: {e}")
-
-        # 1) RPSS map
-        #   - observations: obs_ohe_lt (0/1 one-hot)
-        #   - forecasts:    prob_lt    (확률 분포)
-        #   - category_edges=None, input_distributions='p' 로 확률 분포 입력임을 표시
-        # rpss = xs.rps(
-        #     obs_ohe, 
-        #     fcst_prob, 
-        #     category_edges=None, 
-        #     input_distributions='p', 
-        #     )
-        # print(rpss)
-        # exit()
-
-        # rpss_path = os.path.join(out_dir, f"rpss_{var}_{yyyymm}.nc")
-        # rpss.to_netcdf(rpss_path)
-        # logger.info(f"[PROB] Saved RPSS map {yyyymm} : {rpss_path}")
-
-    
+        logger.info(f"[DEBUG] AUC and ROC files saved for {yyyymm}")

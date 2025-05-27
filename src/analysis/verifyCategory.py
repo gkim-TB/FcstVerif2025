@@ -1,4 +1,4 @@
-#dmdl fcstverif/analysis/verifyCategoryDeterministic.py
+#fcstverif/analysis/verifyCategory.py
 
 import os
 import numpy as np
@@ -9,7 +9,7 @@ from src.utils.general_utils import load_obs_data, clip_to_region
 from src.utils.logging_utils import init_logger
 logger = init_logger()
 
-def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_box):
+def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_name):
     """
     관측 vs 예측 삼분위 범주를 비교하여 Hit Rate, HSS 등 multi-category 검증 지표 계산
     """
@@ -48,8 +48,8 @@ def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_box):
             fcst_cate = ds_fcst[f"{var}_fcst_det"].sel(lead=lead)
 
             # 지역 제한
-            obs_cate = clip_to_region(obs_cate, region_box)
-            fcst_cate = clip_to_region(fcst_cate, region_box)
+            obs_cate = clip_to_region(obs_cate, region_name)
+            fcst_cate = clip_to_region(fcst_cate, region_name)
 
             obs_idx = obs_cate.values.flatten()
             fcst_idx = fcst_cate.values.flatten()
@@ -70,25 +70,40 @@ def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_box):
             col_sum = table.sum(axis=0)
             expected = np.outer(row_sum, col_sum) / total if total else np.zeros_like(table)
             hss = (hits - expected.trace()) / (total - expected.trace()) if total else np.nan
+
+            # pod_dict = {}
+            # far_dict = {}
+            # for c in range(3):  # BN=0, NN=1, AN=2
+            #     obs_total = table[c, :].sum()
+            #     fcst_total = table[:, c].sum()
+            #     hit = table[c, c]
+
+            #     pod = hit / obs_total if obs_total > 0 else np.nan
+            #     far = (fcst_total - hit) / fcst_total if fcst_total > 0 else np.nan
+
+            #     pod_dict[f'pod_{c}'] = pod
+            #     far_dict[f'far_{c}'] = far
             
             results.append({
                 'yyyymm': yyyymm,
                 'lead': int(lead),
                 'target': target_str,
                 'acc': acc,
-                'hss': hss
+                'hss': hss,
             })
     #print(results)
     #logger.info(f"[VERIFY] {yyyymm} ACC={np.nanmean([result['acc'] for result in results]):.3f}, HSS={np.nanmean([result['hss'] for result in results]):.3f}")
     return results
 
 def run_verification_loop(var, yyyymm_list, region_name, obs_dir, fcst_dir):
-    region_box = REGIONS[region_name]
-
     results = []
     for yyyymm in yyyymm_list:
-        result = compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_box)
+        result = compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_name)
         if result:
             results.append(result)
 
-    return results
+    # DataFrame 및 CSV 저장
+    df = pd.DataFrame(results)
+    out_csv = get_det_score_csv_path(var, region_name)
+    df.to_csv(out_csv, index=False)
+    logger.info(f"[SAVED] {out_csv}")

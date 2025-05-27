@@ -14,6 +14,7 @@ from src.analysis.verifyCategory import run_verification_loop
 from src.utils.general_utils import generate_yyyymm_list
 from src.utils.logging_utils import init_logger
 from src.analysis.calcProbSkillScore import compute_probabilistic_scores
+
 logger = init_logger()
 
 # 🔽 argparse 추가: var/region 단일 처리
@@ -23,7 +24,6 @@ parser.add_argument("--region", required=True, choices=list(REGIONS.keys()), hel
 args = parser.parse_args()
 var = args.var
 region_name = args.region
-region_box = REGIONS[region_name]
 
 yyyymm_list = generate_yyyymm_list(year_start, year_end)
 
@@ -31,7 +31,6 @@ def main():
     model_option = input('Procced Analysis processing? [y/n] ').lower()
     if model_option == 'y':
         logger.info("=== Start Analysis Pipeline ===")
-
     
         logger.info("[INFO] Step 1: Calculate ENSO/IOD indices ...")
         if var == 'sst':
@@ -40,7 +39,6 @@ def main():
             logger.info("[SKIP]")
 
         logger.info("[INFO] Step 2: Compute deterministic skill scores ...")
-        # 🔽 region 단일 처리
         if var == 'sst':
             obs_dir = sst_anom_dir
         else:
@@ -52,7 +50,6 @@ def main():
             obs_dir=obs_dir,
             out_dir=verification_out_dir,
             region_name=region_name,
-            region=region_box
         )
 
         logger.info("[INFO] Step 3: Categorize observation tercile (t2m/prcp)...")
@@ -66,8 +63,7 @@ def main():
         run_categorize_forecast_loop(var, yyyymm_list)
 
         logger.info(f'[INFO] Step 5: Deterministic Tercile verification')
-        # 검증 수행 및 저장 (lead별 결과 포함)
-        results = run_verification_loop(
+        run_verification_loop(
             var=var,
             yyyymm_list=yyyymm_list,
             region_name=region_name,
@@ -75,19 +71,14 @@ def main():
             fcst_dir=f'{verification_out_dir}/CATE/DET'
         )
 
-        # DataFrame 및 CSV 저장
-        df = pd.DataFrame(results)
-        out_csv = os.path.join(verification_out_dir, "CATE", "DET", f"score_{var}_{region_name}.csv")
-        df.to_csv(out_csv, index=False)
-        logger.info(f"[SAVED] {out_csv}")
-
         logger.info("[INFO] Step 6: Compute probabilistic skill scores ...")  
         compute_probabilistic_scores(  
-            var=var,  
-            yyyymm_list=yyyymm_list,  
+            var, 
+            yyyymm_list,
             obs_dir=era5_out_dir,  
             prob_dir=f"{verification_out_dir}/CATE/PROB",  
-            out_dir=f"{verification_out_dir}/{region_name}"  
+            out_dir=f"{verification_out_dir}",
+            region_name = region_name,
         )
 
     logger.info("=== Done Analysis ===")
