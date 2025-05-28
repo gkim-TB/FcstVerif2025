@@ -30,7 +30,7 @@ def plot_rpss_map(var, yyyymm, region_name, fig_dir=None):
 
     rpss = ds[varname]  # dims: time(lead), lat, lon
     n_lead = rpss.sizes['time']
-    ncol = 3
+    ncol = min(3, n_lead)
     nrow = int(np.ceil(n_lead / ncol))
 
     region_box = REGIONS[region_name]
@@ -39,6 +39,8 @@ def plot_rpss_map(var, yyyymm, region_name, fig_dir=None):
     fig, axs = plt.subplots(nrow, ncol, figsize=figsize,
                             subplot_kw={'projection':proj},
                             constrained_layout=True)
+    if not isinstance(axs, np.ndarray):
+        axs = np.array([axs])
     axs = axs.flatten()
 
     bounds = np.arange(-0.2, 1.01, 0.2)
@@ -61,6 +63,10 @@ def plot_rpss_map(var, yyyymm, region_name, fig_dir=None):
         gl.top_labels=False
         gl.xlocator = plt.FixedLocator(np.arange(-180, 181, 30))
         gl.ylocator = plt.FixedLocator(np.arange(-90, 91, 30))
+
+    # disable the rest subplots
+    for j in range(n_lead, len(axs)):
+        axs[j].axis('off')
 
     # 공통 colorbar
     #cbar_ax = fig.add_axes([0.92, 0.25, 0.015, 0.5])
@@ -106,6 +112,8 @@ def plot_roc_by_lead_per_init(var, yyyymm, region_name, fig_dir=None):
     ncol = min(3, len(leads))
 
     fig, axs = plt.subplots(nrow, ncol, figsize=(ncol*5, nrow*4), constrained_layout=True)
+    if not isinstance(axs, np.ndarray):
+        axs = np.array([axs])
     axs = axs.flatten()
 
     color_map = {'BN': 'steelblue', 'NN': 'gray', 'AN': 'firebrick'}

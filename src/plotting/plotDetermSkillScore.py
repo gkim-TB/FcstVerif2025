@@ -303,16 +303,10 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir, vmi
     'cmap': 'RdBu_r'
 })
     clevels, blevels, cmap = settings['clevels'], settings['blevels'], settings['cmap']
-
-    # region 크기에 따른 figsize 자동 계산
-
-
     region_box = REGIONS[region_name]
-    
 
     for target_month in range(1, 13):
         target_date = pd.Timestamp(f"{target_year}-{target_month:02d}-01")
-        region_box = REGIONS[region_name]
 
         # 1. 관측 데이터 로드
         obs_file = os.path.join(era5_out_dir, f"{var}_anom_{target_year}.nc")
@@ -330,7 +324,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir, vmi
         nrows, ncols = 3, 6
         figsize = (ncols * 6, nrows * 3.5)
         fig = plt.figure(figsize=figsize, constrained_layout=True) #figsize=figsize,
-        gs = gridspec.GridSpec(nrows, ncols, figure=fig, hspace=0.1, wspace=0.1)
+        gs = gridspec.GridSpec(3, 6, figure=fig, hspace=0.1, wspace=0.1)
         axes = np.empty((nrows, ncols), dtype=object)
 
         # OBS 패널 (0,0)

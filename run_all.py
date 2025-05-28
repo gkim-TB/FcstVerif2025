@@ -17,7 +17,7 @@ def main():
             #run_script("src/run_preprocessing.py", var, region)
 
             print("📊 [2] Analysis...")
-            #run_script("src/run_analysis.py", var, region)
+            run_script("src/run_analysis.py", var, region)
 
             print("🖼️  [3] Plotting...")
             run_script("src/run_plotting.py", var, region)

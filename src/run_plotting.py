@@ -34,49 +34,49 @@ def main():
     fig_dir = os.path.join(output_fig_dir, region_name, var)
     os.makedirs(fig_dir, exist_ok=True)
 
-    # # 초기화 월별 리드타임 ACC plot
-    # plot_skill_initialized_month(
-    #         var=var,
-    #         region_name=region_name,
-    #         score='acc',
-    #         fig_dir=fig_dir
-    # )
+    # 초기화 월별 리드타임 ACC plot
+    plot_skill_initialized_month(
+            var=var,
+            region_name=region_name,
+            score='acc',
+            fig_dir=fig_dir
+    )
 
-    # # 초기화 월 vs 리드타임 heatmap
-    # for year in fyears:
-    #     plot_skill_heatmap_initialized_month(
-    #         var=var,
-    #         year=year,
-    #         region_name=region_name,
-    #         score='acc',
-    #         fig_dir=fig_dir
-    #     )
+    # 초기화 월 vs 리드타임 heatmap
+    for year in fyears:
+        plot_skill_heatmap_initialized_month(
+            var=var,
+            year=year,
+            region_name=region_name,
+            score='acc',
+            fig_dir=fig_dir
+        )
 
-    # # 특정 target month에 도달하기 위한fho 초기월별 리드 타임 스킬 및 패턴 비교
-    # for year in fyears:
-    #     plot_skill_target_month(
-    #         var=var,
-    #         target_year=year,
-    #         region_name=region_name,
-    #         score='acc',
-    #         fig_dir=fig_dir
-    #     )
-    #     plot_spatial_pattern_fcst_vs_obs(
-    #         var=var,
-    #         target_year=year,
-    #         region_name=region_name,
-    #         fig_dir=fig_dir
-    #     )
+    # 특정 target month에 도달하기 위한fho 초기월별 리드 타임 스킬 및 패턴 비교
+    for year in fyears:
+        plot_skill_target_month(
+            var=var,
+            target_year=year,
+            region_name=region_name,
+            score='acc',
+            fig_dir=fig_dir
+        )
+        plot_spatial_pattern_fcst_vs_obs(
+            var=var,
+            target_year=year,
+            region_name=region_name,
+            fig_dir=fig_dir
+        )
 
-    # # target month를 x축으로 한 전체 초기월 시계열
-    # plot_skill_by_initialized_line(
-    #     var=var,
-    #     year_start=year_start,
-    #     year_end=year_end,
-    #     region_name=region_name,
-    #     score='acc',
-    #     fig_dir=fig_dir
-    # )
+    # target month를 x축으로 한 전체 초기월 시계열
+    plot_skill_by_initialized_line(
+        var=var,
+        year_start=year_start,
+        year_end=year_end,
+        region_name=region_name,
+        score='acc',
+        fig_dir=fig_dir
+    )
    
     # Deterministic Multi-Category Skill Score
     # - plot type : yearly heatmap
