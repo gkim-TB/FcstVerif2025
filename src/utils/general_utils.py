@@ -39,7 +39,7 @@ def clip_to_region(da, region):
     """
     if isinstance(region, str):
         region_box = REGIONS[region]  # config.py에서 import한 REGIONS
-    lat_min, lat_max, lon_min, lon_max = region_box
+    lon_min, lon_max, lat_min, lat_max = region_box
     return da.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
 
 def convert_prcp_to_mm_per_day(da, source):

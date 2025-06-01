@@ -18,12 +18,17 @@ from src.utils.logging_utils import init_logger
 logger = init_logger()
 
 yyyymm_list = generate_yyyymm_list(year_start, year_end)
-  
-def plot_skill_initialized_month(var, region_name, score='acc' , fig_dir=None):
-    data_dir = os.path.join(verification_out_dir, region_name)
 
+def no_data_panel(ax_fcst, ax_bias):
+    for ax in [ax_fcst, ax_bias]:
+        #ax.set_axis_off()
+        ax.text(0.5, 0.5, 'No data', transform=ax.transAxes,
+                ha='center', va='center', fontsize=14, color='gray')
+          
+def plot_skill_initialized_month(var, region_name, data_dir, fig_dir, score):
+    
     for yyyymm in yyyymm_list:
-        file_path = os.path.join(data_dir, f"ensScore_{var}_{yyyymm}.nc")
+        file_path = os.path.join(data_dir, f"ensScore_det_{var}_{yyyymm}.nc")
         if not os.path.isfile(file_path):
             logger.info(f"[WARN] {file_path} 없음.")
             continue
@@ -64,21 +69,18 @@ def plot_skill_initialized_month(var, region_name, score='acc' , fig_dir=None):
         ds.close()
 
 
-def plot_skill_heatmap_initialized_month(var, year, region_name, score='acc', fig_dir=None):
-
-    data_dir = os.path.join(verification_out_dir, region_name)
-
+def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir, fig_dir, score):
     # 데이터 준비
     months = range(1, 13)
     leads = range(1, 7)
     
     heatmap_data = np.full((len(months), len(leads)), np.nan)
 
-    month_labels = [f"{year}-{m:02d}" for m in months]
+    month_labels = [f"{target_year}-{m:02d}" for m in months]
 
     for i, month in enumerate(months):
-        yyyymm = f"{year}{month:02d}"
-        file_path = os.path.join(data_dir, f"ensScore_{var}_{yyyymm}.nc")
+        yyyymm = f"{target_year}{month:02d}"
+        file_path = os.path.join(data_dir, f"ensScore_det_{var}_{yyyymm}.nc")
 
         if not os.path.isfile(file_path):
             logger.info(f"[WARN] {file_path} 없음.")
@@ -126,22 +128,21 @@ def plot_skill_heatmap_initialized_month(var, year, region_name, score='acc', fi
 
     ax.set_xlabel('Lead Time (month)')
     ax.set_ylabel('Initialized Month')
-    ax.set_title(f'{score.upper()} Heatmap\n(Region: {region_name}, Var: {var}, Year: {year})')
+    ax.set_title(f'{score.upper()} Heatmap\n(Region: {region_name}, Var: {var}, Year: {target_year})')
 
     # colorbar 설정
     cbar = plt.colorbar(im, ticks=bounds, spacing='proportional')
     cbar.set_label(score.upper())
 
     plt.tight_layout()
-    save_fname = os.path.join(fig_dir, f"{score}_heatmap_init_{var}_{region_name}_{year}.png")
+    save_fname = os.path.join(fig_dir, f"{score}_heatmap_init_{var}_{region_name}_{target_year}.png")
     #plt.show()
     plt.savefig(save_fname, dpi=300, bbox_inches='tight', facecolor='w')
     plt.close()
     logger.info(f"[INFO] Saved Heatmap: {save_fname}")
 
 
-def plot_skill_target_month(var, target_year, region_name, score='acc', fig_dir=None):
-    data_dir = os.path.join(verification_out_dir, region_name)
+def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_dir=None):
     target_months = range(1, 13)
 
     for target_month in target_months:
@@ -155,7 +156,7 @@ def plot_skill_target_month(var, target_year, region_name, score='acc', fig_dir=
         for lead in range(1, 7):
             init_date = target_date - pd.DateOffset(months=lead)
             init_yyyymm = init_date.strftime('%Y%m')
-            file_path = os.path.join(data_dir, f"ensScore_{var}_{init_yyyymm}.nc")
+            file_path = os.path.join(data_dir, f"ensScore_det_{var}_{init_yyyymm}.nc")
 
             if not os.path.isfile(file_path):
                 logger.info(f"[WARN] No file: {file_path}")
@@ -201,6 +202,7 @@ def plot_skill_target_month(var, target_year, region_name, score='acc', fig_dir=
 
             plt.xlabel('Lead Time (month)')
             plt.ylabel(score.upper())
+            plt.ylim([-1,1]) # if score ACC
             plt.title(f'{score.upper()} by Lead Time\n(Target Month: {target_date.strftime("%Y-%m")}, Region: {region_name}, Var: {var})')
             plt.xticks([1, 2, 3, 4, 5, 6])
             plt.grid(True, linestyle='--', color='lightgrey')
@@ -215,11 +217,10 @@ def plot_skill_target_month(var, target_year, region_name, score='acc', fig_dir=
             logger.info(f"[WARN] No data to plot for target month {target_date.strftime('%Y-%m')}")
 
 
-def plot_skill_by_initialized_line(var, year_start, year_end, region_name, score='acc', fig_dir=None):
+def plot_skill_by_initialized_line(var, year_start, year_end, region_name, score, data_dir, fig_dir):
     """
     initialized month에 따라 12가지 색 시계열을 전체 검증기간에 대해 그림
     """
-    data_dir = os.path.join(verification_out_dir, region_name)
     leads = range(1, 7)
     yyyymm_list = generate_yyyymm_list(year_start, year_end)
     #yyyymm =init_months = pd.date_range(start=f"{year_start}-01", end=f"{year_end}-12", freq='MS')
@@ -235,7 +236,7 @@ def plot_skill_by_initialized_line(var, year_start, year_end, region_name, score
     #for init_date in init_months:
     for yyyymm in yyyymm_list:
         #yyyymm = init_date.strftime('%Y%m')
-        file_path = os.path.join(data_dir, f"ensScore_{var}_{yyyymm}.nc")
+        file_path = os.path.join(data_dir, f"ensScore_det_{var}_{yyyymm}.nc")
         if not os.path.isfile(file_path):
             continue
 
@@ -285,11 +286,12 @@ def plot_skill_by_initialized_line(var, year_start, year_end, region_name, score
     plt.savefig(save_fname, dpi=300, bbox_inches='tight')
     plt.close()
     logger.info(f"[INFO] Saved: {save_fname}")
-   
-def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir, vmin=-3, vmax=3):
+
+def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
     """
     target month 기준, OBS vs FCST (lead 1~6), BIAS(FCST-OBS) 패턴을 3x6 패널로 그림
     """
+
 
     plot_settings = {
     't2m':   {'clevels': np.arange(-5,5.1,0.5), 'blevels': np.arange(-5, 5.1, 0.5), 'cmap': 'RdBu_r'},
@@ -304,9 +306,30 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir, vmi
 })
     clevels, blevels, cmap = settings['clevels'], settings['blevels'], settings['cmap']
     region_box = REGIONS[region_name]
-
+    #print(region_box)
+    
     for target_month in range(1, 13):
         target_date = pd.Timestamp(f"{target_year}-{target_month:02d}-01")
+
+        # 0. plot attributions
+        if region_name == "GL":
+            figsize = (36, 10.5)
+            centerLon = 150 # Pacific center
+            fs=14 # fontsize
+        elif region_name == "EA":
+            figsize = (14, 6)
+            centerLon = 0
+            fs =10
+        else:
+            figsize = (16, 9)
+            centerLon = 0
+
+        proj = ccrs.PlateCarree(central_longitude=centerLon)
+        nrows, ncols = 3, 6
+        fig, axs = plt.subplots(nrows, ncols, figsize=figsize,
+                                constrained_layout=True,
+                                subplot_kw={'projection': proj})
+        #print(convert_lon_360_to_180(region_box))
 
         # 1. 관측 데이터 로드
         obs_file = os.path.join(era5_out_dir, f"{var}_anom_{target_year}.nc")
@@ -320,32 +343,25 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir, vmi
         except KeyError:
             print(f"[WARN] No OBS for {target_date}")
             continue
+        # print(ds_obs.lon) 0...360
 
-        nrows, ncols = 3, 6
-        figsize = (ncols * 6, nrows * 3.5)
-        fig = plt.figure(figsize=figsize, constrained_layout=True) #figsize=figsize,
-        gs = gridspec.GridSpec(3, 6, figure=fig, hspace=0.1, wspace=0.1)
-        axes = np.empty((nrows, ncols), dtype=object)
-
-        # OBS 패널 (0,0)
-        ax_obs = fig.add_subplot(gs[0, 0], projection=ccrs.PlateCarree())
-        im_obs = obs.plot(ax=ax_obs, cmap=cmap, levels=clevels, add_colorbar=False, extend='both')
-        ax_obs.set_title("OBS", loc='left', fontsize=10)
-        ax_obs.set_title(target_date.strftime("%Y-%m"), loc='right', fontsize=10)
+        # OBS 패널 (0,-1)
+        ax_obs = axs[0,-1]
+        im_obs = obs.plot(ax=ax_obs, cmap=cmap, levels=clevels, add_colorbar=False, extend='both', transform=ccrs.PlateCarree())
+        ax_obs.set_title("OBS", loc='left', fontsize=fs)
+        ax_obs.set_title(target_date.strftime("%Y-%m"), loc='right', fontsize=fs)
         ax_obs.set_title('',loc='center')
-        #ax_obs.set_extent(region_box, crs=ccrs.PlateCarree())
         ax_obs.coastlines()
-        gl = ax_obs.gridlines(draw_labels=True)
+        gl = ax_obs.gridlines(draw_labels=True, linestyle=':')
         gl.right_labels = False
         gl.top_labels = False
-        axes[0, 0] = ax_obs
+        if region_name != 'GL':
+            ax_obs.set_extent(region_box, crs=proj)
 
         # 첫 번째 행의 나머지 5개 패널 숨김
-        for i in range(1, 6):
-            ax = fig.add_subplot(gs[0, i])
-            ax.axis('off')
-            axes[0, i] = ax
-
+        for i in range(0, 5):
+            axs[0,i].axis('off')
+  
         # 2. 각 lead별 예측
         im_fcst, im_bias = None, None
 
@@ -356,54 +372,56 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir, vmi
 
             if not os.path.isfile(fcst_file):
                 logger.warning(f"[SKIP] {fcst_file} 없음.")
+                no_data_panel(axs[1, lead-1], axs[2, lead-1])
                 continue
 
             ds_fcst = xr.open_dataset(fcst_file)
-            if target_date not in ds_fcst['time'].values:
-                print(f"[SKIP] No forecast for {target_date} in {fcst_file}")
+            try:
+                time_vals = ds_fcst['time'].values
+                lead_idx = list(time_vals).index(np.datetime64(target_date))
+            except ValueError:
+                logger.warning(f"[SKIP] No forecast for {target_date} in {fcst_file}")
+                no_data_panel(axs[1, lead-1], axs[2, lead-1])
                 continue
 
-            lead_idx = np.where(ds_fcst['time'].values == np.datetime64(target_date))[0]
-            if len(lead_idx) == 0:
-                print(f"[SKIP] No matching time in forecast: {target_date}")
-                continue
-
-            fcst = ds_fcst[var].isel(lead=lead_idx[0]).mean("ens").squeeze()
+            fcst = ds_fcst[var].isel(lead=lead_idx).mean("ens").squeeze()
             bias = fcst - obs
 
             # FCST 패널
-            ax_fcst = fig.add_subplot(gs[1, lead - 1], projection=ccrs.PlateCarree())
-            im_fcst = fcst.plot(ax=ax_fcst, cmap=cmap, levels=clevels, add_colorbar=False, extend='both')
-            ax_fcst.set_title(f"Lead -{lead}", loc='left', fontsize=10)
-            ax_fcst.set_title(f"init: {init_yyyymm}", loc='right', fontsize=10)
+            ax_fcst = axs[1, 6-lead]
+            im_fcst = fcst.plot(ax=ax_fcst, cmap=cmap, levels=clevels, add_colorbar=False, extend='both', transform=ccrs.PlateCarree())
+            ax_fcst.set_title(f"Lead -{lead}", loc='left', fontsize=fs)
+            ax_fcst.set_title(f"init: {init_yyyymm}", loc='right', fontsize=fs)
             ax_fcst.set_title('')
-            #ax_fcst.set_extent(region_box, crs=ccrs.PlateCarree())
+            if region_name != 'GL':
+                ax_fcst.set_extent(region_box, crs=proj)
             ax_fcst.coastlines()
-            gl = ax_fcst.gridlines(draw_labels=True)
+            gl = ax_fcst.gridlines(draw_labels=True, linestyle=':')
             gl.right_labels = False
             gl.top_labels = False
-            axes[1, lead - 1] = ax_fcst
 
             # BIAS 패널
-            ax_bias = fig.add_subplot(gs[2, lead - 1], projection=ccrs.PlateCarree())
-            im_bias = bias.plot(ax=ax_bias, cmap='bwr', levels=blevels, add_colorbar=False, extend='both')
+            ax_bias = axs[2, 6-lead]
+            im_bias = bias.plot(ax=ax_bias, cmap='bwr', levels=blevels, add_colorbar=False, extend='both', transform=ccrs.PlateCarree())
             ax_bias.set_title('', loc='center')
-            ax_bias.set_title(f"Bias L-{lead}", loc='left', fontsize=10)
-            #ax_bias.set_extent(region_box, crs=ccrs.PlateCarree())
+            ax_bias.set_title(f"Bias L-{lead}", loc='left', fontsize=fs)
+            if region_name != 'GL':
+                ax_bias.set_extent(region_box, crs=proj)
             ax_bias.coastlines()
-            gl = ax_bias.gridlines(draw_labels=True)
+            gl = ax_bias.gridlines(draw_labels=True, linestyle=':')
             gl.right_labels = False
             gl.top_labels = False
-            axes[2, lead - 1] = ax_bias
-
+            
         # Colorbar
         # OBS
-        plt.colorbar(im_obs, ax=axes[0,-1], label=f'{var} Anomaly', shrink=.7)
-        if axes[1,:].any():
-            plt.colorbar(im_fcst, ax=axes[1,-1], label=f'{var} Anomaly', shrink=.7)
-        if axes[2,:].any():
-            plt.colorbar(im_bias, ax=axes[2,-1], label=f'{var} Bias', shrink=.7)
+        plt.colorbar(im_obs, ax=axs[0,-1], label=f'{var} Anomaly', shrink=.7)
+        if im_fcst is not None:
+            plt.colorbar(im_fcst, ax=axs[1,-1], label=f'{var} Anomaly', shrink=.7)
+        if im_bias is not None:
+            plt.colorbar(im_bias, ax=axs[2,-1], label=f'{var} Bias', shrink=.7)
 
+        plt.suptitle(f"OBS vs FCST by LeadTime \n (Target Month: {target_date.strftime('%Y%m')}, Region: {region_name}, Var: {var})", fontsize=16)
+    
         save_fname = os.path.join(fig_dir, f"{var}_pattern_compare_{region_name}_{target_date.strftime('%Y%m')}.png")
         plt.savefig(save_fname, dpi=300, bbox_inches='tight')
         plt.close()

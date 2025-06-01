@@ -21,8 +21,8 @@ def flatten_nested_csv(nested_df):
             records.append(col)
     return pd.DataFrame(records)
 
-def plot_det_cate_heatmap(var, years, region, score1='acc', score2='hss'):
-    df_nested = pd.read_csv(get_det_score_csv_path(var, region)) # Deterministic Tercile Scores (HR, HSS)
+def plot_det_cate_heatmap(var, years, region_name, data_dir, fig_dir, score1='acc', score2='hss'):
+    df_nested = pd.read_csv(f"{data_dir}/Det_tercile_score_{var}_{region_name}.csv") # Deterministic Tercile Scores (HR, HSS)
     df_flat = flatten_nested_csv(df_nested)
     df_flat['yyyymm'] = df_flat['yyyymm'].astype(str)
     df_flat['year'] = df_flat['yyyymm'].str[:4]
@@ -77,8 +77,10 @@ def plot_det_cate_heatmap(var, years, region, score1='acc', score2='hss'):
                     ))
 
                 if not np.isnan(val1) and not np.isnan(val2):
-                    ax.text(x + 0.3, y + 0.25, f'{val1:.2f}', ha='center', va='center', fontsize=7, color='black') # ACC
-                    ax.text(x + 0.7, y + 0.75, f'{val2:.2f}', ha='center', va='center', fontsize=7, color='black') # HSS
+                    color1 = 'white' if val1 >= 0.6 else 'black'
+                    color2 = 'white' if abs(val2) >= 0.6 else 'black'
+                    ax.text(x + 0.3, y + 0.25, f'{val1:.2f}', ha='center', va='center', fontsize=7, color=color1) # ACC
+                    ax.text(x + 0.7, y + 0.75, f'{val2:.2f}', ha='center', va='center', fontsize=7, color=color2) # HSS
 
         ax.set_xticks(np.arange(len(x_labels)) + 0.5)
         ax.set_xticklabels([f'Lead {l}' for l in x_labels])
@@ -89,23 +91,22 @@ def plot_det_cate_heatmap(var, years, region, score1='acc', score2='hss'):
         ax.invert_yaxis()
         ax.set_xlabel("Lead Time")
         ax.set_ylabel("Initialized Month")
-        ax.set_title(f"{score1.upper()} / {score2.upper()} Heatmap - {year}")
+        ax.set_title(f"HR/HSS Heatmap \n(Region:{region_name}, Var={var}, Year: {year})")
 
         fig.subplots_adjust(right=0.88)
         cax1 = fig.add_axes([0.90, 0.55, 0.015, 0.3])
         sm1 = plt.cm.ScalarMappable(cmap=cmap1, norm=norm1)
         sm1.set_array([])
         cbar1 = plt.colorbar(sm1, cax=cax1, ticks=bounds1)
-        cbar1.set_label(score1.upper())
+        cbar1.set_label('HitRate')
 
         cax2 = fig.add_axes([0.90, 0.15, 0.015, 0.3])
         sm2 = plt.cm.ScalarMappable(cmap=cmap2, norm=norm2)
         sm2.set_array([])
         cbar2 = plt.colorbar(sm2, cax=cax2, ticks=bounds2)
-        cbar2.set_label(score2.upper())
-
+        cbar2.set_label('HSS')
         #plt.tight_layout(rect=[0,0,0.88,1])
-        save_fname = os.path.join(output_fig_dir, region, var, f"det_ter_score_{var}_{region}_{year}.png")
+        save_fname = os.path.join(fig_dir, f"det_ter_score_{var}_{region_name}_{year}.png")
         fig.savefig(save_fname, dpi=300, bbox_inches='tight')
 
 

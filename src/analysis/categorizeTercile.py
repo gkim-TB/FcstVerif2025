@@ -266,22 +266,22 @@ def categorize_fcst_tercile_prob(var, yyyymm, fcst_dir, stat_dir, out_dir):
     logger.info(f"[CATE PROB] Saved: {out_file}")
     return out_file
 
-def run_categorize_forecast_loop(var, yyyymm_list):
-    # 예측 삼분위 분류
-    for yyyymm in yyyymm_list:
-        if var == 't2m' or var =='prcp':
-            categorize_fcst_tercile_det(
-                var=var,
-                yyyymm=yyyymm,
-                fcst_dir=f'{model_out_dir}',
-                stat_dir=f'{model_out_dir}/hindcast',
-                out_dir=f'{verification_out_dir}/CATE/DET',
-            )
+# def run_categorize_forecast_loop(var, yyyymm_list):
+#     # 예측 삼분위 분류
+#     for yyyymm in yyyymm_list:
+#         if var == 't2m' or var =='prcp':
+#             categorize_fcst_tercile_det(
+#                 var=var,
+#                 yyyymm=yyyymm,
+#                 fcst_dir=f'{model_out_dir}',
+#                 stat_dir=f'{model_out_dir}/hindcast',
+#                 out_dir=f'{verification_out_dir}/CATE/DET',
+#             )
         
-        categorize_fcst_tercile_prob(
-            var=var,
-            yyyymm=yyyymm,
-            fcst_dir=f'{model_out_dir}/forecast',
-            stat_dir=f'{model_out_dir}/hindcast',
-            out_dir=f'{verification_out_dir}/CATE/PROB',
-        )
+#         categorize_fcst_tercile_prob(
+#             var=var,
+#             yyyymm=yyyymm,
+#             fcst_dir=f'{model_out_dir}/forecast',
+#             stat_dir=f'{model_out_dir}/hindcast',
+#             out_dir=f'{verification_out_dir}/CATE/PROB',
+#         )

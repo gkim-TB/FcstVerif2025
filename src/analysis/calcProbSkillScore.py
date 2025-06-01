@@ -124,7 +124,8 @@ def compute_roc_auc_all_categories(fcst_prob, obs_ohe, init_time, region_name):
 
 def compute_probabilistic_scores(var, yyyymm_list, obs_dir, prob_dir, out_dir, region_name):
     os.makedirs(out_dir, exist_ok=True)
-    os.makedirs(os.path.join(out_dir, region_name), exist_ok=True)
+    # region_out_dir = os.path.join(out_dir, region_name, var)
+    # os.makedirs(region_out_dir, exist_ok=True)
 
     try:
         obs_ohe_all = load_obs_data(
@@ -163,19 +164,23 @@ def compute_probabilistic_scores(var, yyyymm_list, obs_dir, prob_dir, out_dir, r
         obs_ohe = obs_ohe_all.sel(time=common_times).reset_coords(drop=True)
 
         # 1 RPSS
-        rpss = compute_rpss_manual(obs_ohe, fcst_prob)
-        rpss = rpss.expand_dims(dim={"init": 1})
-        rpss = rpss.assign_coords(init=("init", [init_time]))
-        ds_out = xr.Dataset({
-            f"{var}_rpss": rpss,
-        })
-        out_path_rpss = os.path.join(out_dir, region_name, f"rpss_{var}_{yyyymm}.nc")
-        ds_out.to_netcdf(out_path_rpss)
-        logger.info(f"[RPSS] save RPSS map {yyyymm} : {out_path_rpss}")
-        del ds_out
+        # calculated only once for Global
+        if region_name == 'GL':
+            rpss = compute_rpss_manual(obs_ohe, fcst_prob)
+            rpss = rpss.expand_dims(dim={"init": 1})
+            rpss = rpss.assign_coords(init=("init", [init_time]))
+            ds_out = xr.Dataset({
+                f"{var}_rpss": rpss,
+            })
+            out_path_rpss = os.path.join(out_dir, f"rpss_GL_{var}_{yyyymm}.nc")
+            ds_out.to_netcdf(out_path_rpss)
+            logger.info(f"[RPSS] save RPSS map {yyyymm} : {out_path_rpss}")
+            del ds_out
+        else:
+            logger.info(f"[RPSS] Skipped RPSS computation for region={region_name}")
         
         # 2 ROC + AUC
-        auc_da, all_roc_records =compute_roc_auc_all_categories(
+        auc_da, all_roc_records = compute_roc_auc_all_categories(  
             fcst_prob=fcst_prob,
             obs_ohe=obs_ohe,
             init_time=init_time,
@@ -183,14 +188,14 @@ def compute_probabilistic_scores(var, yyyymm_list, obs_dir, prob_dir, out_dir, r
         )
 
         ds_auc = xr.Dataset({f"{var}_auc": auc_da})
-        out_auc_path = os.path.join(out_dir, region_name, f"auc_{var}_{region_name}_{yyyymm}.nc")
+        out_auc_path = os.path.join(out_dir, f"auc_{var}_{region_name}_{yyyymm}.nc")
         ds_auc.to_netcdf(out_auc_path)
         print(f"[SAVED] AUC to {out_auc_path}")
 
         # ROC 저장 (CSV)
         df_roc = pd.DataFrame(all_roc_records)
-        out_csv_path = os.path.join(out_dir, region_name, f"roc_{var}_{region_name}_{yyyymm}.csv")
+        out_csv_path = os.path.join(out_dir, f"roc_{var}_{region_name}_{yyyymm}.csv")
         df_roc.to_csv(out_csv_path, index=False)
         print(f"[SAVED] ROC to {out_csv_path}")
 
-        logger.info(f"[DEBUG] AUC and ROC files saved for {yyyymm}")
+        logger.info(f"[INFO] AUC and ROC files saved for {yyyymm}")

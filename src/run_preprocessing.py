@@ -2,19 +2,16 @@
 import argparse
 from config import *
 from src.data_prep import (
-    settingUpGloSea, settingUpOISST, settingUpERA5, computeGloSeaAnomaly,
+    settingUpGloSea, settingUpOISST, settingUpERA5,
 )
 from src.utils.logging_utils import init_logger
 logger = init_logger()
 
-# 🔽 argparse 추가
-parser = argparse.ArgumentParser(description="Preprocessing for single var/region")
+# 🔽 argparse 
+parser = argparse.ArgumentParser(description="Preprocessing for single var")
 parser.add_argument("--var", required=True, help="Variable to process", choices=variables)
-parser.add_argument("--region", required=True, help="Region name", choices=list(REGIONS.keys()))
-# (region은 preprocessing에서 사용되지 않지만 interface 통일을 위해 받음)
 args = parser.parse_args()
 var = args.var
-region = args.region
 
 def main():
     model_option = input('Proceed model processing? [y/n] ').lower()
@@ -51,7 +48,7 @@ def main():
 
         # (3) Anomaly
         logger.info(f"[INFO] Processing anomaly for variable: {var}")
-        computeGloSeaAnomaly.compute_anomaly(
+        settingUpGloSea.compute_anomaly(
             var=var,
             year_start=year_start,
             year_end=year_end,

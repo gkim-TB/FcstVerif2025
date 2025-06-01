@@ -46,26 +46,7 @@ def calc_rmse_vec(fcst, obs, region):
         RMSE over region (dims other than lat/lon preserved).
     """
     fcst_clip, obs_clip = _clip_inputs(fcst, obs, region)
-    return np.sqrt(((fcst_clip - obs_clip)**2)).mean(("lat","lon"))
-
-def calc_bias_vec(fcst, obs, region):
-    """
-    Calculate Bias (Mean Error) between forecast and observation 
-    over a specified region.
-
-    Parameters
-    ----------
-    fcst : xarray.DataArray
-    obs : xarray.DataArray
-    region : str or tuple
-
-    Returns
-    -------
-    xarray.DataArray
-        Mean forecast bias over region.
-    """
-    fcst_clip, obs_clip = _clip_inputs(fcst, obs, region)
-    return (fcst_clip - obs_clip).mean(("lat","lon"))
+    return np.sqrt(((fcst_clip - obs_clip)**2).mean(("lat","lon")))
 
 def calc_acc_vec(fcst, obs, region):
     """
@@ -111,10 +92,14 @@ def compute_deterministic_scores(var, yyyymm_list, fcst_dir, obs_dir, out_dir, r
     region_name : str
         Name of spatial region to evaluate (must match REGIONS)
     """
-    region_box = REGIONS[region_name]
-    region_out_dir = os.path.join(out_dir, region_name)
-    os.makedirs(region_out_dir, exist_ok=True)
 
+    # directory to save results
+    # -> /OUT/{region_name}/{var}/ensScore_det_{var}_{yyyymm}.nc
+    os.makedirs(out_dir, exist_ok=True)
+    # region_out_dir = os.path.join(out_dir, region_name, var)
+    # os.makedirs(region_out_dir, exist_ok=True)
+    
+    # load observation data
     try:
         obs_data = load_obs_data(
             var, fyears, obs_dir, 
@@ -125,7 +110,9 @@ def compute_deterministic_scores(var, yyyymm_list, fcst_dir, obs_dir, out_dir, r
         logger.warning(str(e))
         return
 
+    # main loop for verification
     for yyyymm in yyyymm_list:
+            # load forecast ensemble data
             fcst_file = os.path.join(fcst_dir, f"ensMem_{var}_anom_{yyyymm}.nc")
             if not os.path.isfile(fcst_file):
                 logger.warning(f"[SKIP] {fcst_file} not found.")
@@ -155,41 +142,35 @@ def compute_deterministic_scores(var, yyyymm_list, fcst_dir, obs_dir, out_dir, r
                 continue
                 
             # Calculate skill score
-            logger.info("Calculating skill scores: ACC, RMSE, Bias ...")
+            #logger.info("Calculating skill scores: ACC, RMSE, ...")
             acc  = calc_acc_vec(fcst_da, obs_sub, region_name)       # (ens, time)
             rmse = calc_rmse_vec(fcst_da, obs_sub, region_name)     # (ens, time)
-            bias = calc_bias_vec(fcst_da, obs_sub, region_name)     # (ens, time)
-            #print(acc)
 
-            # ensemble mean
+            # calculate skill score for ensemble mean
             acc_mean = calc_acc_vec(fcst_da.mean("ens"), obs_sub, region_name)
             rmse_mean = calc_rmse_vec(fcst_da.mean("ens"), obs_sub, region_name)
-            bias_mean = calc_bias_vec(fcst_da.mean("ens"), obs_sub, region_name)
-
-            # Results Dataset
+            
+            
+            # Results Dataset -> save scores
             ds_out = xr.Dataset({
                 "acc": acc,
                 "rmse": rmse,
-                "bias": bias,
                 "acc_mean": acc_mean,
                 "rmse_mean": rmse_mean,
-                "bias_mean": bias_mean
             }, coords={"time": ("time", fcst_time.values),
                        "lead": ("lead", ds_fcst['lead'].values),
                        "ens": acc.ens
                        }
             )
 
+            # remove unnecessary variables
             if "month" in ds_out:
                 ds_out = ds_out.drop_vars("month")
 
             #lead_vals = fcst_da['lead'].values
             #ds_out = ds_out.assign_coords(lead=('lead', lead_vals))
 
-            out_file = os.path.join(region_out_dir, f"ensScore_det_{var}_{yyyymm}.nc")
-            ds_out.to_netcdf(out_file)
-            logger.info(f"[SAVE] Ensemble skill score saved to => {out_file}")
-
-            ds_fcst.close()
-
-    #ds_obs.close()
+            # save output file
+            scoure_out_file = os.path.join(out_dir, f"ensScore_det_{var}_{yyyymm}.nc")
+            ds_out.to_netcdf(scoure_out_file)
+            logger.info(f"[SAVE] Ensemble skill score (ACC, RMSE) saved to => {scoure_out_file}")

@@ -88,14 +88,17 @@ def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_name):
                 'yyyymm': yyyymm,
                 'lead': int(lead),
                 'target': target_str,
-                'acc': acc,
+                'hr': hr,
                 'hss': hss,
             })
     #print(results)
     #logger.info(f"[VERIFY] {yyyymm} ACC={np.nanmean([result['acc'] for result in results]):.3f}, HSS={np.nanmean([result['hss'] for result in results]):.3f}")
     return results
 
-def run_verification_loop(var, yyyymm_list, region_name, obs_dir, fcst_dir):
+def run_cate_verification_loop(
+        var, yyyymm_list, 
+        region_name, 
+        obs_dir, fcst_dir, out_dir):
     results = []
     for yyyymm in yyyymm_list:
         result = compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_name)
@@ -104,6 +107,8 @@ def run_verification_loop(var, yyyymm_list, region_name, obs_dir, fcst_dir):
 
     # DataFrame 및 CSV 저장
     df = pd.DataFrame(results)
-    out_csv = get_det_score_csv_path(var, region_name)
+    out_csv = os.path.join(
+        out_dir, f"Det_tercile_score_{var}_{region_name}.csv"
+    )
     df.to_csv(out_csv, index=False)
     logger.info(f"[SAVED] {out_csv}")

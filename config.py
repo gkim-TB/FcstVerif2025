@@ -18,13 +18,26 @@ variables = ['t2m']
 
 # --- 검증 영역 정의 ---
 REGIONS = {
-    "GL": (-90, 90, 0, 360),
-    #"EA": (20, 50, 120, 150)
+    "GL": [0, 360, -90, 90], # default option
+    # add addtional regions below
+    # [lonL, lonR, latS, latN]
+    "EA": [100, 160, 10, 55]
 }
 
 # --- 모델 ---
 model = 'GS6'
 
+# --- plot list ---
+enabled_plots = [
+#    "init_line",
+#    "init_heatmap",
+#    "target_month",
+#    "target_pattern",
+#    "target_line",
+    "cate_heatmap", #
+#    "rpss_map",
+#    "roc_curve"
+]
 #================================================
 
 
@@ -45,14 +58,8 @@ era5_out_dir =f'{base_dir}/ERA5_OUT/{model}_grid'
 sst_dir = f'{base_dir}/OISST'
 sst_anom_dir = f'{sst_dir}/{model}_grid/anom'
 
-verification_out_dir = f'{work_dir}/out/{model}'
+verification_out_dir = f'{work_dir}/OUT/{model}'
 output_fig_dir = f'{work_dir}/fig/{model}'
-
-def get_det_score_csv_path(var: str, region_name: str) -> str:
-    return os.path.join(
-        verification_out_dir, region_name, f"Det_tercile_score_{var}_{region_name}.csv"
-    )
-
 
 # --- GRIB/NetCDF 변수명 매핑 ---
 GSvar2rename = {

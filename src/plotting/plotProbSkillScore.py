@@ -13,11 +13,11 @@ from src.utils.general_utils import generate_yyyymm_list
 logger = init_logger()
 yyyymm_list = generate_yyyymm_list(year_start, year_end)
 
-def plot_rpss_map(var, yyyymm, region_name, fig_dir=None):
+def plot_rpss_map(var, yyyymm, region_name, fig_dir):
     """
     RPSS 지도 시각화 함수 - 각 리드타임별 RPSS 결과를 지도 형태로 subplot에 표현
     """
-    rpss_file = os.path.join(verification_out_dir, region_name, f"rpss_{var}_{yyyymm}.nc")
+    rpss_file = os.path.join(verification_out_dir, 'SCORE', 'GL', var, f"rpss_GL_{var}_{yyyymm}.nc")
     if not os.path.isfile(rpss_file):
         logger.warning(f"[RPSS] 파일 없음: {rpss_file}")
         return
@@ -33,9 +33,20 @@ def plot_rpss_map(var, yyyymm, region_name, fig_dir=None):
     ncol = min(3, n_lead)
     nrow = int(np.ceil(n_lead / ncol))
 
+    if region_name == "GL":
+        figsize = (ncol * 6, nrow * 3.5)
+        centerLon = 150 # Pacific center
+        fs=14 # fontsize
+    elif region_name == "EA":
+        figsize = (ncol * 4, nrow * 3)
+        centerLon = 0
+        fs =10
+    else:
+        figsize = (16, 9)
+        centerLon = 0
+
     region_box = REGIONS[region_name]
-    figsize = (ncol * 6, nrow * 3.5)
-    proj = ccrs.PlateCarree()
+    proj = ccrs.PlateCarree(central_longitude=centerLon)
     fig, axs = plt.subplots(nrow, ncol, figsize=figsize,
                             subplot_kw={'projection':proj},
                             constrained_layout=True)
@@ -61,8 +72,8 @@ def plot_rpss_map(var, yyyymm, region_name, fig_dir=None):
         gl = ax.gridlines(draw_labels=True, linestyle=':')
         gl.right_labels=False
         gl.top_labels=False
-        gl.xlocator = plt.FixedLocator(np.arange(-180, 181, 30))
-        gl.ylocator = plt.FixedLocator(np.arange(-90, 91, 30))
+        #gl.xlocator = plt.FixedLocator(np.arange(-180, 181, 30))
+        #gl.ylocator = plt.FixedLocator(np.arange(-90, 91, 30))
 
     # disable the rest subplots
     for j in range(n_lead, len(axs)):
@@ -87,7 +98,7 @@ def plot_rpss_map(var, yyyymm, region_name, fig_dir=None):
     plt.close()
     logger.info(f"[SAVE] RPSS 지도 저장: {save_path}")
 
-def plot_roc_by_lead_per_init(var, yyyymm, region_name, fig_dir=None):
+def plot_roc_by_lead_per_init(var, yyyymm, region_name, data_dir, fig_dir):
     """
     ROC 그래프를 초기화 월 기준으로 리드타임별 subplot에 그림 (각 subplot: AN/NN/BN)
     AUC 값은 subplot 우측 상단에 텍스트로 표시
@@ -96,8 +107,8 @@ def plot_roc_by_lead_per_init(var, yyyymm, region_name, fig_dir=None):
     import matplotlib.pyplot as plt
     import seaborn as sns
 
-    roc_csv = os.path.join(verification_out_dir, region_name, f"roc_{var}_{region_name}_{yyyymm}.csv")
-    auc_file = os.path.join(verification_out_dir, region_name, f"auc_{var}_{region_name}_{yyyymm}.nc")
+    roc_csv = os.path.join(data_dir, f"roc_{var}_{region_name}_{yyyymm}.csv")
+    auc_file = os.path.join(data_dir, f"auc_{var}_{region_name}_{yyyymm}.nc")
 
     if not os.path.isfile(roc_csv) or not os.path.isfile(auc_file):
         logger.warning(f"[ROC] Missing files for {yyyymm}")
