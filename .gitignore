@@ -6,17 +6,29 @@
 __pycache__/
 *.py[cod]
 *.so
+*.egg-info/
 
 # 로그파일 및 디버깅 출력
 *.log
 LOG/
 
 # 시각화 출력 및 결과
-FIG/
-OUT/
+fcstverif/FIG/
+fcstverif/OUT/
+ERA5_monthly_GS6grid/
+ERA5_OUT/
+GS6_KMApost_raw/
+GS6_KMApost_monthly/
+OISST/
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
 
 # VSCode 관련 설정파일 (선택)
 .vscode/
+
+# Streamlit cache
+.streamlit/
+
+# dotenv
+.env

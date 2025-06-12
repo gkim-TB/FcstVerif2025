@@ -1,5 +1,0 @@
-xarray
-numpy
-pandas
-matplotlib
-pygrib

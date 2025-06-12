@@ -1,0 +1,8 @@
+streamlit
+xarray
+numpy
+matplotlib
+scikit-learn
+xskillscore
+pandas
+
