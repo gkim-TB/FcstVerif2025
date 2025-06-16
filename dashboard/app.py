@@ -1,5 +1,6 @@
 import streamlit as st
-import os
+import os, sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from PIL import Image
 from datetime import datetime
 
