@@ -13,7 +13,7 @@ __pycache__/
 LOG/
 
 # 시각화 출력 및 결과
-fcstverif/FIG/
+#fcstverif/FIG/
 fcstverif/OUT/
 ERA5_monthly_GS6grid/
 ERA5_OUT/
