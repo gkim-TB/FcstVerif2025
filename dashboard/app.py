@@ -3,6 +3,11 @@ import os, sys
 from datetime import datetime
 from fcstverif.config import year_start, year_end, REGIONS, model
 
+# ✅ project root
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+    
 # ✅ GitHub base raw URL
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/gkim-TB/FcstVerif2025/main"
 
