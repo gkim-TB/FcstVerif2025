@@ -4,7 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from PIL import Image
 from datetime import datetime
 
-from fcstverif.config import year_start, year_end, REGIONS, output_fig_dir, model
+from fcstverif.config import year_start, year_end, REGIONS, model
 
 st.set_page_config(layout="wide")
 st.title("Seasonal Forecast Verification Dashboard")
@@ -26,7 +26,7 @@ def get_image_paths(plot_type, var, region, yyyymm=None, year=None, year_only=No
     fig_paths = []
     for tmpl in fname_templates:
         fname = tmpl.format(var=var, region=region, yyyymm=yyyymm, year=year, year_only=year_only)
-        fig_path = os.path.join(output_fig_dir, region, var, fname)
+        fig_path = os.path.join("..","FIG", region, var, fname)
         fig_paths.append((os.path.basename(fname), fig_path))
     return fig_paths
 
@@ -68,7 +68,7 @@ st.markdown("## Key Metrics Overview")
 # First row: fixed targetSeries_byInit
 st.markdown("<h4 style='font-size:20px;'>ACC Target Series by Init</h4>", unsafe_allow_html=True)
 fname = f"acc_targetSeries_byInit_{var}_{region}_{year_start}_{year_end}.png"
-fig_path = os.path.join(output_fig_dir, region, var, fname)
+fig_path = os.path.join("..","FIG", region, var, fname)
 if os.path.isfile(fig_path):
     st.image(Image.open(fig_path), caption=fname, use_container_width=True)
 else:
@@ -79,7 +79,7 @@ st.markdown("<h4 style='font-size:20px;'>ACC Init Heatmap by Year</h4>", unsafe_
 heatmap_cols = st.columns(len(selected_years))
 for i, y in enumerate(selected_years):
     fname = f"acc_heatmap_init_{var}_{region}_{y}.png"
-    fig_path = os.path.join(output_fig_dir, region, var, fname)
+    fig_path = os.path.join("..","FIG", region, var, fname)
     with heatmap_cols[i]:
         if os.path.isfile(fig_path):
             st.image(Image.open(fig_path), caption=fname, use_container_width=True)
@@ -92,7 +92,7 @@ if var in ["t2m", "prcp"]:
     cate_cols = st.columns(len(selected_years))
     for i, y in enumerate(selected_years):
         fname = f"det_ter_score_{var}_{region}_{y}.png"
-        fig_path = os.path.join(output_fig_dir, region, var, fname)
+        fig_path = os.path.join("..","FIG", region, var, fname)
         with cate_cols[i]:
             if os.path.isfile(fig_path):
                 st.image(Image.open(fig_path), caption=fname, use_container_width=True)
@@ -125,7 +125,7 @@ for plot_type in selected_plots:
     elif plot_type == "init_heatmap":
         for y in selected_years:
             caption = f"acc_heatmap_init_{var}_{region}_{y}.png"
-            img_path = os.path.join(output_fig_dir, region, var, caption)
+            img_path = os.path.join("..","FIG", region, var, fname)
             with cols[i % 2]:
                 st.subheader(f"{plot_type} - {caption}")
                 if os.path.isfile(img_path):

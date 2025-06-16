@@ -42,7 +42,7 @@ enabled_plots = [
 
 
 # --- 주요 디렉토리 경로 ---
-root_dir = './' #'/home/gkim/2025FcstVerif/'
+root_dir =  '../' #'/home/gkim/2025FcstVerif/'
 base_dir = f'{root_dir}/fcstverif/'
 
 model_raw_dir = f'{root_dir}/{model}_KMApost_raw/'
