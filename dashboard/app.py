@@ -73,7 +73,7 @@ st.markdown("## Key Metrics Overview")
 # First row: init_line (target series)
 st.markdown("#### ACC Target Series by Init")
 for fname, url in get_image_urls("init_line", var, region):
-    st.image(url, caption=fname, use_column_width=True)
+    st.image(url, caption=fname, use_container_width=True)
 
 # Second row: yearly heatmaps (init_heatmap)
 st.markdown("#### ACC Init Heatmap by Year")
@@ -82,7 +82,7 @@ for i, y in enumerate(selected_years):
     fname = f"acc_heatmap_init_{var}_{region}_{y}.png"
     url = get_fig_url(model, region, var, fname)
     with heatmap_cols[i]:
-        st.image(url, caption=fname, use_column_width=True)
+        st.image(url, caption=fname, use_container_width=True)
 
 # Third row: cate_heatmap (for t2m, prcp only)
 if var in ["t2m", "prcp"]:
@@ -92,7 +92,7 @@ if var in ["t2m", "prcp"]:
         fname = f"det_ter_score_{var}_{region}_{y}.png"
         url = get_fig_url(model, region, var, fname)
         with cate_cols[i]:
-            st.image(url, caption=fname, use_column_width=True)
+            st.image(url, caption=fname, use_container_width=True)
 
 # ──────────────────────────────────────────────
 # Detailed selected plots
@@ -104,7 +104,7 @@ for plot_type in selected_plots:
         for fname, url in get_image_urls(plot_type, var, region, yyyymm=selected_start):
             with cols[i % 2]:
                 st.subheader(f"{plot_type} - {fname}")
-                st.image(url, caption=fname, use_column_width=True)
+                st.image(url, caption=fname, use_container_width=True)
             i += 1
     elif plot_type == "init_heatmap":
         for y in selected_years:
@@ -112,7 +112,7 @@ for plot_type in selected_plots:
             url = get_fig_url(model, region, var, fname)
             with cols[i % 2]:
                 st.subheader(f"{plot_type} - {fname}")
-                st.image(url, caption=fname, use_column_width=True)
+                st.image(url, caption=fname, use_container_width=True)
             i += 1
     elif plot_type == "cate_heatmap" and var in ["t2m", "prcp"]:
         for y in selected_years:
@@ -120,11 +120,11 @@ for plot_type in selected_plots:
             url = get_fig_url(model, region, var, fname)
             with cols[i % 2]:
                 st.subheader(f"{plot_type} - {fname}")
-                st.image(url, caption=fname, use_column_width=True)
+                st.image(url, caption=fname, use_container_width=True)
             i += 1
     else:
         for fname, url in get_image_urls(plot_type, var, region):
             with cols[i % 2]:
                 st.subheader(f"{plot_type} - {fname}")
-                st.image(url, caption=fname, use_column_width=True)
+                st.image(url, caption=fname, use_container_width=True)
             i += 1
