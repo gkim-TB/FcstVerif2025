@@ -7,7 +7,7 @@ from fcstverif.config import year_start, year_end, REGIONS, model
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/gkim-TB/FcstVerif2025/main"
 
 def get_fig_url(model, region, var, filename):
-    return f"{GITHUB_RAW_BASE}/fig/{model}/{region}/{var}/{filename}"
+    return f"{GITHUB_RAW_BASE}/FIG/{model}/{region}/{var}/{filename}"
 
 # ──────────────────────────────────────────────
 st.set_page_config(layout="wide")
