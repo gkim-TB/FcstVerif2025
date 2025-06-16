@@ -42,7 +42,7 @@ enabled_plots = [
 
 
 # --- 주요 디렉토리 경로 ---
-root_dir = '/home/gkim/2025FcstVerif/'
+root_dir = './' #'/home/gkim/2025FcstVerif/'
 base_dir = f'{root_dir}/fcstverif/'
 
 model_raw_dir = f'{root_dir}/{model}_KMApost_raw/'
@@ -55,7 +55,7 @@ sst_base_dir = f'{root_dir}/OISST'
 sst_out_dir = era5_out_dir #f'{sst_base_dir}/{model}_grid/'
 
 verification_out_dir = f'{base_dir}/OUT/{model}'
-output_fig_dir = f'{base_dir}/fig/{model}'
+output_fig_dir = f'{root_dir}/fig/{model}'
 
 # --- GRIB/NetCDF 변수명 매핑 ---
 GSvar2rename = {
