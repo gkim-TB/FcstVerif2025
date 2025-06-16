@@ -1,9 +1,8 @@
 import xarray as xr
-import pandas as pd
-import numpy as np
+import logging
+
 from config import *
-from src.utils.logging_utils import init_logger
-logger = init_logger()
+logger = logging.getLogger("fcstverif")
 
 os.makedirs(sst_out_dir, exist_ok=True)
 
@@ -11,7 +10,7 @@ def oisst_anomaly(regrid_option=None):
     if regrid_option == 'y':
 
         logger.info("Starting OISST regrid ...")
-        gridfile = f'{work_dir}/target_grid.nc'
+        gridfile = f'{root_dir}/target_grid.nc'
         target = xr.open_dataset(gridfile)
         lat = target.lat
         lon = target.lon

@@ -116,7 +116,7 @@ def categorize_obs_tercile(var, years, obs_dir):
         obs_cate = xr.where(cond_an, 2, obs_cate)
         obs_cate = xr.where(cond_bn, 0, obs_cate)
         unique, counts = np.unique(obs_cate.values, return_counts=True)
-        logger.info(dict(zip(unique, counts)))  # { -1: ..., 0: ..., 1: ... }
+        logger.debug(dict(zip(unique, counts)))  # { -1: ..., 0: ..., 1: ... }
 
         obs_cate.name = f"{var}_obs_cate"
         obs_cate.attrs['description'] = f"Observed tercile category (BN=0, NN=1, AN=2)"
@@ -204,7 +204,7 @@ def categorize_fcst_tercile_det(var, yyyymm, fcst_dir, stat_dir, out_dir):
     fcst_cate = xr.full_like(da, 1).astype(np.int8)
     fcst_cate = xr.where(da >= upper, 2, fcst_cate)
     fcst_cate = xr.where(da <= lower, 0, fcst_cate)
-    print(fcst_cate.sel(lat=slice(-5,5), lon=slice(150,180)))
+    #print(fcst_cate.sel(lat=slice(-5,5), lon=slice(150,180)))
 
     fcst_ohe = make_onehot(
             da=fcst_cate,

@@ -3,46 +3,51 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import os
+import logging
 
-from config import *
-from src.utils.general_utils import convert_prcp_to_mm_per_day, convert_geopotential_to_m
-from src.utils.logging_utils import init_logger
-logger = init_logger()
+from fcstverif.config import *
+from fcstverif.src.utils.general_utils import convert_prcp_to_mm_per_day, convert_geopotential_to_m
+#from fcstverif.src.utils.logging_utils import init_logger
+logger = logging.getLogger("fcstverif")
 
-# ─────────────────────────────────────────────
-# 0. Init‑date 헬퍼 : rule 인자 추가
-# ─────────────────────────────────────────────
 def _get_init_mondays(start: str, end: str, rule: str = 'last') -> list[pd.Timestamp]:
-    """rule 에 따라 초기화 월요일 날짜 반환"""
     weekly = pd.date_range(start, end, freq='W-MON')
 
     def _rule_last(grps):
         return sorted({d.replace(day=1): d for d in grps}.values())
 
     def _rule_mid(grps):
-        mids = []
-        for g in grps:
-            if 9 <= g.day <= 17:
-                mids.append(g)
-        # 월별 대표가 없으면 가장 가까운 월요일을 찾음
+        mids = [g for g in grps if 9 <= g.day <= 17]
         out = {}
         for d in weekly:
             key = d.replace(day=1)
             cand = [m for m in mids if m.month == key.month and m.year == key.year]
-            if cand:
-                out[key] = cand[0]
-            else:               # 보정: 9–17 범위 월요일이 없으면 마지막 월요일 사용
-                out[key] = max([m for m in weekly if m.month == key.month and m.year == key.year])
+            out[key] = cand[0] if cand else max([m for m in weekly if m.month == key.month and m.year == key.year])
         return sorted(out.values())
 
     rule_func = {'last': _rule_last, 'mid': _rule_mid}.get(rule)
     if rule_func is None:
         raise ValueError(f"지원하지 않는 rule → {rule}")
     return rule_func(weekly)
-    
-# ───────────────────────────────────────────────────────────────
-# 1. _grib_messages_to_dataset  (헬퍼)  ★ once for all ★
-# ───────────────────────────────────────────────────────────────
+
+def _split_perturbations(msgs):
+    above, below = [], []
+    for g in msgs:
+        if g.perturbationNumber == 100:
+            above.append(g)
+        elif g.perturbationNumber == 101:
+            below.append(g)
+    return above, below
+
+def _convert_units(da, var, stat_type=None):
+    if not isinstance(da, xr.DataArray):
+        return da
+    if var == 'prcp' and stat_type != 'qntl':
+        return convert_prcp_to_mm_per_day(da, source='GS6')
+    elif var in ['z', 'zg', 'geopotential']:
+        return convert_geopotential_to_m(da, source='GS6')
+    return da
+
 def _grib_messages_to_dataset(
         msgs         : list[pygrib.gribmessage],
         init_date    : pd.Timestamp,
@@ -50,91 +55,69 @@ def _grib_messages_to_dataset(
         stat_type    : str | None = None,
         rename_output: str | None = None
     ) -> xr.Dataset:
-    """
-    GRIB message list → climpred 호환 Dataset
-      • 일반 / sigma : GRIB 6개   → lead 6
-      • gaus / qntl  : GRIB 12개  → lead 6 × pert(100/101)
 
-    모든 경우에 (init=1, lead, [pert], lat, lon) + time 좌표 포함.
-    주요 속성(FillValue, units)도 그대로 보존.
-    """
-    #rename_var = GSvar2rename.get(var, var)
-    out_name   = rename_output or f"{var}" + (f"_{stat_type}" if stat_type else "")
-
-    nmsg = len(msgs)
-    if   stat_type in (None, 'sigma') and nmsg != 6:
-        raise ValueError(f"{stat_type or 'hindcast'}는 GRIB 6개가 필요 -> {nmsg}")
-    if   stat_type in ('gaus', 'qntl') and nmsg != 12:
-        raise ValueError(f"{stat_type}는 GRIB 12개가 필요 -> {nmsg}")
-
-    # 공통 좌표 및 시간
+    logger.debug(f"[DEBUG] stat_type={stat_type}, msgs={len(msgs)}")
+    
+    out_name = rename_output or f"{var}" + (f"_{stat_type}" if stat_type else "")
     lats, lons = msgs[0].latlons()
-    lead_coords  = np.arange(1, 7)
-    valid_times  = pd.date_range(init_date + pd.DateOffset(months=1), periods=6, freq='MS')
+    lead_coords = np.arange(1, 7)
+    valid_times = pd.date_range(init_date + pd.DateOffset(months=1), periods=6, freq='MS')
 
     def _make_da(g):
-        da = xr.DataArray(
+        return xr.DataArray(
             g.values,
             dims=('lat', 'lon'),
             coords={'lat': lats[:, 0], 'lon': lons[0, :]},
             attrs={
-                'units'     : getattr(g, 'parameterUnits', None),
+                'units': getattr(g, 'parameterUnits', None),
                 '_FillValue': np.nan if np.isnan(getattr(g, 'missingValue', np.nan)) else g.missingValue
             }
         )
-        return da
 
-    # ── 일반‧sigma  (lead 6) ────────────────────────────────
     if stat_type in (None, 'sigma'):
+        if len(msgs) != 6:
+            raise ValueError(f"{stat_type or 'hindcast'}는 GRIB 6개가 필요 → {len(msgs)}")
         da = xr.concat([_make_da(g) for g in msgs], dim='lead')
-        da = da.assign_coords(lead=('lead', lead_coords),
-                              time=('lead', valid_times))
+        da = da.assign_coords(lead=('lead', lead_coords), time=('lead', valid_times))
 
-    # ── gaus‧qntl  (lead 6 × pert) ─────────────────────────
-    else:
-        above, below = [], []
-        for g in msgs:
-            (above if g.perturbationNumber == 100 else below).append(_make_da(g))
+    elif stat_type in ('gaus', 'qntl'):
+        if len(msgs) != 12:
+            raise ValueError(f"{stat_type}는 GRIB 12개가 필요 → {len(msgs)}")
+        above, below = _split_perturbations(msgs)
         if len(above) != 6 or len(below) != 6:
             raise ValueError(f"{stat_type}: pert 분리 오류 (100={len(above)}, 101={len(below)})")
-        da = xr.concat([xr.concat(above, dim='lead'),
-                        xr.concat(below, dim='lead')],
-                       dim='pert')
-        da = da.assign_coords(
-                lead=('lead', lead_coords),
-                pert=('pert', [100, 101]),
-                time=('lead', valid_times))
+        da = xr.concat([xr.concat([_make_da(g) for g in above], dim='lead'),
+                        xr.concat([_make_da(g) for g in below], dim='lead')], dim='pert')
+        #da = da.expand_dims({'time': valid_times, 'lead': lead_coords})
+        da = da.assign_coords(lead=lead_coords, pert=('pert', [100, 101]), time=('lead', valid_times))
 
-    # init 차원 확장 및 Dataset 변환
+    else:
+        raise ValueError(f"지원하지 않는 stat_type: {stat_type}")
+
     da = da.expand_dims('init').assign_coords(init=('init', [init_date]))
     da['lead'].attrs['units'] = 'months'
-    ds = da.to_dataset(name=out_name).set_coords('time')
-    return ds
+    logger.debug(f"[DEBUG] dims={da.dims}, shape={da.shape}")
 
-# ─────────────────────────────────────────────
-# 2‑1. convert_single_hindcast_file 
-# ─────────────────────────────────────────────
+    return da.to_dataset(name=out_name).set_coords('time')
+
 def convert_single_hindcast_file(
-        init_date_str : str,
-        var           : str,
-        stat_type     : str | None,
-        data_dir      : str,
-        file_prefix   : str,
-        out_dir       : str
+        init_date_str, 
+        var, 
+        stat_type, 
+        data_dir, 
+        file_prefix, 
+        out_dir
     ):
-    """
-    단일 초기화 날짜(YYYYMMDD)의 hindcast / sigma / gaus / qntl GRIB2 → NetCDF
-    """
+
     rename_var = GSvar2rename.get(var, var)
-    date_tag   = pd.to_datetime(init_date_str).strftime('%Y%m%d')
-    stat_part  = "" if stat_type is None else f"{stat_type}_"
+    date_tag = pd.to_datetime(init_date_str).strftime('%Y%m%d')
+    stat_part = "" if stat_type is None else f"{stat_type}_"
     fpath = os.path.join(
-        data_dir, rename_var,
-        f"{file_prefix}{stat_part}{rename_var}_{date_tag}.grb2"
+        data_dir, rename_var, f"{file_prefix}{stat_part}{rename_var}_{date_tag}.grb2"
     )
 
     if not os.path.isfile(fpath):
-        logger.warning(f"[HIND] 파일 없음: {fpath}")
+        logger.warning(f"[HIND] {stat_type} 파일 없음: {fpath}")
         return
 
     grbs = pygrib.open(fpath)
@@ -142,84 +125,35 @@ def convert_single_hindcast_file(
     grbs.close()
 
     init_date = pd.to_datetime(init_date_str).replace(day=1)
-    ds_out    = _grib_messages_to_dataset(msgs, init_date, var, stat_type)
+    ds_out = _grib_messages_to_dataset(msgs, init_date, var, stat_type)
 
-    # ▶ GS6 강수량 / 지위 단위 변환
     for vname in ds_out.data_vars:
-        if not vname.startswith(var):
-            continue
-        if var == 'prcp' and stat_type != 'qntl':
-            ds_out[vname] = convert_prcp_to_mm_per_day(ds_out[vname], source='GS6')
-        elif var in ['z', 'zg', 'geopotential']:
-            ds_out[vname] = convert_geopotential_to_m(ds_out[vname], source='GS6')
+        if vname.startswith(var):
+            ds_out[vname] = _convert_units(ds_out[vname], var, stat_type)
 
     yyyymm = init_date.strftime('%Y%m')
-    out_nc = (f"ensMean_{var}_{yyyymm}.nc" if stat_type is None
-              else f"ensMean_{stat_type}_{var}_{yyyymm}.nc")
-
+    out_nc = f"ensMean_{stat_type + '_' if stat_type else ''}{var}_{yyyymm}.nc"
     ds_out.to_netcdf(os.path.join(out_dir, out_nc))
     logger.info(f"[HIND] saved → {out_nc}")
 
-
-# ─────────────────────────────────────────────
-# 2‑2. 월별 hindcast 변환 (init_rule 적용)
-# ─────────────────────────────────────────────
-def convert_monthly_hindcast(                       
-        forecast_start : str,
-        forecast_end   : str,
-        var            : str,
-        data_dir       : str,
-        file_prefix    : str,
-        out_dir        : str,
-        stats_dir      : str = f'{model_raw_dir}/stats',
-        init_rule      : str = 'last' # last=마지막주 월, mid=9~17일 사이 월요일               
-    ):
-
-    #rename_var = GSvar2rename.get(var, var)
-    init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)  
-
+def convert_monthly_hindcast(forecast_start, forecast_end, var, init_rule, data_dir, file_prefix, out_dir):
+    init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)
     stat_list = ['sigma', 'gaus'] if var == 't2m' else ['qntl'] if var == 'prcp' else ['gaus']
+    for date in init_dates:
+        date_str = date.strftime('%Y-%m-%d')
+        for stat_type in stat_list:
+            convert_single_hindcast_file(date_str, var, stat_type, data_dir, file_prefix, out_dir)
 
-    for d in init_dates:
-        dstr = d.strftime('%Y-%m-%d')
-        # (1) hindcast 본체
-        convert_single_hindcast_file(
-            init_date_str=dstr,
-            var=var,
-            stat_type=None,
-            data_dir=data_dir,
-            file_prefix=file_prefix,
-            out_dir=out_dir
-        )
-        # (2) sigma / gaus / qntl
-        for st in stat_list:
-            convert_single_hindcast_file(
-                init_date_str=dstr,
-                var=var,
-                stat_type=st,
-                data_dir=stats_dir,          # stats 전용 경로
-                file_prefix=file_prefix,     
-                out_dir=out_dir
-            )                                
-
-
-
-# ───────────────────────────────────────────────────────────────
-# 3. forecast(_mem) 파일 → 월별 ens 차원 NetCDF 변환
-# ───────────────────────────────────────────────────────────────
 def convert_monthly_forecast_from_mem(
         forecast_start : str,
-        forecast_end   : str,
-        var            : str,
-        data_dir       : str,
-        file_prefix    : str,
-        out_dir        : str,
-        init_rule      : str
+        forecast_end : str,
+        var : str,
+        init_rule : str,
+        data_dir : str,
+        file_prefix : str,
+        out_dir : str
     ):
-    """
-    파일 패턴: glos_conv_kma_fcst_6mon_mon_t15m_YYYYMMDD_mem.grb2
-    (lead 6 메시지가 ens 수만큼 반복)
-    """
+
     rename_var   = GSvar2rename.get(var, var)
     init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)
 
@@ -249,55 +183,29 @@ def convert_monthly_forecast_from_mem(
         ds_ens = xr.concat(ens_ds, dim='ens').set_coords('time')
         
         # ▶ GS6 강수량 / 지위 단위 변환
-        for vname in [v for v in ds_ens.data_vars if v.startswith(var)]:
-            if var == 'prcp':
-                ds_ens[vname] = convert_prcp_to_mm_per_day(ds_ens[vname], source='GS6')
-            elif var in ['z', 'zg', 'geopotential']:
-                ds_ens[vname] = convert_geopotential_to_m(ds_ens[vname], source='GS6')
+        for vname in ds_ens.data_vars:
+            if vname.startswith(var):
+                ds_ens[vname] = _convert_units(ds_ens[vname], var)
+        # for vname in [v for v in ds_ens.data_vars if v.startswith(var)]:
+        #     if var == 'prcp':
+        #         ds_ens[vname] = convert_prcp_to_mm_per_day(ds_ens[vname], source='GS6')
+        #     elif var in ['z', 'zg', 'geopotential']:
+        #         ds_ens[vname] = convert_geopotential_to_m(ds_ens[vname], source='GS6')
 
         out_nc = os.path.join(out_dir, f"ensMem_{var}_{d:%Y%m}.nc")
         ds_ens.to_netcdf(out_nc)
         logger.info(f"[MEM] saved → {out_nc}")
 
-def compute_anomaly(
-    var,
-    year_start,
-    year_end,
-    hindcast_dir,
-    forecast_dir,
-    out_dir
-):
-    """
-    이미 1993~2016 기간 평균된 hindcast(클라이모) 자료와
-    특정 연-월 forecast 자료를 열어 anomaly = forecast - hindcast 계산 후 저장.
-
-    파일 이름 예:
-      - hindcast: {hindcast_dir}/ensMean_{var}_{YYYYMM}.nc
-      - forecast: {forecast_dir}/ensMem_{var}_{YYYYMM}.nc
-    """
-
+def compute_anomaly(var, year_start, year_end, hindcast_dir, forecast_dir, out_dir):
     os.makedirs(out_dir, exist_ok=True)
-
-    # year_start ~ year_end 범위의 월 목록 생성
-    # ex) 2022-01 ~ 2022-03
-    dates = pd.date_range(
-        start=f"{year_start}-01",
-        end=f"{year_end}-12",
-        freq='MS'
-    )
+    dates = pd.date_range(start=f"{year_start}-01", end=f"{year_end}-12", freq="MS")
 
     for date in dates:
-        yyyy = date.year
-        mm = date.month
-        yyyymm_str = f"{yyyy}{mm:02d}"
+        yyyymm = date.strftime('%Y%m')
 
-        # 파일 경로
-        hind_file = os.path.join(hindcast_dir, f"ensMean_{var}_{yyyymm_str}.nc")
-        fcst_file = os.path.join(forecast_dir, f"ensMem_{var}_{yyyymm_str}.nc")
-        # if var == 'sst':
-        #     hind_file = os.path.join(hindcast_dir, f"ensMean_{var}_{yyyymm_str}.nc")
-        #     fcst_file = os.path.join(forecast_dir, f"ensMem_{var}_{yyyymm_str}.nc")
-
+        hind_file = os.path.join(hindcast_dir, f"ensMean_{var}_{yyyymm}.nc")
+        fcst_file = os.path.join(forecast_dir, f"ensMem_{var}_{yyyymm}.nc")
+        
         # 두 파일이 모두 존재해야 anomaly를 계산
         if not os.path.isfile(hind_file):
             logger.warning(f"Hindcast file not found: {hind_file}")
@@ -319,7 +227,7 @@ def compute_anomaly(
         ds_anom.attrs['source_hind'] = hind_file
 
         # 출력 파일 이름 (ex. "anom_t15m_202201.nc")
-        out_fname = os.path.join(out_dir, f"ensMem_{var}_anom_{yyyymm_str}.nc")
+        out_fname = os.path.join(out_dir, f"ensMem_{var}_anom_{yyyymm}.nc")
         ds_anom.to_netcdf(out_fname)
         logger.info(f"Saved anomaly: {out_fname}")
 

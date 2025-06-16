@@ -1,11 +1,11 @@
 import os
 import xarray as xr
 import pandas as pd
+import logging
 
 from config import *
 from src.utils.general_utils import convert_prcp_to_mm_per_day, convert_geopotential_to_m
-from src.utils.logging_utils import init_logger
-logger = init_logger()
+logger = logging.getLogger("fcstverif")
 
 def get_subfolder_for_var(var):
     if var in PRESSURE_VARS:
@@ -41,7 +41,7 @@ def compute_era5_clim_and_anom(
 
     # === target grid ===
     logger.info(f"Checking target grid .....")
-    with xr.open_dataset(f'{work_dir}/target_grid.nc') as target:
+    with xr.open_dataset(f'{root_dir}/target_grid.nc') as target:
         target_lat, target_lon = target.lat, target.lon
         print(len(target_lat), len(target_lon))
     

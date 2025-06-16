@@ -35,31 +35,27 @@ enabled_plots = [
     #"target_pattern",
     #"target_line",
     #"cate_heatmap", # only for t2m, prcp
-    "rpss_map",
-    #"roc_curve"
+    #"rpss_map",
+    "roc_curve"
 ]
 #================================================
 
 
 # --- 주요 디렉토리 경로 ---
-base_dir = '/home/gkim/2025FcstVerif'
-work_dir = f'{base_dir}/FcstVerif_v2.1'
+root_dir = '/home/gkim/2025FcstVerif/'
+base_dir = f'{root_dir}/fcstverif/'
 
-model_raw_dir = f'{base_dir}/{model}_KMApost_raw/'
-model_out_dir = f'{base_dir}/{model}_KMApost_monthly'
+model_raw_dir = f'{root_dir}/{model}_KMApost_raw/'
+model_out_dir = f'{root_dir}/{model}_KMApost_monthly'
 
-era5_base_dir = f'{base_dir}/ERA5_monthly_{model}grid'
-era5_out_dir =f'{base_dir}/ERA5_OUT/{model}_grid'
-# clim_out_dir = f'{era5_out_dir}/clim'
-# tercile_out_dir = f'{era5_out_dir}/tercile'
-# std_out_dir = f'{era5_out_dir}/std'
-# obs_anom_dir = f'{era5_out_dir}/anom'
+era5_base_dir = f'{root_dir}/ERA5_monthly_{model}grid'
+era5_out_dir =f'{root_dir}/ERA5_OUT/{model}_grid'
 
-sst_base_dir = f'{base_dir}/OISST'
-sst_out_dir = f'{sst_base_dir}/{model}_grid/'
+sst_base_dir = f'{root_dir}/OISST'
+sst_out_dir = era5_out_dir #f'{sst_base_dir}/{model}_grid/'
 
-verification_out_dir = f'{work_dir}/OUT/{model}'
-output_fig_dir = f'{work_dir}/fig/{model}'
+verification_out_dir = f'{base_dir}/OUT/{model}'
+output_fig_dir = f'{base_dir}/fig/{model}'
 
 # --- GRIB/NetCDF 변수명 매핑 ---
 GSvar2rename = {
@@ -94,5 +90,5 @@ MODEL_MASKS = {
 }  
 
 OBS_MASKS = {
-    'OISST': f'{work_dir}/MASK/oisst_mask_to_{model}.nc'
+    'OISST': f'{base_dir}/MASK/oisst_mask_to_{model}.nc'
 }

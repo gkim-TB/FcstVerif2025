@@ -121,8 +121,8 @@ def plot_roc_by_lead_per_init(var, yyyymm, region_name, data_dir, fig_dir):
 
     leads = sorted(df['lead'].unique())
     categories = ['BN', 'NN', 'AN']
-    nrow = int(np.ceil(len(leads) / 3))
-    ncol = min(3, len(leads))
+    nrow = 2 #int(np.ceil(len(leads) / 3))
+    ncol = 3 #min(3, len(leads))
 
     fig, axs = plt.subplots(nrow, ncol, figsize=(ncol*5, nrow*4), constrained_layout=True)
     if not isinstance(axs, np.ndarray):
