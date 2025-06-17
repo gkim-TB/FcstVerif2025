@@ -6,3 +6,4 @@ scikit-learn
 xskillscore
 pandas
 Pillow
+python-dateutil>=2.8
