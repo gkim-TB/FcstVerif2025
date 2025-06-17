@@ -89,7 +89,7 @@ st.sidebar.markdown(
     """
     <div style='font-size: 13px; text-align: center;'>
         Made with P;ㅜ by <b>Gaeun Kim</b><br>
-        📧 <a href='mailto:gaeun.kim@example.com'>gaeun.kim@example.com</a><br>
+        📧 <a href='mailto:gkim@apcc21.org'>gkim@apcc21.org</a><br>
         🔗 <a href='https://github.com/gkim-TB' target='_blank'>GitHub: gkim-TB</a>
     </div>
     """, unsafe_allow_html=True
