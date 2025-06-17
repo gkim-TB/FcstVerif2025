@@ -46,14 +46,16 @@ def get_image_urls(plot_type, var, region, yyyymm=None, year=None, year_only=Non
     return urls
 
 # ───────────────────────────────────────────────────────────────
+st.sidebar.title("Seasonal Forecast Verification Dashboard")
+st.sidebar.markdown("Use the options below to customize plots")
 
-# 사이드바: '탭처럼' 사용될 라디오 버튼
+# tab selection radio button
 tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots"])
 
-# 탭 선택에 따라 사이드바 옵션 바꾸기
 var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
 region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
 
+# 탭 선택에 따라 사이드바 옵션 바꾸기
 if tab_selection == "📊 Overview":
     selected_year = st.sidebar.selectbox("Select Year:", list(range(year_start, year_end+1)))
 else:  # Detailed
