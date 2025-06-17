@@ -59,7 +59,7 @@ st.sidebar.title("Seasonal Forecast Verification Dashboard")
 st.sidebar.markdown("Use the options below to customize plots")
 
 # tab selection radio button
-tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots", "📈Indices"])
+tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots", "📈 Indices"])
 
 var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
 region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
@@ -67,10 +67,10 @@ region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
 # 탭 선택에 따라 사이드바 옵션 바꾸기
 if tab_selection == "📊 Overview":
     selected_year = st.sidebar.selectbox("Select Year:", list(range(year_start, year_end+1)))
-elif tab_selection == "Indices":
+elif tab_selection == "📈 Indice":
     st.sidebar.markdown("Select options for Indices")
-
-else:  # Detailed
+    
+elif tab_selection == "🖼️ Detailed Plots":  # Detailed
     selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(year_start, year_end+1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
     selected_yyyymm = f"{selected_year_int}{selected_month_int:02d}"
@@ -107,7 +107,7 @@ elif tab_selection == "🖼️ Detailed Plots":  # Detailed Plots
             i += 1
 
 else:
-    st.header("🔧Under development...")
+    #st.header("🔧Under development...")
     st.markdown("""
     <div style='text-align: center; padding-top: 100px;'>
         <h1 style='font-size: 60px; color: #8A2BE2; font-weight: bold;'>
