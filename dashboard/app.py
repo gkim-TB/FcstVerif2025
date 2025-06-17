@@ -68,16 +68,17 @@ st.sidebar.markdown("Use the options below to customize plots")
 # tab selection radio button
 tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots", "📈 Indices"])
 
-var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
-region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
-
 # 탭 선택에 따라 사이드바 옵션 바꾸기
 if tab_selection == "📊 Overview":
+    var_selection = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
+    region_selection = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
     selected_year = st.sidebar.selectbox("Select Year:", list(range(year_start, year_end+1)))
 elif tab_selection == "📈 Indice":
     st.sidebar.markdown("Select options for Indices")
     
 elif tab_selection == "🖼️ Detailed Plots":  # Detailed
+    var_selection = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
+    region_selection = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
     selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(year_start, year_end+1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
     selected_yyyymm = f"{selected_year_int}{selected_month_int:02d}"
