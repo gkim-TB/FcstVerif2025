@@ -22,14 +22,14 @@ st.set_page_config(layout="wide")
 
 # ✅ Mapping for file names per plot type
 PLOT_FILENAME_MAP = {
-    "init_line":      [f"acc_targetSeries_byInit_{{var}}_{{region}}_{year_start}_{year_end}.png"],
-    "target_month":   ["acc_target_{var}_{region}_{yyyymm}.png", "rmse_target_{var}_{region}_{yyyymm}.png"],
-    "target_pattern": ["{var}_pattern_compare_{region}_{yyyymm}.png"],
-    "target_line":    ["acc_init_{var}_{region}_{yyyymm}.png", "rmse_init_{var}_{region}_{yyyymm}.png"],
-    "rpss_map":       ["rpss_map_{var}_{region}_{yyyymm}.png"],
-    "roc_curve":      ["roc_curve_by_lead_{var}_{region}_{yyyymm}.png"],
-    "init_heatmap":   [f"acc_heatmap_init_{{var}}_{{region}}_{{year_only}}.png"],
-    "cate_heatmap":   ["det_ter_score_{var}_{region}_{year}.png"]
+    #"init_line":      [f"acc_targetSeries_byInit_{{var}}_{{region}}_{year_start}_{year_end}.png"],
+    "ACC_byInit":    ["acc_init_{var}_{region}_{yyyymm}.png", "rmse_init_{var}_{region}_{yyyymm}.png"],,
+    "ACC_byTarget":  ["acc_target_{var}_{region}_{yyyymm}.png", "rmse_target_{var}_{region}_{yyyymm}.png"],
+    "Bias_byTarget": ["{var}_pattern_compare_{region}_{yyyymm}.png"],
+    "RPSS_byInit":   ["rpss_map_{var}_{region}_{yyyymm}.png"],
+    "ROC_byInit":    ["roc_curve_by_lead_{var}_{region}_{yyyymm}.png"],
+    #"init_heatmap":   [f"acc_heatmap_init_{{var}}_{{region}}_{{year_only}}.png"],
+    #"cate_heatmap":   ["det_ter_score_{var}_{region}_{year}.png"]
 }
 
 def get_image_urls(plot_type, var, region, yyyymm=None, year=None, year_only=None):
@@ -77,18 +77,18 @@ plot_types = list(PLOT_FILENAME_MAP.keys())
 selected_plots = st.sidebar.multiselect("Select plot types to view:", plot_types, default=[])
 
 # ──────────────────────────────────────────────
-tab1, tab2 = st.tabs(["📊 Key Metrics Overview", "🖼️ Detailed Plots"])
+tab1, tab2 = st.tabs(["📊 Key Metrics Overview", "🖼️ Detailed Plots by month"])
 
 with tab1:
-    st.markdown("## Key Metrics Overview")
+    #st.markdown("## Key Metrics Overview")
 
     # First row: init_line (target series)
-    st.markdown("#### ACC Target Series by Init")
+    st.markdown("#### ACC TimeSeries by Init")
     for fname, url in get_image_urls("init_line", var, region):
         st.image(url, caption=fname, use_container_width=True)
 
     # Second row: yearly heatmaps (init_heatmap)
-    st.markdown("#### ACC Init Heatmap by Year")
+    st.markdown("#### ACC Heatmap")
     heatmap_cols = st.columns(len(selected_years))
     for i, y in enumerate(selected_years):
         fname = f"acc_heatmap_init_{var}_{region}_{y}.png"
@@ -109,7 +109,7 @@ with tab1:
 # ──────────────────────────────────────────────
 # Detailed selected plots
 with tab2:
-    st.markdown("## Detailed Plots")
+    #st.markdown("## Detailed Plots")
     cols = st.columns(2)
     i = 0
     for plot_type in selected_plots:
