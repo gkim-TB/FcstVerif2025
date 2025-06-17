@@ -113,24 +113,8 @@ with tab2:
     cols = st.columns(2)
     i = 0
     for plot_type in selected_plots:
-        if plot_type in ["target_month", "target_pattern", "target_line", "rpss_map", "roc_curve"]:
+        if plot_type in ["ACC_byInit", "ACC_byTarget", "Bias_byTarget", "RPSS_byInit", "ROC_byInit"]:
             for fname, url in get_image_urls(plot_type, var, region, yyyymm=selected_start):
-                with cols[i % 2]:
-                    st.subheader(f"{plot_type} - {fname}")
-                    st.image(url, caption=fname, use_container_width=True)
-                i += 1
-        elif plot_type == "init_heatmap":
-            for y in selected_years:
-                fname = f"acc_heatmap_init_{var}_{region}_{y}.png"
-                url = get_fig_url(model, region, var, fname)
-                with cols[i % 2]:
-                    st.subheader(f"{plot_type} - {fname}")
-                    st.image(url, caption=fname, use_container_width=True)
-                i += 1
-        elif plot_type == "cate_heatmap" and var in ["t2m", "prcp"]:
-            for y in selected_years:
-                fname = f"det_ter_score_{var}_{region}_{y}.png"
-                url = get_fig_url(model, region, var, fname)
                 with cols[i % 2]:
                     st.subheader(f"{plot_type} - {fname}")
                     st.image(url, caption=fname, use_container_width=True)
