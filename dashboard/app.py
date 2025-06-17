@@ -84,6 +84,16 @@ elif tab_selection == "🖼️ Detailed Plots":  # Detailed
     plot_types = list(PLOT_FILENAME_MAP.keys())
     selected_plots = st.sidebar.multiselect("Select Plot:", plot_types, default=plot_types)
 
+st.sidebar.markdown("---")
+st.sidebar.markdown(
+    """
+    <div style='font-size: 13px; text-align: center;'>
+        Made with P;ㅜ by <b>Gaeun Kim</b><br>
+        📧 <a href='mailto:gaeun.kim@example.com'>gaeun.kim@example.com</a><br>
+        🔗 <a href='https://github.com/gkim-TB' target='_blank'>GitHub: gkim-TB</a>
+    </div>
+    """, unsafe_allow_html=True
+)
 # ───────────────────────────────────────────────────────────────
 if tab_selection == "📊 Overview":
     st.header("📊 Key Metrics Overview")
