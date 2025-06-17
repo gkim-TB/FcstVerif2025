@@ -19,7 +19,7 @@ def get_fig_url(model, region, var, filename):
     return f"{GITHUB_RAW_BASE}/FIG/{model}/{region}/{var}/{filename}"
 
 # ──────────────────────────────────────────────
-st.set_page_config(layout="wide")
+#st.set_page_config(layout="wide")
 #st.title("Seasonal Forecast Verification Dashboard")
 
 # ✅ Mapping for file names per plot type
