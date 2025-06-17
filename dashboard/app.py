@@ -22,6 +22,15 @@ def get_fig_url(model, region, var, filename):
 #st.set_page_config(layout="wide")
 #st.title("Seasonal Forecast Verification Dashboard")
 
+plot_types = [
+    "ACC_byTarget",
+    "ACC_byInit",
+    "RMSE_byTarget"
+    "RMSE_byInit",
+    "Bias_byTarget",
+    "RPSS_byInit",
+    "ROC_byInit"
+]
 # ✅ Mapping for file names per plot type
 PLOT_FILENAME_MAP = {
     #"init_line":      [f"acc_targetSeries_byInit_{{var}}_{{region}}_{year_start}_{year_end}.png"],
@@ -90,7 +99,7 @@ else:  # Detailed Plots
     for plot_type in selected_plots:
         for fname, url in get_image_urls(plot_type, var, region, yyyymm=selected_yyyymm):
             with cols[i % 2]:
-                st.subheader(f"{plot_type} – {fname}")
+                #st.subheader(f"{plot_type} – {fname}")
                 st.image(url, caption=fname, use_container_width=True)
             i += 1
 
