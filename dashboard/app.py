@@ -48,34 +48,39 @@ def get_image_urls(plot_type, var, region, yyyymm=None, year=None, year_only=Non
 # ───────────────────────────────────────────────────────────────
 
 # 사이드바: '탭처럼' 사용될 라디오 버튼
-tab_selection = st.sidebar.radio("무엇을 보고 싶으신가요?", ["📊 Overview", "🖼️ Detailed Plots"])
+tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots"])
 
 # 탭 선택에 따라 사이드바 옵션 바꾸기
-var = st.sidebar.selectbox("변수 선택:", ['t2m','prcp','sst'])
-region = st.sidebar.selectbox("지역 선택:", list(REGIONS.keys()))
+var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
+region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
 
 if tab_selection == "📊 Overview":
-    selected_year = st.sidebar.selectbox("연도 선택:", list(range(year_start, year_end+1)))
+    selected_year = st.sidebar.selectbox("Select Year:", list(range(year_start, year_end+1)))
 else:  # Detailed
     selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(year_start, year_end+1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
     selected_yyyymm = f"{selected_year_int}{selected_month_int:02d}"
     plot_types = list(PLOT_FILENAME_MAP.keys())
-    selected_plots = st.sidebar.multiselect("시각화 선택:", plot_types)
+    selected_plots = st.sidebar.multiselect("Select Plot:", plot_types, defulat=plot_types)
 
 # ───────────────────────────────────────────────────────────────
 if tab_selection == "📊 Overview":
     st.header("📊 Key Metrics Overview")
+
+    st.image(get_fig_url(model, region, var,
+        f"acc_targetSeries_byInit_{var}_{region}_{year_start}_{year_end}.png"),
+        caption="ACC TargetSeries by Init", use_container_width=True)
+
     cols = st.columns(2)
     with cols[0]:
         st.image(get_fig_url(model, region, var,
-            f"acc_targetSeries_byInit_{var}_{region}_{year_start}_{year_end}.png"),
-            caption="ACC TargetSeries by Init", use_container_width=True)
-    with cols[1]:
-        st.image(get_fig_url(model, region, var,
             f"acc_heatmap_init_{var}_{region}_{selected_year}.png"),
             caption=f"ACC Init Heatmap ({selected_year})", use_container_width=True)
-
+    with cols[1]:
+        st.image(get_fig_url(model, region, var,
+            f"det_ter_score_{var}_{region}_{selected_year}.png"),
+            caption=f"Deterministic Tercile Score ({selected_year})")
+        
 else:  # Detailed Plots
     st.header("🖼️ Detailed Plots")
     cols = st.columns(2)
