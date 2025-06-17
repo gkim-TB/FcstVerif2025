@@ -24,8 +24,8 @@ def get_fig_url(model, region, var, filename):
 
 plot_types = [
     "ACC_byTarget",
-    "ACC_byInit",
     "RMSE_byTarget"
+    "ACC_byInit",
     "RMSE_byInit",
     "Bias_byTarget",
     "RPSS_byInit",
@@ -59,7 +59,7 @@ st.sidebar.title("Seasonal Forecast Verification Dashboard")
 st.sidebar.markdown("Use the options below to customize plots")
 
 # tab selection radio button
-tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots"])
+tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots", "📈Indices"])
 
 var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
 region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
@@ -67,6 +67,9 @@ region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
 # 탭 선택에 따라 사이드바 옵션 바꾸기
 if tab_selection == "📊 Overview":
     selected_year = st.sidebar.selectbox("Select Year:", list(range(year_start, year_end+1)))
+elif tab_selection == "Indices":
+    st.sidebar.markdown("Select options for Indices")
+
 else:  # Detailed
     selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(year_start, year_end+1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
