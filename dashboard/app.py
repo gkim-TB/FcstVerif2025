@@ -3,6 +3,7 @@ import os, sys
 from datetime import datetime
 
 # ✅ project root
+# default is './' in Streamlit Cloud
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -17,7 +18,7 @@ def get_fig_url(model, region, var, filename):
 
 # ──────────────────────────────────────────────
 st.set_page_config(layout="wide")
-st.title("Seasonal Forecast Verification Dashboard")
+#st.title("Seasonal Forecast Verification Dashboard")
 
 # ✅ Mapping for file names per plot type
 PLOT_FILENAME_MAP = {
@@ -43,6 +44,8 @@ def get_image_urls(plot_type, var, region, yyyymm=None, year=None, year_only=Non
 # ──────────────────────────────────────────────
 # Sidebar
 variables = ['t2m', 'prcp', 'sst']
+st.sidebar.title("Seasonal Forecast Verification Dashboard")
+st.sidebar.markdown("Use the options below to customize plots")
 var = st.sidebar.selectbox("Select variable:", variables)
 region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
 
