@@ -63,7 +63,7 @@ else:  # Detailed
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
     selected_yyyymm = f"{selected_year_int}{selected_month_int:02d}"
     plot_types = list(PLOT_FILENAME_MAP.keys())
-    selected_plots = st.sidebar.multiselect("Select Plot:", plot_types, defulat=plot_types)
+    selected_plots = st.sidebar.multiselect("Select Plot:", plot_types, default=plot_types)
 
 # ───────────────────────────────────────────────────────────────
 if tab_selection == "📊 Overview":
