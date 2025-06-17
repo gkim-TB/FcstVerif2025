@@ -1,5 +1,6 @@
 import os, sys
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 import streamlit as st
 st.set_page_config(layout="wide")
@@ -17,6 +18,12 @@ GITHUB_RAW_BASE = "https://raw.githubusercontent.com/gkim-TB/FcstVerif2025/main"
 
 def get_fig_url(model, region, var, filename):
     return f"{GITHUB_RAW_BASE}/FIG/{model}/{region}/{var}/{filename}"
+
+def get_yyyymm_for_plot(plot_type, selected_yyyymm):
+    dt = datetime.strptime(selected_yyyymm, "%Y%m")
+    if "byTarget" in plot_type:
+        dt += relativedelta(months=1)
+    return dt.strftime("%Y%m")
 
 # ──────────────────────────────────────────────
 #st.set_page_config(layout="wide")
@@ -100,7 +107,8 @@ elif tab_selection == "🖼️ Detailed Plots":  # Detailed Plots
     cols = st.columns(2)
     i = 0
     for plot_type in selected_plots:
-        for fname, url in get_image_urls(plot_type, var, region, yyyymm=selected_yyyymm):
+        yyyymm_to_use = get_yyyymm_for_plot(plot_type, selected_yyyymm)
+        for fname, url in get_image_urls(plot_type, var, region, yyyymm=yyyymm_to_use):
             with cols[i % 2]:
                 #st.subheader(f"{plot_type} – {fname}")
                 st.image(url, caption=fname, use_container_width=True)
@@ -117,87 +125,3 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-# # ──────────────────────────────────────────────
-# # Sidebar
-# variables = ['t2m', 'prcp', 'sst']
-# st.sidebar.title("Seasonal Forecast Verification Dashboard")
-# st.sidebar.markdown("Use the options below to customize plots")
-# var = st.sidebar.selectbox("Select variable:", variables)
-# region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
-
-# # Forecast date mode
-# date_mode = st.sidebar.radio("Select forecast date mode:", ["Range", "Single"])
-# start_date = datetime(year_start, 1, 1)
-# end_date = datetime(year_end, 12, 1)
-
-# if date_mode == "Range":
-#     date_range = st.sidebar.slider("Forecast date range:", min_value=start_date, max_value=end_date,
-#                                    value=(datetime(2022, 1, 1), datetime(2024, 12, 1)), format="YYYY.MM")
-#     selected_start = date_range[0].strftime("%Y%m")
-#     selected_end = date_range[1].strftime("%Y%m")
-#     selected_years = list(range(date_range[0].year, date_range[1].year + 1))
-#     selected_year = str(date_range[0].year)
-#     selected_year_only = str(date_range[0].year)
-# else:
-#     selected_year_int = st.sidebar.selectbox("Select forecast year:", list(range(year_start, year_end + 1)))
-#     selected_month_int = st.sidebar.selectbox("Select forecast month:", list(range(1, 13)))
-#     single_date = datetime(selected_year_int, selected_month_int, 1)
-#     selected_start = single_date.strftime("%Y%m")
-#     selected_end = selected_start
-#     selected_year = str(single_date.year)
-#     selected_year_only = str(single_date.year)
-#     selected_years = [single_date.year]
-
-# # Plot type selection
-# plot_types = list(PLOT_FILENAME_MAP.keys())
-# selected_plots = st.sidebar.multiselect("Select plot types to view:", plot_types, default=[])
-
-# # ──────────────────────────────────────────────
-# tab1, tab2 = st.tabs(["📊 Key Metrics Overview", "🖼️ Detailed Plots by month"])
-
-# with tab1:
-#     #st.markdown("## Key Metrics Overview")
-
-#     # First row: init_line (target series)
-#     st.markdown("#### ACC TimeSeries by Init")
-#     for fname, url in get_image_urls("init_line", var, region):
-#         st.image(url, caption=fname, use_container_width=True)
-
-#     # Second row: yearly heatmaps (init_heatmap)
-#     st.markdown("#### ACC Heatmap")
-#     heatmap_cols = st.columns(len(selected_years))
-#     for i, y in enumerate(selected_years):
-#         fname = f"acc_heatmap_init_{var}_{region}_{y}.png"
-#         url = get_fig_url(model, region, var, fname)
-#         with heatmap_cols[i]:
-#             st.image(url, caption=fname, use_container_width=True)
-
-#     # Third row: cate_heatmap (for t2m, prcp only)
-#     if var in ["t2m", "prcp"]:
-#         st.markdown("#### Deterministic Tercile Heatmap")
-#         cate_cols = st.columns(len(selected_years))
-#         for i, y in enumerate(selected_years):
-#             fname = f"det_ter_score_{var}_{region}_{y}.png"
-#             url = get_fig_url(model, region, var, fname)
-#             with cate_cols[i]:
-#                 st.image(url, caption=fname, use_container_width=True)
-
-# # ──────────────────────────────────────────────
-# # Detailed selected plots
-# with tab2:
-#     #st.markdown("## Detailed Plots")
-#     cols = st.columns(2)
-#     i = 0
-#     for plot_type in selected_plots:
-#         if plot_type in ["ACC_byInit", "ACC_byTarget", "Bias_byTarget", "RPSS_byInit", "ROC_byInit"]:
-#             for fname, url in get_image_urls(plot_type, var, region, yyyymm=selected_start):
-#                 with cols[i % 2]:
-#                     #st.subheader(f"{plot_type} - {fname}")
-#                     st.image(url, caption=fname, use_container_width=True)
-#                 i += 1
-#         else:
-#             for fname, url in get_image_urls(plot_type, var, region):
-#                 with cols[i % 2]:
-#                     #st.subheader(f"{plot_type} - {fname}")
-#                     st.image(url, caption=fname, use_container_width=True)
-#                 i += 1
