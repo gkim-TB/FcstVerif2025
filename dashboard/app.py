@@ -1,6 +1,8 @@
-import streamlit as st
 import os, sys
 from datetime import datetime
+
+import streamlit as st
+st.set_page_config(layout="wide")
 
 # ✅ project root
 # default is './' in Streamlit Cloud
@@ -44,7 +46,7 @@ def get_image_urls(plot_type, var, region, yyyymm=None, year=None, year_only=Non
     return urls
 
 # ───────────────────────────────────────────────────────────────
-st.set_page_config(layout="wide")
+
 # 사이드바: '탭처럼' 사용될 라디오 버튼
 tab_selection = st.sidebar.radio("무엇을 보고 싶으신가요?", ["📊 Overview", "🖼️ Detailed Plots"])
 
