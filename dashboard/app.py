@@ -77,63 +77,67 @@ plot_types = list(PLOT_FILENAME_MAP.keys())
 selected_plots = st.sidebar.multiselect("Select plot types to view:", plot_types, default=[])
 
 # ──────────────────────────────────────────────
-st.markdown("## Key Metrics Overview")
+tab1, tab2 = st.tabs(["📊 Key Metrics Overview", "🖼️ Detailed Plots"])
 
-# First row: init_line (target series)
-st.markdown("#### ACC Target Series by Init")
-for fname, url in get_image_urls("init_line", var, region):
-    st.image(url, caption=fname, use_container_width=True)
+with tab1:
+    st.markdown("## Key Metrics Overview")
 
-# Second row: yearly heatmaps (init_heatmap)
-st.markdown("#### ACC Init Heatmap by Year")
-heatmap_cols = st.columns(len(selected_years))
-for i, y in enumerate(selected_years):
-    fname = f"acc_heatmap_init_{var}_{region}_{y}.png"
-    url = get_fig_url(model, region, var, fname)
-    with heatmap_cols[i]:
+    # First row: init_line (target series)
+    st.markdown("#### ACC Target Series by Init")
+    for fname, url in get_image_urls("init_line", var, region):
         st.image(url, caption=fname, use_container_width=True)
 
-# Third row: cate_heatmap (for t2m, prcp only)
-if var in ["t2m", "prcp"]:
-    st.markdown("#### Deterministic Tercile Heatmap")
-    cate_cols = st.columns(len(selected_years))
+    # Second row: yearly heatmaps (init_heatmap)
+    st.markdown("#### ACC Init Heatmap by Year")
+    heatmap_cols = st.columns(len(selected_years))
     for i, y in enumerate(selected_years):
-        fname = f"det_ter_score_{var}_{region}_{y}.png"
+        fname = f"acc_heatmap_init_{var}_{region}_{y}.png"
         url = get_fig_url(model, region, var, fname)
-        with cate_cols[i]:
+        with heatmap_cols[i]:
             st.image(url, caption=fname, use_container_width=True)
+
+    # Third row: cate_heatmap (for t2m, prcp only)
+    if var in ["t2m", "prcp"]:
+        st.markdown("#### Deterministic Tercile Heatmap")
+        cate_cols = st.columns(len(selected_years))
+        for i, y in enumerate(selected_years):
+            fname = f"det_ter_score_{var}_{region}_{y}.png"
+            url = get_fig_url(model, region, var, fname)
+            with cate_cols[i]:
+                st.image(url, caption=fname, use_container_width=True)
 
 # ──────────────────────────────────────────────
 # Detailed selected plots
-st.markdown("## Detailed Plots")
-cols = st.columns(2)
-i = 0
-for plot_type in selected_plots:
-    if plot_type in ["target_month", "target_pattern", "target_line", "rpss_map", "roc_curve"]:
-        for fname, url in get_image_urls(plot_type, var, region, yyyymm=selected_start):
-            with cols[i % 2]:
-                st.subheader(f"{plot_type} - {fname}")
-                st.image(url, caption=fname, use_container_width=True)
-            i += 1
-    elif plot_type == "init_heatmap":
-        for y in selected_years:
-            fname = f"acc_heatmap_init_{var}_{region}_{y}.png"
-            url = get_fig_url(model, region, var, fname)
-            with cols[i % 2]:
-                st.subheader(f"{plot_type} - {fname}")
-                st.image(url, caption=fname, use_container_width=True)
-            i += 1
-    elif plot_type == "cate_heatmap" and var in ["t2m", "prcp"]:
-        for y in selected_years:
-            fname = f"det_ter_score_{var}_{region}_{y}.png"
-            url = get_fig_url(model, region, var, fname)
-            with cols[i % 2]:
-                st.subheader(f"{plot_type} - {fname}")
-                st.image(url, caption=fname, use_container_width=True)
-            i += 1
-    else:
-        for fname, url in get_image_urls(plot_type, var, region):
-            with cols[i % 2]:
-                st.subheader(f"{plot_type} - {fname}")
-                st.image(url, caption=fname, use_container_width=True)
-            i += 1
+with tab2:
+    st.markdown("## Detailed Plots")
+    cols = st.columns(2)
+    i = 0
+    for plot_type in selected_plots:
+        if plot_type in ["target_month", "target_pattern", "target_line", "rpss_map", "roc_curve"]:
+            for fname, url in get_image_urls(plot_type, var, region, yyyymm=selected_start):
+                with cols[i % 2]:
+                    st.subheader(f"{plot_type} - {fname}")
+                    st.image(url, caption=fname, use_container_width=True)
+                i += 1
+        elif plot_type == "init_heatmap":
+            for y in selected_years:
+                fname = f"acc_heatmap_init_{var}_{region}_{y}.png"
+                url = get_fig_url(model, region, var, fname)
+                with cols[i % 2]:
+                    st.subheader(f"{plot_type} - {fname}")
+                    st.image(url, caption=fname, use_container_width=True)
+                i += 1
+        elif plot_type == "cate_heatmap" and var in ["t2m", "prcp"]:
+            for y in selected_years:
+                fname = f"det_ter_score_{var}_{region}_{y}.png"
+                url = get_fig_url(model, region, var, fname)
+                with cols[i % 2]:
+                    st.subheader(f"{plot_type} - {fname}")
+                    st.image(url, caption=fname, use_container_width=True)
+                i += 1
+        else:
+            for fname, url in get_image_urls(plot_type, var, region):
+                with cols[i % 2]:
+                    st.subheader(f"{plot_type} - {fname}")
+                    st.image(url, caption=fname, use_container_width=True)
+                i += 1
