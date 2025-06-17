@@ -95,7 +95,7 @@ if tab_selection == "📊 Overview":
             f"det_ter_score_{var}_{region}_{selected_year}.png"),
             caption=f"Deterministic Tercile Score ({selected_year})")
         
-else:  # Detailed Plots
+elif tab_selection == "🖼️ Detailed Plots":  # Detailed Plots
     st.header("🖼️ Detailed Plots")
     cols = st.columns(2)
     i = 0
@@ -106,6 +106,16 @@ else:  # Detailed Plots
                 st.image(url, caption=fname, use_container_width=True)
             i += 1
 
+else:
+    st.header("🔧Under development...")
+    st.markdown("""
+    <div style='text-align: center; padding-top: 100px;'>
+        <h1 style='font-size: 60px; color: #8A2BE2; font-weight: bold;'>
+            ✨ Bibbidi-Bobbidi-Boo ✨
+        </h1>
+        <p style='font-size: 20px; color: #555;'>This page is under magical development...</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # # ──────────────────────────────────────────────
 # # Sidebar
