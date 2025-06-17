@@ -23,7 +23,7 @@ st.set_page_config(layout="wide")
 # ✅ Mapping for file names per plot type
 PLOT_FILENAME_MAP = {
     #"init_line":      [f"acc_targetSeries_byInit_{{var}}_{{region}}_{year_start}_{year_end}.png"],
-    "ACC_byInit":    ["acc_init_{var}_{region}_{yyyymm}.png", "rmse_init_{var}_{region}_{yyyymm}.png"],,
+    "ACC_byInit":    ["acc_init_{var}_{region}_{yyyymm}.png", "rmse_init_{var}_{region}_{yyyymm}.png"],
     "ACC_byTarget":  ["acc_target_{var}_{region}_{yyyymm}.png", "rmse_target_{var}_{region}_{yyyymm}.png"],
     "Bias_byTarget": ["{var}_pattern_compare_{region}_{yyyymm}.png"],
     "RPSS_byInit":   ["rpss_map_{var}_{region}_{yyyymm}.png"],
