@@ -1,0 +1,8 @@
+streamlit>=1.35.0
+xarray
+numpy
+matplotlib
+scikit-learn
+xskillscore
+pandas
+Pillow
