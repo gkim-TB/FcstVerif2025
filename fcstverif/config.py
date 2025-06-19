@@ -29,14 +29,14 @@ model = 'GS6'
 
 # --- plot list ---
 enabled_plots = [
-    #"init_line",
-    "init_heatmap",
-    #"target_month",
-    #"target_pattern",
-    "target_line",
-    "cate_heatmap", # only for t2m, prcp
-    #"rpss_map",
-    #"roc_curve"
+    "init_line",       # Timeseries of deterministic skill score by lead, every initialized month
+    "init_heatmap",    # Deterministic skill score heatmap
+    "target_month",    # Timeseries of deterministic skill score by lead, every target month
+    "target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
+    "target_line",     # Timeseries of all forecast initialization (ACC)
+    "cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
+    "rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
+    "roc_curve"        # (Probabilistic skill score) ROC curve with AUC, every initialized month
 ]
 #================================================
 

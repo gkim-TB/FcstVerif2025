@@ -29,15 +29,15 @@ def get_yyyymm_for_plot(plot_type, selected_yyyymm):
 #st.set_page_config(layout="wide")
 #st.title("Seasonal Forecast Verification Dashboard")
 
-plot_types = [
-    "ACC_byTarget",
-    "RMSE_byTarget"
-    "ACC_byInit",
-    "RMSE_byInit",
-    "Bias_byTarget",
-    "RPSS_byInit",
-    "ROC_byInit"
-]
+# plot_types = [
+#     "ACC_byTarget",
+#     "RMSE_byTarget"
+#     "ACC_byInit",
+#     "RMSE_byInit",
+#     "Bias_byTarget",
+#     "RPSS_byInit",
+#     "ROC_byInit"
+# ]
 # ✅ Mapping for file names per plot type
 PLOT_FILENAME_MAP = {
     #"init_line":      [f"acc_targetSeries_byInit_{{var}}_{{region}}_{year_start}_{year_end}.png"],
@@ -51,6 +51,10 @@ PLOT_FILENAME_MAP = {
     #"init_heatmap":   [f"det_heatmap_init_{{var}}_{{region}}_{{year_only}}.png"],
     #"cate_heatmap":   ["det_ter_score_{var}_{region}_{year}.png"]
 }
+# IDX_FILENAME_MAP={
+#     "ENSO_index" :   ["ENSO_plum_{yyyymm}.png"],
+#     "IOD_index" :    ["IOD_plum_{yyyymm}.png"]
+# }
 
 def get_image_urls(plot_type, var, region, yyyymm=None, year=None, year_only=None):
     templates = PLOT_FILENAME_MAP.get(plot_type, [])
@@ -76,6 +80,9 @@ if tab_selection == "📊 Overview":
     selected_year = st.sidebar.selectbox("Select Year:", list(range(year_start, year_end+1)))
 elif tab_selection == "📈 Indice":
     st.sidebar.markdown("Select options for Indices")
+    selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(year_start, year_end+1)))
+    selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
+    #plot_types=list(IDX_FILENAME_MAP.keys())
     
 elif tab_selection == "🖼️ Detailed Plots":  # Detailed
     var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
@@ -128,13 +135,22 @@ elif tab_selection == "🖼️ Detailed Plots":  # Detailed Plots
             i += 1
 
 else:
-    #st.header("🔧Under development...")
-    st.markdown("""
-    <div style='text-align: center; padding-top: 100px;'>
-        <h1 style='font-size: 60px; color: #8A2BE2; font-weight: bold;'>
-            ✨ Bibbidi-Bobbidi-Boo ✨
-        </h1>
-        <p style='font-size: 20px; color: #555;'>This page is under magical development...</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.header("📈 Indices")
+    cols = st.columns(2)
+    with cols[0]:
+        st.image(get_fig_url(model, "IDX",
+            f"ENSO_plum_{selected_yyyymm}.png"),
+            caption=f"ENSO plums initialized ({selected_yyyymm})", use_container_width=True)
+    with cols[1]:
+        st.image(get_fig_url(model, "IDX",
+            f"IOD_plum_{selected_yyyymm}.png"),
+            caption=f"IOD plums initialized ({selected_yyyymm})", use_container_width=True)
+    # st.markdown("""
+    # <div style='text-align: center; padding-top: 100px;'>
+    #     <h1 style='font-size: 60px; color: #8A2BE2; font-weight: bold;'>
+    #         ✨ Bibbidi-Bobbidi-Boo ✨
+    #     </h1>
+    #     <p style='font-size: 20px; color: #555;'>This page is under magical development...</p>
+    # </div>
+    # """, unsafe_allow_html=True)
 
