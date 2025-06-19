@@ -3,7 +3,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 import streamlit as st
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide", initial_sidebar_state='expanded')
 
 # ✅ project root
 # default is './' in Streamlit Cloud
