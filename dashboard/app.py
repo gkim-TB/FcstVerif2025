@@ -4,6 +4,8 @@ from dateutil.relativedelta import relativedelta
 
 import streamlit as st
 st.set_page_config(layout="wide", initial_sidebar_state='expanded')
+st.sidebar.title("Seasonal Forecast Verification Dashboard")
+st.sidebar.markdown("Use the options below to customize plots")
 
 # ✅ project root
 # default is './' in Streamlit Cloud
@@ -66,8 +68,6 @@ def get_image_urls(plot_type, var, region, yyyymm=None, year=None, year_only=Non
     return urls
 
 # ───────────────────────────────────────────────────────────────
-st.sidebar.title("Seasonal Forecast Verification Dashboard")
-st.sidebar.markdown("Use the options below to customize plots")
 
 # tab selection radio button
 tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots", "📈 Indices"])
