@@ -48,7 +48,7 @@ PLOT_FILENAME_MAP = {
     "Bias_byTarget": ["{var}_pattern_compare_{region}_{yyyymm}.png"],
     "RPSS_byInit":   ["rpss_map_{var}_{region}_{yyyymm}.png"],
     "ROC_byInit":    ["roc_curve_by_lead_{var}_{region}_{yyyymm}.png"],
-    #"init_heatmap":   [f"acc_heatmap_init_{{var}}_{{region}}_{{year_only}}.png"],
+    #"init_heatmap":   [f"det_heatmap_init_{{var}}_{{region}}_{{year_only}}.png"],
     #"cate_heatmap":   ["det_ter_score_{var}_{region}_{year}.png"]
 }
 
@@ -108,8 +108,8 @@ if tab_selection == "📊 Overview":
     cols = st.columns(2)
     with cols[0]:
         st.image(get_fig_url(model, region, var,
-            f"acc_heatmap_init_{var}_{region}_{selected_year}.png"),
-            caption=f"ACC Init Heatmap ({selected_year})", use_container_width=True)
+            f"det_heatmap_init_{var}_{region}_{selected_year}.png"),
+            caption=f"Deterministic Skill Score ({selected_year})", use_container_width=True)
     with cols[1]:
         st.image(get_fig_url(model, region, var,
             f"det_ter_score_{var}_{region}_{selected_year}.png"),

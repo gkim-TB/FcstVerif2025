@@ -56,7 +56,7 @@ def plot_det_cate_heatmap(var, years, region_name, data_dir, fig_dir, score1='ac
                     grid1[i, j] = match[score1].values[0]
                     grid2[i, j] = match[score2].values[0]
 
-        fig, ax = plt.subplots(figsize=(5, len(y_labels)*0.5))
+        fig, ax = plt.subplots(figsize=(5, 6)) #5, len(y_labels)*0.5))
 
         for i in range(len(y_labels)):
             for j in range(len(x_labels)):

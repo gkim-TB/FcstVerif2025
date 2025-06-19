@@ -68,16 +68,29 @@ def plot_skill_initialized_month(var, region_name, data_dir, fig_dir, score):
         logger.info(f"[INFO] Saved: {save_fname}")
         ds.close()
 
+def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir, fig_dir, score1='acc', score2='rmse'):
+    import matplotlib.patches as patches
+    import matplotlib.colors as mcolors
 
-def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir, fig_dir, score):
-    # 데이터 준비
+    # 설정
     months = range(1, 13)
     leads = range(1, 7)
-    
-    heatmap_data = np.full((len(months), len(leads)), np.nan)
-
     y_labels = [f"{target_year}-{m:02d}" for m in months]
+    x_labels = list(leads)
 
+    # 색상 및 colormap 설정
+    cmap1 = plt.get_cmap('bwr', 10)    # 💡 ACC
+    cmap2 = plt.get_cmap('Greys', 10)  # 💡 RMSE
+    bounds1 = np.linspace(-1, 1, 11)     # ACC
+    bounds2 = np.linspace(0, 4, 11)    # RMSE (적절히 조정 필요)
+    norm1 = mcolors.BoundaryNorm(bounds1, cmap1.N)
+    norm2 = mcolors.BoundaryNorm(bounds2, cmap2.N)
+
+    # 빈 grid
+    grid1 = np.full((len(y_labels), len(x_labels)), np.nan)
+    grid2 = np.full((len(y_labels), len(x_labels)), np.nan)
+
+    # 데이터 로드
     for i, month in enumerate(months):
         yyyymm = f"{target_year}{month:02d}"
         file_path = os.path.join(data_dir, f"ensScore_det_{var}_{yyyymm}.nc")
@@ -90,56 +103,148 @@ def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir
 
         for j, lead in enumerate(leads):
             try:
-                time_idx = ds['lead'].values.tolist().index(lead)
-                heatmap_data[i, j] = ds[f"{score}_mean"].isel(time=time_idx).item()
+                time_idx = list(ds['lead'].values).index(lead)
+                grid1[i, j] = ds[f"{score1}_mean"].isel(time=time_idx).item()
+                grid2[i, j] = ds[f"{score2}_mean"].isel(time=time_idx).item()
             except Exception:
                 logger.info(f"[WARN] {yyyymm} Lead={lead} 없음")
                 continue
 
-    # colormap 설정(discrete levels)
-    bounds = np.arange(-1,1.01, 0.2)
-    cmap = plt.get_cmap('coolwarm', len(bounds)-1)
-    norm = mcolors.BoundaryNorm(bounds, cmap.N)
+    # 그림 생성
+    fig, ax = plt.subplots(figsize=(5, len(y_labels) * 0.5))
 
-    # 히트맵 그리기
-    plt.figure(figsize=(5, len(y_labels)*0.5))
-    im = plt.imshow(heatmap_data, cmap=cmap, norm=norm, aspect='auto')
+    for i in range(len(y_labels)):
+        for j in range(len(x_labels)):
+            x = j
+            y = i
+            val1 = grid1[i, j]
+            val2 = grid2[i, j]
 
-    # grid 설정 (white borders)
-    ax = plt.gca()
-    for i in range(len(months)):
-        for j in range(len(leads)):
-            rect = patches.Rectangle((j-0.5, i-0.5), 1, 1, linewidth=1,
-                                     edgecolor='white', facecolor='none')
-            ax.add_patch(rect)
+            if not np.isnan(val1):
+                ax.add_patch(patches.Polygon(
+                    [[x, y], [x+1, y], [x, y+1]],
+                    facecolor=cmap1(norm1(val1)), edgecolor='white', lw=2
+                ))
+            if not np.isnan(val2):
+                ax.add_patch(patches.Polygon(
+                    [[x+1, y+1], [x+1, y], [x, y+1]],
+                    facecolor=cmap2(norm2(val2)), edgecolor='white', lw=2
+                ))
 
-    # annotation
-    for i in range(len(months)):
-        for j in range(len(leads)):
-            val = heatmap_data[i, j]
-            if not np.isnan(val):
-                ax.text(j, i, f"{val:.2f}", ha='center', va='center', color='black')
+            if not np.isnan(val1) and not np.isnan(val2):
+                color1 = 'white' if val1 >= 0.6 else 'black'
+                color2 = 'white' if val2 >= 2 else 'black'
+                ax.text(x + 0.3, y + 0.25, f'{val1:.2f}', ha='center', va='center', fontsize=7, color=color1)
+                ax.text(x + 0.7, y + 0.75, f'{val2:.2f}', ha='center', va='center', fontsize=7, color=color2)
 
     # 축 설정
-    ax.set_xticks(np.arange(len(leads)))
-    ax.set_xticklabels([f"Lead {l}" for l in leads])
-    ax.set_yticks(np.arange(len(months)))
+    ax.set_xticks(np.arange(len(x_labels)) + 0.5)
+    ax.set_xticklabels([f'Lead {l}' for l in x_labels])
+    ax.set_yticks(np.arange(len(y_labels)) + 0.5)
     ax.set_yticklabels(y_labels)
+    ax.set_xlim(0, len(x_labels))
+    ax.set_ylim(0, len(y_labels))
+    ax.invert_yaxis()
+    ax.set_xlabel("Lead Time")
+    ax.set_ylabel("Initialized Month")
+    ax.set_title(f"{score1.upper()} / {score2.upper()} Heatmap\n(Region: {region_name}, Var: {var}, Year: {target_year})")
 
-    ax.set_xlabel('Lead Time (month)')
-    ax.set_ylabel('Initialized Month')
-    ax.set_title(f'{score.upper()} Heatmap\n(Region: {region_name}, Var: {var}, Year: {target_year})')
+    # colorbar
+    fig.subplots_adjust(right=0.88)
+    cax1 = fig.add_axes([0.90, 0.55, 0.015, 0.3])
+    sm1 = plt.cm.ScalarMappable(cmap=cmap1, norm=norm1)
+    sm1.set_array([])
+    cbar1 = plt.colorbar(sm1, cax=cax1, ticks=bounds1)
+    cbar1.set_label(score1.upper())
 
-    # colorbar 설정
-    cbar = plt.colorbar(im, ticks=bounds, spacing='proportional')
-    cbar.set_label(score.upper())
+    cax2 = fig.add_axes([0.90, 0.15, 0.015, 0.3])
+    sm2 = plt.cm.ScalarMappable(cmap=cmap2, norm=norm2)
+    sm2.set_array([])
+    cbar2 = plt.colorbar(sm2, cax=cax2, ticks=bounds2)
+    cbar2.set_label(score2.upper())
 
-    plt.tight_layout()
-    save_fname = os.path.join(fig_dir, f"{score}_heatmap_init_{var}_{region_name}_{target_year}.png")
-    #plt.show()
-    plt.savefig(save_fname, dpi=300, bbox_inches='tight', facecolor='w')
-    plt.close()
-    logger.info(f"[INFO] Saved Heatmap: {save_fname}")
+    # 저장
+    save_fname = os.path.join(fig_dir, f"det_heatmap_init_{var}_{region_name}_{target_year}.png")
+    fig.savefig(save_fname, dpi=300, bbox_inches='tight')
+    logger.info(f"[INFO] Saved Dual-Score Heatmap: {save_fname}")
+
+# def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir, fig_dir, score):
+#     # 데이터 준비
+#     months = range(1, 13)
+#     leads = range(1, 7)
+    
+#     heatmap_data = np.full((len(months), len(leads)), np.nan)
+
+#     y_labels = [f"{target_year}-{m:02d}" for m in months]
+
+#     for i, month in enumerate(months):
+#         yyyymm = f"{target_year}{month:02d}"
+#         file_path = os.path.join(data_dir, f"ensScore_det_{var}_{yyyymm}.nc")
+
+#         if not os.path.isfile(file_path):
+#             logger.info(f"[WARN] {file_path} 없음.")
+#             continue
+
+#         ds = xr.open_dataset(file_path)
+
+#         for j, lead in enumerate(leads):
+#             try:
+#                 time_idx = ds['lead'].values.tolist().index(lead)
+#                 heatmap_data[i, j] = ds[f"{score}_mean"].isel(time=time_idx).item()
+#             except Exception:
+#                 logger.info(f"[WARN] {yyyymm} Lead={lead} 없음")
+#                 continue
+
+#     # colormap 설정(discrete levels)
+#     bounds = np.arange(-1,1.01, 0.2)
+#     cmap = plt.get_cmap('coolwarm', len(bounds)-1)
+#     norm = mcolors.BoundaryNorm(bounds, cmap.N)
+
+#     # 히트맵 그리기
+#     fig, ax = plt.subplots(figsize=(5, 6)) #5, len(y_labels)*0.5))
+#     im = ax.imshow(heatmap_data, cmap=cmap, norm=norm, aspect='auto')
+
+#     # grid 설정 (white borders)
+#     ax = plt.gca()
+#     for i in range(len(months)):
+#         for j in range(len(leads)):
+#             rect = patches.Rectangle((j-0.5, i-0.5), 1, 1, linewidth=1,
+#                                      edgecolor='white', facecolor='none')
+#             ax.add_patch(rect)
+
+#     # annotation
+#     for i in range(len(months)):
+#         for j in range(len(leads)):
+#             val = heatmap_data[i, j]
+#             if not np.isnan(val):
+#                 ax.text(j, i, f"{val:.2f}", ha='center', va='center', color='black')
+
+#     # 축 설정
+#     ax.set_xticks(np.arange(len(leads)))
+#     ax.set_xticklabels([f"Lead {l}" for l in leads])
+#     ax.set_yticks(np.arange(len(months)))
+#     ax.set_yticklabels(y_labels)
+
+#     ax.set_xlabel('Lead Time (month)')
+#     ax.set_ylabel('Initialized Month')
+#     ax.set_title(f'{score.upper()} Heatmap\n(Region: {region_name}, Var: {var}, Year: {target_year})')
+
+#     # colorbar 설정
+#     cbar = plt.colorbar(im, ticks=bounds, spacing='proportional', aspect=50)
+#     cbar.set_label(score.upper())
+#     fig.subplots_adjust(right=0.88)
+#         cax1 = fig.add_axes([0.90, 0.55, 0.015, 0.3])
+#         sm1 = plt.cm.ScalarMappable(cmap=cmap1, norm=norm1)
+#         sm1.set_array([])
+#         cbar1 = plt.colorbar(sm1, cax=cax1, ticks=bounds1)
+#         cbar1.set_label('ACC')
+
+#     plt.tight_layout()
+#     save_fname = os.path.join(fig_dir, f"{score}_heatmap_init_{var}_{region_name}_{target_year}.png")
+#     #plt.show()
+#     plt.savefig(save_fname, dpi=300, bbox_inches='tight', facecolor='w')
+#     plt.close()
+#     logger.info(f"[INFO] Saved Heatmap: {save_fname}")
 
 
 def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_dir=None):

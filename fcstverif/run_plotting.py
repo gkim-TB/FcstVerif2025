@@ -36,7 +36,7 @@ def define_plot_tasks(var, region_name, data_dir, fig_dir, yyyymm_list):
         "init_heatmap": lambda: [
             plot_skill_heatmap_initialized_month(
                 var=var, target_year=y, region_name=region_name,
-                data_dir=data_dir, fig_dir=fig_dir, score='acc'
+                data_dir=data_dir, fig_dir=fig_dir, score1='acc', score2='rmse'
             ) for y in fyears
         ],
         "target_month": lambda: [

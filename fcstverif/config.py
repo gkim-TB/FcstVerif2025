@@ -36,7 +36,7 @@ enabled_plots = [
     #"target_line",
     "cate_heatmap", # only for t2m, prcp
     #"rpss_map",
-    "roc_curve"
+    #"roc_curve"
 ]
 #================================================
 
