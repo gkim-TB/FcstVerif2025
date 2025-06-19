@@ -32,3 +32,8 @@ OISST/
 
 # dotenv
 .env
+
+# others
+.dump
+.devcontainer
+.gitignore
