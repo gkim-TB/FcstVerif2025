@@ -76,7 +76,7 @@ def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir
     
     heatmap_data = np.full((len(months), len(leads)), np.nan)
 
-    month_labels = [f"{target_year}-{m:02d}" for m in months]
+    y_labels = [f"{target_year}-{m:02d}" for m in months]
 
     for i, month in enumerate(months):
         yyyymm = f"{target_year}{month:02d}"
@@ -102,7 +102,7 @@ def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir
     norm = mcolors.BoundaryNorm(bounds, cmap.N)
 
     # 히트맵 그리기
-    plt.figure(figsize=(6, 8))
+    plt.figure(figsize=(5, len(y_labels)*0.5))
     im = plt.imshow(heatmap_data, cmap=cmap, norm=norm, aspect='auto')
 
     # grid 설정 (white borders)
@@ -124,7 +124,7 @@ def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir
     ax.set_xticks(np.arange(len(leads)))
     ax.set_xticklabels([f"Lead {l}" for l in leads])
     ax.set_yticks(np.arange(len(months)))
-    ax.set_yticklabels(month_labels)
+    ax.set_yticklabels(y_labels)
 
     ax.set_xlabel('Lead Time (month)')
     ax.set_ylabel('Initialized Month')
@@ -274,10 +274,10 @@ def plot_skill_by_initialized_line(var, year_start, year_end, region_name, score
     ]
 
     plt.axhline(0, color='gray', linestyle='--')
-    plt.xlabel("Target Month")
-    plt.ylabel(score.upper())
-    plt.title(f"{score.upper()} by Target Month\nEach Line = One Initialized Month ({year_start}–{year_end}), Region: {region_name}, Var: {var}")
-    plt.legend(handles=legend_elements, title="Initialized Month", bbox_to_anchor=(1.01, 1), loc='upper left')
+    plt.xlabel("Target Month", fontsize=14)
+    plt.ylabel(score.upper(), fontsize=14)
+    plt.title(f"{score.upper()} by Target Month\nEach Line = One Initialized Month ({year_start}–{year_end}), Region: {region_name}, Var: {var}", fontsize=15)
+    plt.legend(handles=legend_elements, title="Initialized Month", bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=14)
     plt.grid(True, linestyle='--', color='lightgrey')
     plt.tight_layout()
 

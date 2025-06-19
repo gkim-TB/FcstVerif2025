@@ -41,15 +41,15 @@ def plot_det_cate_heatmap(var, years, region_name, data_dir, fig_dir, score1='ac
         if df_year.empty:
             continue
 
-        # 월 기준으로 y축 정렬
-        df_year['month'] = df_year['yyyymm'].str[4:6]
-        y_labels = sorted(df_year['yyyymm'].unique(), key=lambda x: int(x[4:6]))
+        months = range(1, 13)
+        y_labels = [f"{year}-{m:02d}" for m in months]
         x_labels = sorted(df_year['lead'].unique())
 
         grid1 = np.full((len(y_labels), len(x_labels)), np.nan)
         grid2 = np.full((len(y_labels), len(x_labels)), np.nan)
 
-        for i, yyyymm in enumerate(y_labels):
+        for i, month in enumerate(months):
+            yyyymm = f"{year}{month:02d}"
             for j, lead in enumerate(x_labels):
                 match = df_year[(df_year['yyyymm'] == yyyymm) & (df_year['lead'] == lead)]
                 if not match.empty:
@@ -108,6 +108,7 @@ def plot_det_cate_heatmap(var, years, region_name, data_dir, fig_dir, score1='ac
         #plt.tight_layout(rect=[0,0,0.88,1])
         save_fname = os.path.join(fig_dir, f"det_ter_score_{var}_{region_name}_{year}.png")
         fig.savefig(save_fname, dpi=300, bbox_inches='tight')
+        logger.info(f"[SAVE] Category Score Heatmap: {save_fname}")
 
 
     
