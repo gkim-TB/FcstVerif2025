@@ -13,7 +13,7 @@ clim_start = 1991
 clim_end   = 2020
 
 # --- 변수 목록 ---
-variables = ['t2m', 'sst', 'prcp']
+variables = ['t2m']#, 'sst', 'prcp']
 #variables = ['t', 'z']
 
 # --- 검증 영역 정의 ---
