@@ -13,7 +13,7 @@ clim_start = 1991
 clim_end   = 2020
 
 # --- 변수 목록 ---
-variables = ['t2m']
+variables = ['t2m', 'sst', 'prcp']
 #variables = ['t', 'z']
 
 # --- 검증 영역 정의 ---
@@ -33,7 +33,7 @@ enabled_plots = [
     "init_heatmap",
     #"target_month",
     #"target_pattern",
-    #"target_line",
+    "target_line",
     "cate_heatmap", # only for t2m, prcp
     #"rpss_map",
     #"roc_curve"
