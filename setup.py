@@ -14,7 +14,8 @@ setup(
         'matplotlib',
         'scikit-learn',
         'xskillscore',
-        'streamlit'
+        'streamlit>=1.35.0',
+        'Pillow'
     ],
 )
 
