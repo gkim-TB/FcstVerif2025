@@ -37,31 +37,32 @@ def plot_skill_initialized_month(var, region_name, data_dir, fig_dir, score):
         lead_full = np.arange(1,7)
         lead_valid = ds['lead'].values
 
+        fig, ax = plt.subplots(figsize=(5,4))
         # 멤버별 점선 (회색)
         if score in ds.data_vars:
             for e in ds['ens'].values:
                 y_vals = [ds[score].sel(ens=e).sel(time=t).item() if t in ds['time'].values else np.nan
                           for t in ds['time'].values]
-                plt.plot(lead_valid, y_vals, '--', color='gray', alpha=0.4, linewidth=0.8)
+                ax.plot(lead_valid, y_vals, '--', color='gray', alpha=0.4, linewidth=0.8)
 
         # 앙상블 평균 (진한 파란색)
         mean_score_name = f"{score}_mean"
         if mean_score_name in ds.data_vars:
             y_vals = [ds[mean_score_name].sel(time=t).item() if t in ds['time'].values else np.nan
                       for t in ds['time'].values]
-            plt.plot(lead_valid, y_vals, '-o', color='royalblue', label='Ensemble Mean')
+            ax.plot(lead_valid, y_vals, '-o', color='royalblue', label='Ensemble Mean')
 
-        plt.xlabel('Lead Time (month)')
-        plt.ylabel(score.upper())
-        plt.title(f'{score.upper()} by Lead Time\n(Initialized: {yyyymm}, Region: {region_name}, Var: {var})')
-        plt.grid(True, linestyle='--', color='lightgrey')
+        ax.set_xlabel('Lead Time (month)')
+        ax.set_ylabel(score.upper())
+        ax.set_title(f'{score.upper()} by Lead Time\n(Initialized: {yyyymm}, Region: {region_name}, Var: {var})')
+        ax.grid(True, linestyle='--', color='lightgrey')
         if score == 'acc':
-            plt.ylim([-1,1])
+            ax.set_ylim([-1,1])
         elif score == 'rmse':
-            plt.ylim([0,4])
-        plt.xticks(lead_full)
+            ax.set_ylim([0,4])
+        ax.set_xticks(lead_full)
         #plt.xlim(0.9,6.1)
-        plt.legend()
+        ax.legend()
 
         save_fname = os.path.join(fig_dir, f"{score}_init_{var}_{region_name}_{yyyymm}.png")
         plt.savefig(save_fname, dpi=300, bbox_inches='tight')
@@ -215,30 +216,30 @@ def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_
                 continue
 
         if mean_score_list:
-            plt.figure(figsize=(8, 5))
+            fig, ax = plt.subplots(figsize=(5,4))
 
             # 💡 멤버별 회색 점선
             for e, values in member_score_dict.items():
                 if len(values) == len(lead_list):
-                    plt.plot(lead_list, values, '--', color='gray', alpha=0.4, linewidth=0.8)
+                    ax.plot(lead_list, values, '--', color='gray', alpha=0.4, linewidth=0.8)
 
             # 💡 앙상블 평균 진한 선
-            plt.plot(lead_list, mean_score_list, '-o', color='forestgreen', label='Ensemble Mean')
+            ax.plot(lead_list, mean_score_list, '-o', color='forestgreen', label='Ensemble Mean')
 
             for i, txt in enumerate(init_month_labels):
-                plt.text(lead_list[i], mean_score_list[i], txt, fontsize=9,
+                ax.text(lead_list[i], mean_score_list[i], txt, fontsize=9,
                          ha='center', va='bottom', color='blue')
 
-            plt.xlabel('Lead Time (month)')
-            plt.ylabel(score.upper())
+            ax.set_xlabel('Lead Time (month)')
+            ax.set_ylabel(score.upper())
             if score == 'acc':
-                plt.ylim([-1,1]) # if score ACC
+                ax.set_ylim([-1,1]) # if score ACC
             elif score == 'rmse':
-                plt.ylim([0,4])
-            plt.title(f'{score.upper()} by Lead Time\n(Target Month: {target_date.strftime("%Y-%m")}, Region: {region_name}, Var: {var})')
-            plt.xticks([1, 2, 3, 4, 5, 6])
-            plt.grid(True, linestyle='--', color='lightgrey')
-            plt.legend()
+                ax.set_ylim([0,4])
+            ax.set_title(f'{score.upper()} by Lead Time\n(Target Month: {target_date.strftime("%Y-%m")}, Region: {region_name}, Var: {var})')
+            ax.set_xticks([1, 2, 3, 4, 5, 6])
+            ax.grid(True, linestyle='--', color='lightgrey')
+            ax.legend()
 
             save_fname = os.path.join(fig_dir, f"{score}_target_{var}_{region_name}_{target_date.strftime('%Y%m')}.png")
             plt.savefig(save_fname, dpi=300, bbox_inches='tight')
