@@ -13,7 +13,7 @@ clim_start = 1991
 clim_end   = 2020
 
 # --- 변수 목록 ---
-variables = ['t2m']#, 'sst', 'prcp']
+variables = ['t2m', 'sst', 'prcp']
 #variables = ['t', 'z']
 
 # --- 검증 영역 정의 ---
@@ -30,13 +30,13 @@ model = 'GS6'
 # --- plot list ---
 enabled_plots = [
     "init_line",       # Timeseries of deterministic skill score by lead, every initialized month
-    "init_heatmap",    # Deterministic skill score heatmap
+    #"init_heatmap",    # Deterministic skill score heatmap
     "target_month",    # Timeseries of deterministic skill score by lead, every target month
-    "target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
-    "target_line",     # Timeseries of all forecast initialization (ACC)
-    "cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
-    "rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
-    "roc_curve"        # (Probabilistic skill score) ROC curve with AUC, every initialized month
+    #"target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
+    #"target_line",     # Timeseries of all forecast initialization (ACC)
+    #"cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
+    #"rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
+    #"roc_curve"        # (Probabilistic skill score) ROC curve with AUC, every initialized month
 ]
 #================================================
 

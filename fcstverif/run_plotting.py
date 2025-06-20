@@ -30,9 +30,11 @@ def parse_args():
 
 def define_plot_tasks(var, region_name, data_dir, fig_dir, yyyymm_list):
     return {
-        "init_line": lambda: plot_skill_initialized_month(
-            var=var, region_name=region_name, data_dir=data_dir, fig_dir=fig_dir, score='acc'
-        ),
+        "init_line": lambda: [
+            plot_skill_initialized_month(
+                var=var, region_name=region_name, data_dir=data_dir, fig_dir=fig_dir, score=score
+            ) for score in ['acc', 'rmse']
+        ],
         "init_heatmap": lambda: [
             plot_skill_heatmap_initialized_month(
                 var=var, target_year=y, region_name=region_name,
@@ -42,13 +44,15 @@ def define_plot_tasks(var, region_name, data_dir, fig_dir, yyyymm_list):
         "target_month": lambda: [
             plot_skill_target_month(
                 var=var, target_year=y, region_name=region_name,
-                score='acc', data_dir=data_dir, fig_dir=fig_dir
-            ) for y in fyears
+                score=score, data_dir=data_dir, fig_dir=fig_dir
+            ) for y in fyears for score in ['acc', 'rmse']
         ],
-        "target_line": lambda: plot_skill_by_initialized_line(
-            var=var, year_start=year_start, year_end=year_end,
-            region_name=region_name, score='acc', data_dir=data_dir, fig_dir=fig_dir
-        ),
+        "target_line": lambda: [
+            plot_skill_by_initialized_line(
+                var=var, year_start=year_start, year_end=year_end,
+                region_name=region_name, score=score, data_dir=data_dir, fig_dir=fig_dir
+            ) for score in ['acc', 'rmse']
+        ],
         "target_pattern": lambda: [
             plot_spatial_pattern_fcst_vs_obs(
                 var=var, target_year=y, region_name=region_name, fig_dir=fig_dir

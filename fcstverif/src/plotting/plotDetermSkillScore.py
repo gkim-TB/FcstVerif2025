@@ -55,7 +55,10 @@ def plot_skill_initialized_month(var, region_name, data_dir, fig_dir, score):
         plt.ylabel(score.upper())
         plt.title(f'{score.upper()} by Lead Time\n(Initialized: {yyyymm}, Region: {region_name}, Var: {var})')
         plt.grid(True, linestyle='--', color='lightgrey')
-        plt.ylim([-1,1])
+        if score == 'acc':
+            plt.ylim([-1,1])
+        elif score == 'rmse':
+            plt.ylim([0,4])
         plt.xticks(lead_full)
         #plt.xlim(0.9,6.1)
         plt.legend()
@@ -228,7 +231,10 @@ def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_
 
             plt.xlabel('Lead Time (month)')
             plt.ylabel(score.upper())
-            plt.ylim([-1,1]) # if score ACC
+            if score == 'acc':
+                plt.ylim([-1,1]) # if score ACC
+            elif score == 'rmse':
+                plt.ylim([0,4])
             plt.title(f'{score.upper()} by Lead Time\n(Target Month: {target_date.strftime("%Y-%m")}, Region: {region_name}, Var: {var})')
             plt.xticks([1, 2, 3, 4, 5, 6])
             plt.grid(True, linestyle='--', color='lightgrey')

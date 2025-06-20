@@ -78,7 +78,7 @@ if tab_selection == "📊 Overview":
     region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
 
     selected_year = st.sidebar.selectbox("Select Year:", list(range(year_start, year_end+1)))
-elif tab_selection == "📈 Indice":
+elif tab_selection == "📈 Indices":
     st.sidebar.markdown("Select options for Indices")
     selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(year_start, year_end+1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))

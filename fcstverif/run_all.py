@@ -17,18 +17,18 @@ def run_script(script_name, var, region=None, debug=False):
 def main():
     for var in variables:
         
-        print("📦 [1] Preprocessing...")
-        print(f"\n🔧 Processing: var={var}, region=GL")
-        run_script("run_preprocessing.py", var)
+        # print("📦 [1] Preprocessing...")
+        # print(f"\n🔧 Processing: var={var}, region=GL")
+        # run_script("run_preprocessing.py", var)
 
-        run_script("run_categorization.py", var)
+        # run_script("run_categorization.py", var)
 
-        if var == 'sst':
-            run_script("run_indices.py", var)
+        # if var == 'sst':
+        #     run_script("run_indices.py", var)
 
-        for region in REGIONS:
-            print("📊 [2] Analysis...")
-            run_script("run_analysis.py", var, region)
+        # for region in REGIONS:
+        #     print("📊 [2] Analysis...")
+        #     run_script("run_analysis.py", var, region)
 
         for region in REGIONS:
             print("🖼️  [3] Plotting...")
