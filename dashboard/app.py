@@ -139,12 +139,10 @@ else:
     st.header("📈 Indices")
     cols = st.columns(2)
     with cols[0]:
-        st.image(get_fig_url(model, "IDX",
-            f"ENSO_plum_{selected_yyyymm}.png"),
+        st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/ENSO_plum_{selected_yyyymm}.png",
             caption=f"ENSO plums initialized ({selected_yyyymm})", use_container_width=True)
     with cols[1]:
-        st.image(get_fig_url(model, "IDX",
-            f"IOD_plum_{selected_yyyymm}.png"),
+        st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/IOD_plum_{selected_yyyymm}.png",
             caption=f"IOD plums initialized ({selected_yyyymm})", use_container_width=True)
     # st.markdown("""
     # <div style='text-align: center; padding-top: 100px;'>
