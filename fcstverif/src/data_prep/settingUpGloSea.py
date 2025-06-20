@@ -112,10 +112,11 @@ def convert_single_hindcast_file(
     rename_var = GSvar2rename.get(var, var)
     date_tag = pd.to_datetime(init_date_str).strftime('%Y%m%d')
     stat_part = "" if stat_type is None else f"{stat_type}_"
+
+    # hindcast data path [ modify if needed ]
     fpath = os.path.join(
         data_dir, rename_var, f"{file_prefix}{stat_part}{rename_var}_{date_tag}.grb2"
     )
-
     if not os.path.isfile(fpath):
         logger.warning(f"[HIND] {stat_type} 파일 없음: {fpath}")
         return
@@ -137,12 +138,26 @@ def convert_single_hindcast_file(
     logger.info(f"[HIND] saved → {out_nc}")
 
 def convert_monthly_hindcast(forecast_start, forecast_end, var, init_rule, data_dir, file_prefix, out_dir):
+    '''
+    convert the specified initialized date to monthly initialization
+    e.g. if initialized date is 2022-01-01 --> 2022-01
+    '''
     init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)
-    stat_list = ['sigma', 'gaus'] if var == 't2m' else ['qntl'] if var == 'prcp' else ['gaus']
+    stat_list = []
+    stat_list.append(None)
+    
+    if var == 't2m':
+        stat_list += ['sigma', 'gaus'] 
+    elif var == 'prcp': 
+        stat_list += ['qntl'] 
+    else:
+        stat_list += ['gaus']
+
     for date in init_dates:
         date_str = date.strftime('%Y-%m-%d')
         for stat_type in stat_list:
-            convert_single_hindcast_file(date_str, var, stat_type, data_dir, file_prefix, out_dir)
+            convert_single_hindcast_file(
+                date_str, var, stat_type, data_dir, file_prefix, out_dir)
 
 def convert_monthly_forecast_from_mem(
         forecast_start : str,
@@ -158,9 +173,10 @@ def convert_monthly_forecast_from_mem(
     init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)
 
     for d in init_dates:
-        tag   = d.strftime('%Y%m%d')
+        date_tag   = d.strftime('%Y%m%d')
+        # forecast data path [ modify if needed ]
         fpath = os.path.join(data_dir, rename_var,
-                             f"{file_prefix}{rename_var}_{tag}_mem.grb2")
+                             f"{file_prefix}{rename_var}_{date_tag}_mem.grb2")
         if not os.path.isfile(fpath):
             logger.warning(f"[MEM] 파일 없음: {fpath}")
             continue

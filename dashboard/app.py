@@ -82,6 +82,7 @@ elif tab_selection == "📈 Indices":
     st.sidebar.markdown("Select options for Indices")
     selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(year_start, year_end+1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
+    selected_yyyymm = f"{selected_year_int}{selected_month_int:02d}"
     #plot_types=list(IDX_FILENAME_MAP.keys())
     
 elif tab_selection == "🖼️ Detailed Plots":  # Detailed
