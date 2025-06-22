@@ -191,7 +191,7 @@ def compute_probabilistic_scores(
             ds_out = xr.Dataset({
                 f"{var}_rpss": rpss,
             })
-            out_path_rpss = os.path.join(out_dir, f"rpss_GL_{var}_{yyyymm}.nc")
+            out_path_rpss = os.path.join(out_dir, f"rpss_{var}_GL_{yyyymm}.nc")
             ds_out.to_netcdf(out_path_rpss)
             logger.info(f"[RPSS] save RPSS map {yyyymm} : {out_path_rpss}")
             del ds_out

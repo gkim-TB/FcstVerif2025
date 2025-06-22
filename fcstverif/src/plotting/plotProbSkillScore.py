@@ -17,7 +17,7 @@ def plot_rpss_map(var, yyyymm, region_name, fig_dir):
     """
     RPSS 지도 시각화 함수 - 각 리드타임별 RPSS 결과를 지도 형태로 subplot에 표현
     """
-    rpss_file = os.path.join(verification_out_dir, 'SCORE', 'GL', var, f"rpss_GL_{var}_{yyyymm}.nc")
+    rpss_file = os.path.join(verification_out_dir, 'SCORE', 'GL', var, f"rpss_{var}_GL_{yyyymm}.nc")
     if not os.path.isfile(rpss_file):
         logger.warning(f"[RPSS] 파일 없음: {rpss_file}")
         return
@@ -38,7 +38,7 @@ def plot_rpss_map(var, yyyymm, region_name, fig_dir):
         centerLon = 150 # Pacific center
         fs=14 # fontsize
     elif region_name == "EA":
-        figsize = (ncol * 4, nrow * 3)
+        figsize = (ncol * 4, nrow * 3.5)
         centerLon = 0
         fs =10
     else:

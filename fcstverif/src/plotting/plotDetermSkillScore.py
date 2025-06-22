@@ -59,7 +59,7 @@ def plot_skill_initialized_month(var, region_name, data_dir, fig_dir, score):
         if score == 'acc':
             ax.set_ylim([-1,1])
         elif score == 'rmse':
-            ax.set_ylim([0,4])
+            ax.set_ylim([0,6])
         ax.set_xticks(lead_full)
         #plt.xlim(0.9,6.1)
         ax.legend()
@@ -235,12 +235,13 @@ def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_
             if score == 'acc':
                 ax.set_ylim([-1,1]) # if score ACC
             elif score == 'rmse':
-                ax.set_ylim([0,4])
+                ax.set_ylim([0,6])
             ax.set_title(f'{score.upper()} by Lead Time\n(Target Month: {target_date.strftime("%Y-%m")}, Region: {region_name}, Var: {var})')
             ax.set_xticks([1, 2, 3, 4, 5, 6])
             ax.grid(True, linestyle='--', color='lightgrey')
             ax.legend()
-
+            
+            plt.tight_layout()
             save_fname = os.path.join(fig_dir, f"{score}_target_{var}_{region_name}_{target_date.strftime('%Y%m')}.png")
             plt.savefig(save_fname, dpi=300, bbox_inches='tight')
             plt.close()
@@ -347,11 +348,11 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
 
         # 0. plot attributions
         if region_name == "GL":
-            figsize = (36, 10.5)
+            figsize = (36, 11)
             centerLon = 150 # Pacific center
             fs=14 # fontsize
         elif region_name == "EA":
-            figsize = (14, 6)
+            figsize = (14, 7)
             centerLon = 0
             fs =10
         else:
@@ -409,7 +410,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
 
             if not os.path.isfile(fcst_file):
                 logger.warning(f"[SKIP] {fcst_file} 없음.")
-                no_data_panel(axs[1, 6-lead], axs[2, 6-lead])
+                no_data_panel(axs[0, 6-lead], axs[0, 6-lead])
                 continue
 
             ds_fcst = xr.open_dataset(fcst_file)
