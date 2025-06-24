@@ -36,7 +36,7 @@ def plot_skill_initialized_month(var, region_name, data_dir, fig_dir, score):
         lead_full = np.arange(1,7)
         lead_valid = ds['lead'].values
 
-        fig, ax = plt.subplots(figsize=(5,4))
+        fig, ax = plt.subplots(figsize=(5,4), constrained_layout=True)
         # 멤버별 점선 (회색)
         if score in ds.data_vars:
             for e in ds['ens'].values:
@@ -64,7 +64,7 @@ def plot_skill_initialized_month(var, region_name, data_dir, fig_dir, score):
         ax.legend()
 
         save_fname = os.path.join(fig_dir, f"{score}_init_{var}_{region_name}_{yyyymm}.png")
-        plt.savefig(save_fname, dpi=300, bbox_inches='tight')
+        plt.savefig(save_fname, dpi=300 )#, bbox_inches='tight')
         #plt.show()
         plt.close()
 
@@ -215,7 +215,7 @@ def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_
                 continue
 
         if mean_score_list:
-            fig, ax = plt.subplots(figsize=(5,4))
+            fig, ax = plt.subplots(figsize=(5,4), constrained_layout=True)
 
             # 💡 멤버별 회색 점선
             for e, values in member_score_dict.items():
@@ -240,9 +240,9 @@ def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_
             ax.grid(True, linestyle='--', color='lightgrey')
             ax.legend()
             
-            plt.tight_layout()
+            #plt.tight_layout()
             save_fname = os.path.join(fig_dir, f"{score}_target_{var}_{region_name}_{target_date.strftime('%Y%m')}.png")
-            plt.savefig(save_fname, dpi=300, bbox_inches='tight')
+            plt.savefig(save_fname, dpi=300)#, bbox_inches='tight')
             plt.close()
 
             logger.info(f"[INFO] Saved: {save_fname}")
@@ -335,9 +335,12 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
     if region not in REGIONS:
         raise ValueError(f"[ERROR] Unknown region name: {region}")
     if region == 'GL':
-        acc_range = [-0.2, 1.4]
+        if var == 't2m':
+            acc_range = [-0.2, 1.4]
+        elif var =='sst':
+            acc_range = [-0.1,1.0]
     elif region == 'EA':
-        acc_range = [-0.6, 1.8]
+        acc_range = [-0.8, 2.0]
     
  
     # 📦 컬러 설정
@@ -346,10 +349,6 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
 
     # 📥 초기화월 목록
     yyyymm_list = generate_yyyymm_list(year_start, year_end)
-    # yyyymm_list = sorted([
-    #     f.name[-11:-3] for f in os.scandir(os.path.join(model_out_dir, "anomaly"))
-    #     if f.name.startswith(f"ensMem_{var}_anom_")
-    # ])
 
     # 📊 그림 준비
     fig, ax1 = plt.subplots(figsize=(14, 6))

@@ -161,10 +161,10 @@ def plot_roc_by_lead_per_init(var, yyyymm, region_name, data_dir, fig_dir):
     # 남은 subplot 비활성화
     for j in range(i+1, len(axs)):
         #ax.set_title(f"Lead {lead}")
-        ax.text(0.5, 0.5, "No Data", transform=ax.transAxes,
+        axs[j].text(0.5, 0.5, "No Data", transform=axs[j].transAxes,
                 ha="center", va="center", fontsize=12, color="gray")
-        ax.set_xticks([])
-        ax.set_yticks([])
+        #axs[j].set_xticks([])
+        #axs[j].set_yticks([])
         #ax.set_frame_on(False)  # 경계선 없애기 (선택)
     #    axs[j].axis('off')
 
