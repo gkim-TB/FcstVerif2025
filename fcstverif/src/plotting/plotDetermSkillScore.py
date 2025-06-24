@@ -450,7 +450,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
         ax2.tick_params(axis='y', labelsize=14)
 
     elif mode == 'skill':
-        ax1.set_title(f"ACC Timeseries\nEach Line = One Initialized Month ({year_start}–{year_end}), Region: {region}, Var: {var}", 
+        ax1.set_title(f"ACC Timeseries ({year_start}–{year_end})\nEach Line = One Initialized Month , Region: {region}, Var: {var}", 
                       fontsize=14, pad=40)
         ax1.axhline(0, linestyle="--", color="gray", lw=0.8)
     
