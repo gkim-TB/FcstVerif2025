@@ -42,7 +42,7 @@ def compute_rpss_manual(fcst_prob, obs_ohe):
 
     return rpss
 
-def compute_roc_auc_all_categories(fcst_prob, obs_ohe, init_time, region_name):
+def compute_roc_auc_all_categories(var, fcst_prob, obs_ohe, init_time, region_name):
     """
     ROC Curve 및 AUC 계산 함수 (초기화 월 단위, 리드 x 카테고리)
     
@@ -66,8 +66,8 @@ def compute_roc_auc_all_categories(fcst_prob, obs_ohe, init_time, region_name):
     categories = fcst_prob.category.values.tolist()
 
     # 지역 클리핑
-    fcst_sub = clip_to_region(fcst_prob, region_name)
-    obs_sub  = clip_to_region(obs_ohe, region_name)
+    fcst_sub = clip_to_region(fcst_prob, region_name, var)
+    obs_sub  = clip_to_region(obs_ohe, region_name, var)
 
     n_lead = fcst_sub.sizes['time']
     n_cat = len(categories)

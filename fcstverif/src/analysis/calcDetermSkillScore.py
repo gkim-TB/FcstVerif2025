@@ -7,7 +7,7 @@ from src.utils.general_utils import load_obs_data, clip_to_region, get_combined_
 from src.utils.logging_utils import init_logger
 logger = init_logger()
 
-def _clip_inputs(fcst, obs, region):
+def _clip_inputs(fcst, obs, region,var):
     """
     Clip both forecast and observation DataArrays to a given spatial region.
 
@@ -25,9 +25,9 @@ def _clip_inputs(fcst, obs, region):
     fcst_clip, obs_clip : xarray.DataArray
         Region-clipped forecast and observation.
     """
-    return clip_to_region(fcst, region), clip_to_region(obs, region)
+    return clip_to_region(fcst, region, var), clip_to_region(obs, region, var)
 
-def calc_rmse_vec(fcst, obs, region):
+def calc_rmse_vec(fcst, obs, region, var):
     """
     Calculate RMSE (Root Mean Square Error) between forecast and observation
     over a specified region.
@@ -45,10 +45,10 @@ def calc_rmse_vec(fcst, obs, region):
     xarray.DataArray
         RMSE over region (dims other than lat/lon preserved).
     """
-    fcst_clip, obs_clip = _clip_inputs(fcst, obs, region)
+    fcst_clip, obs_clip = _clip_inputs(fcst, obs, region, var)
     return np.sqrt(((fcst_clip - obs_clip)**2).mean(("lat","lon")))
 
-def calc_acc_vec(fcst, obs, region):
+def calc_acc_vec(fcst, obs, region, var):
     """
     Calculate Anomaly Correlation Coefficient (ACC) between forecast and observation
     over a specified region.
@@ -66,7 +66,7 @@ def calc_acc_vec(fcst, obs, region):
     xarray.DataArray
         ACC value per dimension excluding lat/lon.
     """
-    fcst_clip, obs_clip = _clip_inputs(fcst, obs, region)
+    fcst_clip, obs_clip = _clip_inputs(fcst, obs, region, var)
     numerator = (fcst_clip * obs_clip).mean(("lat","lon"))
     denominator = np.sqrt((fcst_clip**2).mean(("lat","lon"))) * np.sqrt((obs_clip**2).mean(("lat","lon"))) + 1e-12
     return numerator / denominator

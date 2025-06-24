@@ -110,12 +110,15 @@ if tab_selection == "📊 Overview":
     st.header("📊 Key Metrics Overview")
 
     st.image(get_fig_url(model, region, var,
-        f"acc_targetSeries_byInit_{var}_{region}_{year_start}_{year_end}.png"),
-        caption="ACC TargetSeries by Init", use_container_width=True)
+        f"targetSeries_byInit_{var}_{region}_traj_{year_start}_{year_end}.png"),
+        caption="Trajectory by Init (with lead-1 ACC)", use_container_width=True)
+    st.image(get_fig_url(model, region, var,
+        f"targetSeries_byInit_{var}_{region}_skill_{year_start}_{year_end}.png"),
+        caption="ACC skill by Init", use_container_width=True)
 
     cols = st.columns(2)
     with cols[0]:
-        st.image(get_fig_url(model, region, var,
+        st.image(get_fig_url(model, region, var, 
             f"det_heatmap_init_{var}_{region}_{selected_year}.png"),
             caption=f"Deterministic Skill Score ({selected_year})", use_container_width=True)
     with cols[1]:

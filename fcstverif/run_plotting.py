@@ -7,12 +7,14 @@ from config import *
 from src.utils.logging_utils import init_logger
 from src.utils.general_utils import generate_yyyymm_list
 
+
 # plotting 함수 import
 from src.plotting.plotDetermSkillScore import (
     plot_skill_initialized_month,
     plot_skill_heatmap_initialized_month,
     plot_skill_target_month,
-    plot_skill_by_initialized_line,
+    #plot_skill_by_initialized_line,
+    plot_trajectory_w_acc_by_initialized_line,
     plot_spatial_pattern_fcst_vs_obs
 )
 from src.plotting.plotProbSkillScore import (
@@ -47,12 +49,26 @@ def define_plot_tasks(var, region_name, data_dir, fig_dir, yyyymm_list):
                 score=score, data_dir=data_dir, fig_dir=fig_dir
             ) for y in fyears for score in ['acc', 'rmse']
         ],
-        "target_line": lambda: [
-            plot_skill_by_initialized_line(
-                var=var, year_start=year_start, year_end=year_end,
-                region_name=region_name, score=score, data_dir=data_dir, fig_dir=fig_dir
-            ) for score in ['acc', 'rmse']
-        ],
+        # "target_line": lambda: [
+        #     plot_skill_by_initialized_line(
+        #         var=var, year_start=year_start, year_end=year_end,
+        #         region_name=region_name, score=score, data_dir=data_dir, fig_dir=fig_dir
+        #     ) for score in ['acc', 'rmse']
+        # ],
+        "traj_line": lambda: plot_trajectory_w_acc_by_initialized_line(
+            var=var,
+            region=region_name,
+            fig_dir=fig_dir,
+            data_dir=data_dir,
+            mode="trajectory"  # ✨ mode 지정
+        ),
+        "target_line": lambda: plot_trajectory_w_acc_by_initialized_line(
+            var=var,
+            region=region_name,
+            fig_dir=fig_dir,
+            data_dir=data_dir,
+            mode="skill"  # ✨ mode 지정
+        ),
         "target_pattern": lambda: [
             plot_spatial_pattern_fcst_vs_obs(
                 var=var, target_year=y, region_name=region_name, fig_dir=fig_dir
@@ -83,13 +99,15 @@ def run_plotting(var, region_name, yyyymm_list):
     task_funcs = define_plot_tasks(var, region_name, data_dir, fig_dir, yyyymm_list)
 
     for task_name in enabled_plots:
+        if task_name.startswith("trajectory"):
+            continue
         task_func = task_funcs.get(task_name)
         if task_func:
             logger.info(f"▶️ Running: {task_name}")
             task_func()
         else:
             logger.warning(f"[SKIP] Unknown task: {task_name}")
-
+    
     logger.info(f"✅ Plotting completed for var={var}, region={region_name}")
 
 def main():
@@ -103,6 +121,8 @@ def main():
     yyyymm_list = generate_yyyymm_list(year_start, year_end)
 
     run_plotting(var, region_name, yyyymm_list)
+
+
 
 if __name__ == "__main__":
     main()
