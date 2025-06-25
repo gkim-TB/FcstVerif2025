@@ -345,7 +345,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
         "default": [-0.8, 2.0],
         "t2m":[-0.1, 2.5],
         "prcp":[-1, 1.5],
-        "sst":[-1,1],
+        "sst":[-1,2],
 
     }
 }
@@ -378,7 +378,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
     yyyymm_list = generate_yyyymm_list(year_start, year_end)
 
     # 📊 그림 준비
-    fig, ax1 = plt.subplots(figsize=(14, 6), constrained_layout=True)
+    fig, ax1 = plt.subplots(figsize=(14, 6))#, constrained_layout=True)
     ax2 = ax1.twinx() if mode == "trajectory" else None
 
     # ▶ trajectory 모드: 관측 불러오기
@@ -494,7 +494,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
                bbox_to_anchor=(0.5, 1.13), ncol=6, frameon=False,
                loc='upper center', fontsize=10)
 
-    #plt.tight_layout()
+    plt.tight_layout()
     os.makedirs(fig_dir, exist_ok=True)
     fname = f"targetSeries_byInit_{var}_{region}_{'traj' if mode=='trajectory' else 'skill'}_{year_start}_{year_end}.png"
     plt.savefig(os.path.join(fig_dir, fname), dpi=300)
