@@ -69,12 +69,14 @@ def plot_index_plums(fcst, obs, idx, yyyymm, fig_dir):
     ax.plot(fcst.time, fcst.mean("ens").values, 'ro-')
     ax.plot(obs.time, obs.values, 'ko-')
 
-    ax.set_title(f'{idx} Index (Init: {yyyymm})')
-    ax.set_xlabel('Time')
-    ax.set_ylabel('SST Anomaly (°C)')
+    ax.set_title(f'{idx} Index (Init: {yyyymm})', fontsize=14)
+    ax.set_xlabel('Time', fontsize=14)
+    ax.set_ylabel('SST Anomaly (°C)', fontsize=14)
     ax.set_ylim([-4,4])
     ax.axhline(y=0, color='grey')
     ax.grid(axis='y', linestyle=':', alpha=.7)
+    ax.tick_params(axis='y', labelsize=14)
+    ax.tick_params(axis='x', labelsize=14)
 
     figname = os.path.join(fig_dir, f'{idx}_plum_{yyyymm}.png')
     plt.savefig(figname, dpi=300, bbox_inches='tight')

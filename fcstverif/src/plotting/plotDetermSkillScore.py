@@ -334,15 +334,42 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
     # ✅ region 설정
     if region not in REGIONS:
         raise ValueError(f"[ERROR] Unknown region name: {region}")
-    if region == 'GL':
-        if var == 't2m':
-            acc_range = [-0.2, 1.4]
-        elif var =='sst':
-            acc_range = [-0.1,1.0]
-    elif region == 'EA':
-        acc_range = [-0.8, 2.0]
     
- 
+    ANOM_RANGE_MAP= {
+    "GL": {
+        "t2m": [-0.2, 1.4],
+        "sst": [-0.1, 1.0],
+        "prcp": [-0.1, 0.1],
+    },
+    "EA": {
+        "default": [-0.8, 2.0],
+        "t2m":[-0.1, 2.5],
+        "prcp":[-1, 1.5],
+        "sst":[-1,1],
+
+    }
+}
+    
+    if region in ANOM_RANGE_MAP:
+        if var in ANOM_RANGE_MAP[region]:
+            anom_range = ANOM_RANGE_MAP[region][var]
+        elif "default" in ANOM_RANGE_MAP[region]:
+            anom_range = ANOM_RANGE_MAP[region]["default"]
+        else:
+            raise ValueError(f"[ERROR] No ACC range defined for region={region}, var={var}")
+    else:
+        raise ValueError(f"[ERROR] Unknown region: {region}")
+    
+    UNIT_LABELS = {
+    "t2m": "Anomaly (℃, lines)",
+    "sst": "Anomaly (℃, lines)",
+    "prcp": "Anomaly (mm/day, lines)"
+}
+    if mode == "trajectory":
+        xlabel = UNIT_LABELS.get(var, "Anomaly (lines)")
+    else:
+        xlabel = "ACC"
+    
     # 📦 컬러 설정
     cmap = plt.colormaps['tab20']
     month_colors = {m: cmap((m - 1) % 12) for m in range(1, 13)}
@@ -351,7 +378,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
     yyyymm_list = generate_yyyymm_list(year_start, year_end)
 
     # 📊 그림 준비
-    fig, ax1 = plt.subplots(figsize=(14, 6))
+    fig, ax1 = plt.subplots(figsize=(14, 6), constrained_layout=True)
     ax2 = ax1.twinx() if mode == "trajectory" else None
 
     # ▶ trajectory 모드: 관측 불러오기
@@ -433,7 +460,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
         ax2.axhline(0, linestyle="--", color="gray", lw=0.8)
         ax1.set_title(f"Trajectory by Initialization ({year_start}–{year_end})\n Line = One Initialized Month, bar = ACC@lead-1 , Region: {region}, Var: {var}", 
                       fontsize=14, pad=40)
-        ax1.set_ylim(acc_range) # Anomaly ylim
+        ax1.set_ylim(anom_range) # Anomaly ylim
         
         # for xticklabel setting
         xticks = pd.date_range(
@@ -454,7 +481,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
         ax1.axhline(0, linestyle="--", color="gray", lw=0.8)
     
     ax1.set_xlabel("Target Month", fontsize=14)
-    ax1.set_ylabel("Anomaly (℃, lines)" if mode == "trajectory" else "ACC", fontsize=14)
+    ax1.set_ylabel(xlabel, fontsize=14)
     ax1.grid(True, linestyle='--', color='lightgrey')
     ax1.tick_params(axis='y', labelsize=14)
     ax1.tick_params(axis='x', labelsize=14)
@@ -467,7 +494,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
                bbox_to_anchor=(0.5, 1.13), ncol=6, frameon=False,
                loc='upper center', fontsize=10)
 
-    plt.tight_layout()
+    #plt.tight_layout()
     os.makedirs(fig_dir, exist_ok=True)
     fname = f"targetSeries_byInit_{var}_{region}_{'traj' if mode=='trajectory' else 'skill'}_{year_start}_{year_end}.png"
     plt.savefig(os.path.join(fig_dir, fname), dpi=300)
