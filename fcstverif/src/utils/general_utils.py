@@ -13,14 +13,6 @@ def generate_yyyymm_list(start_year, end_year):
     """예: 2022~2024 → ['202201', ..., '202412']"""
     return pd.date_range(start=f"{start_year}-01", end=f"{end_year}-12", freq="MS").strftime("%Y%m").tolist()
 
-def get_region_extent(region_name: str, var: str = None):
-    """
-    Return region extent with optional variable-specific override
-    """
-    if var in REGION_OVERRIDE_BY_VAR and region_name in REGION_OVERRIDE_BY_VAR[var]:
-        return REGION_OVERRIDE_BY_VAR[var][region_name]
-    return REGIONS[region_name]
-
 def load_obs_data(var, years, obs_dir, suffix='anom', var_suffix=None):
     """
     관측자료를 연도별로 불러와 concat.
@@ -42,7 +34,16 @@ def load_obs_data(var, years, obs_dir, suffix='anom', var_suffix=None):
     else:
         return ds_all[var]  # 변수명이 var와 동일한 경우
     
-def clip_to_region(da, region, var=None):
+def get_region_extent(region_name: str, var: str):
+    """
+    Return region extent with optional variable-specific override
+    """
+    if var in REGION_OVERRIDE_BY_VAR and region_name in REGION_OVERRIDE_BY_VAR[var]:
+        logger.debug("GL extent changed for sst")
+        return REGION_OVERRIDE_BY_VAR[var][region_name]
+    return REGIONS[region_name]  
+
+def clip_to_region(da, region, var: str):
     """
     da: DataArray
     region: region_box(tuple) or region_name(str)
@@ -55,7 +56,7 @@ def clip_to_region(da, region, var=None):
     lon_min, lon_max, lat_min, lat_max = region_box
     return da.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
 
-def convert_prcp_to_mm_per_day(da, source, stat_type=None):
+def convert_prcp_to_mm_per_day(da: xr.DataArray, source: xr.DataArray, stat_type: str=None):
     """
     강수량 DataArray를 mm/day 단위로 변환
     - source='ERA5': 단위 m (월별 적산) -> mm/day

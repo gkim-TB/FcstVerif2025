@@ -7,7 +7,7 @@ from src.utils.general_utils import load_obs_data, clip_to_region, get_combined_
 from src.utils.logging_utils import init_logger
 logger = init_logger()
 
-def _clip_inputs(fcst, obs, region,var):
+def _clip_inputs(var: str, region: str, fcst: xr.DataArray, obs: xr.DataArray) -> tuple:
     """
     Clip both forecast and observation DataArrays to a given spatial region.
 
@@ -27,7 +27,7 @@ def _clip_inputs(fcst, obs, region,var):
     """
     return clip_to_region(fcst, region, var), clip_to_region(obs, region, var)
 
-def calc_rmse_vec(fcst, obs, region, var):
+def calc_rmse_vec(var: str, region: str, fcst: xr.DataArray, obs: xr.DataArray) -> xr.DataArray:
     """
     Calculate RMSE (Root Mean Square Error) between forecast and observation
     over a specified region.
@@ -45,10 +45,10 @@ def calc_rmse_vec(fcst, obs, region, var):
     xarray.DataArray
         RMSE over region (dims other than lat/lon preserved).
     """
-    fcst_clip, obs_clip = _clip_inputs(fcst, obs, region, var)
+    fcst_clip, obs_clip = _clip_inputs(var, region, fcst, obs)
     return np.sqrt(((fcst_clip - obs_clip)**2).mean(("lat","lon")))
 
-def calc_acc_vec(fcst, obs, region, var):
+def calc_acc_vec(var: str, region: str, fcst: xr.DataArray, obs: xr.DataArray) -> xr.DataArray:
     """
     Calculate Anomaly Correlation Coefficient (ACC) between forecast and observation
     over a specified region.
@@ -66,7 +66,7 @@ def calc_acc_vec(fcst, obs, region, var):
     xarray.DataArray
         ACC value per dimension excluding lat/lon.
     """
-    fcst_clip, obs_clip = _clip_inputs(fcst, obs, region, var)
+    fcst_clip, obs_clip = _clip_inputs(var, region, fcst, obs)
     numerator = (fcst_clip * obs_clip).mean(("lat","lon"))
     denominator = np.sqrt((fcst_clip**2).mean(("lat","lon"))) * np.sqrt((obs_clip**2).mean(("lat","lon"))) + 1e-12
     return numerator / denominator
@@ -159,12 +159,12 @@ def compute_deterministic_scores(
                 
             # Calculate skill score
             #logger.info("Calculating skill scores: ACC, RMSE, ...")
-            acc  = calc_acc_vec(fcst_da, obs_sub, region_name)       # (ens, time)
-            rmse = calc_rmse_vec(fcst_da, obs_sub, region_name)     # (ens, time)
+            acc  = calc_acc_vec(var, region_name, fcst_da, obs_sub)       # (ens, time)
+            rmse = calc_rmse_vec(var, region_name, fcst_da, obs_sub)     # (ens, time)
 
             # calculate skill score for ensemble mean
-            acc_mean = calc_acc_vec(fcst_da.mean("ens"), obs_sub, region_name)
-            rmse_mean = calc_rmse_vec(fcst_da.mean("ens"), obs_sub, region_name)
+            acc_mean = calc_acc_vec(var, region_name, fcst_da.mean("ens"), obs_sub)  # (ens, time)
+            rmse_mean = calc_rmse_vec(var, region_name, fcst_da.mean("ens"), obs_sub) 
             
             
             # Results Dataset -> save scores

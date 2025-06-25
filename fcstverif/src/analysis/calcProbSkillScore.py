@@ -199,7 +199,8 @@ def compute_probabilistic_scores(
             logger.info(f"[RPSS] Skipped RPSS computation for region={region_name}")
         
         # 2 ROC + AUC
-        auc_da, all_roc_records = compute_roc_auc_all_categories(  
+        auc_da, all_roc_records = compute_roc_auc_all_categories(
+            var=var,  
             fcst_prob=fcst_prob,
             obs_ohe=obs_ohe,
             init_time=init_time,

@@ -623,7 +623,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
         if im_bias is not None:
             plt.colorbar(im_bias, ax=axs[2,-1], label=f'{var} Bias', shrink=.7)
 
-        plt.suptitle(f"OBS vs FCST by LeadTime \n (Target Month: {target_date.strftime('%Y%m')}, Region: {region_name}, Var: {var})", fontsize=16)
+        plt.suptitle(f"OBS vs FCST by LeadTime \n (Target Month: {target_date.strftime('%Y%m')}, Region: {region_name}, Var: {var})", fontsize=20)
     
         save_fname = os.path.join(fig_dir, f"{var}_pattern_compare_{region_name}_{target_date.strftime('%Y%m')}.png")
         plt.savefig(save_fname, dpi=300, bbox_inches='tight')

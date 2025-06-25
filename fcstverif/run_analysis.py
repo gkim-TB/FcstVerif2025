@@ -5,10 +5,11 @@ import logging
 
 from fcstverif.config import *
 from fcstverif.src.analysis.calcDetermSkillScore import compute_deterministic_scores
+from fcstverif.src.analysis.calcProbSkillScore import compute_probabilistic_scores
 from fcstverif.src.analysis.verifyCategory import run_cate_verification_loop
 from fcstverif.src.utils.general_utils import generate_yyyymm_list, get_combined_mask
 from fcstverif.src.utils.logging_utils import init_logger
-from fcstverif.src.analysis.calcProbSkillScore import compute_probabilistic_scores
+
 
 logger = init_logger()
 
