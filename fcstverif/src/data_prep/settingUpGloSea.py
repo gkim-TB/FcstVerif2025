@@ -42,8 +42,8 @@ def _split_perturbations(msgs):
 def _convert_units(da, var, stat_type=None):
     if not isinstance(da, xr.DataArray):
         return da
-    if var == 'prcp' and stat_type != 'qntl':
-        return convert_prcp_to_mm_per_day(da, source='GS6')
+    if var == 'prcp':
+        return convert_prcp_to_mm_per_day(da, source='GS6', stat_type=stat_type)
     elif var in ['z', 'zg', 'geopotential']:
         return convert_geopotential_to_m(da, source='GS6')
     return da

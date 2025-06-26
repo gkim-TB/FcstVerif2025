@@ -249,83 +249,10 @@ def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_
         else:
             logger.info(f"[WARN] No data to plot for target month {target_date.strftime('%Y-%m')}")
 
-
-# def plot_skill_by_initialized_line(var, year_start, year_end, region_name, score, data_dir, fig_dir):
-#     """
-#     initialized month에 따라 12가지 색 시계열을 전체 검증기간에 대해 그림
-#     """
-#     leads = range(1, 7)
-#     yyyymm_list = generate_yyyymm_list(year_start, year_end)
-#     #yyyymm =init_months = pd.date_range(start=f"{year_start}-01", end=f"{year_end}-12", freq='MS')
-
-#     # 12개 고유 색상 지정 (월별 색)
-#     cmap = plt.colormaps['tab20']
-#     month_colors = {month: cmap((month - 1) % 12) for month in range(1, 13)}
-
-
-#     # 결과를 저장할 dict: {init_month: [target_month1, ..., target_month6], [score1,..., score6]}
-#     series_by_init = {}
-
-#     #for init_date in init_months:
-#     for yyyymm in yyyymm_list:
-#         #yyyymm = init_date.strftime('%Y%m')
-#         file_path = os.path.join(data_dir, f"ensScore_det_{var}_{yyyymm}.nc")
-#         if not os.path.isfile(file_path):
-#             continue
-
-#         ds = xr.open_dataset(file_path)
-#         init_date = pd.to_datetime(f"{yyyymm}01")
-#         target_dates = [init_date + pd.DateOffset(months=l) for l in leads]
-#         scores = []
-
-#         for l in leads:
-#             try:
-#                 time_idx = ds['lead'].values.tolist().index(l)
-#                 # 💡 평균값만 사용
-#                 val = ds[f"{score}_mean"].isel(time=time_idx).item()
-#             except Exception:
-#                 val = np.nan
-#             scores.append(val)
-
-#         #series_by_init[init_date] = (target_dates, scores)
-#         series_by_init[yyyymm] = (target_dates, scores)
-
-#     # 시각화
-#     fig, ax = plt.subplots(figsize=(14, 6))
-#     for yyyymm, (target_dates, scores) in series_by_init.items():
-#         init_date = pd.to_datetime(f"{yyyymm}01")
-#         month = init_date.month
-#         color = month_colors[month]
-#         #label = init_date.strftime('%Y-%m')
-#         label = yyyymm
-#         ax.plot(target_dates, scores, '-o', color=color)
-
-#     # 색상 범례용 (12개월)
-#     legend_elements = [
-#         Line2D([0], [0], color=month_colors[m], lw=2, label=f'Init {m:02d}')
-#         for m in range(1, 13)
-#     ]
-
-#     ax.axhline(0, color='gray', linestyle='--')
-#     ax.set_xlabel("Target Month", fontsize=14)
-#     ax.set_ylabel(score.upper(), fontsize=14)
-#     ax.set_title(f"{score.upper()} by Target Month\nEach Line = One Initialized Month ({year_start}–{year_end}), Region: {region_name}, Var: {var}", fontsize=15)
-#     ax.legend(handles=legend_elements, title="Initialized Month", bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=14)
-#     ax.grid(True, linestyle='--', color='lightgrey')
-#     ax.tick_params(axis='y', labelsize=14)
-#     ax.tick_params(axis='x', labelsize=14)
-#     plt.tight_layout()
-
-#     save_fname = os.path.join(fig_dir, f"{score}_targetSeries_byInit_{var}_{region_name}_{year_start}_{year_end}.png")
-#     #plt.show()
-#     plt.savefig(save_fname, dpi=300, bbox_inches='tight')
-#     plt.close()
-#     logger.info(f"[INFO] Saved: {save_fname}")
-
 def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: str, data_dir: str, mode: str = "trajectory"):
     """
-    초기화월별 시계열 또는 스킬라인을 그리는 함수
-    - mode='skill' : 기존 스킬 스코어 (e.g. ACC, RMSE)
+    전체 예측기간에 대해 초기화월별 시계열 또는 스킬라인을 그리는 함수
+    - mode='skill' : 단독 스킬 스코어 (e.g. ACC, RMSE)
     - mode='trajectory' : anomaly 시계열 + lead1 ACC bar
     """
     assert mode in ["skill", "trajectory"], f"Invalid mode: {mode}"

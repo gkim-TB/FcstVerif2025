@@ -66,9 +66,14 @@ def convert_prcp_to_mm_per_day(da: xr.DataArray, source: xr.DataArray, stat_type
         # m/day -> mm/day
         return da * 1000 
     elif source == 'GS6':
-        # kg/m2/s = mm/s 이므로 86400초 곱해서 mm/day
-        return  da * 86400 
-    
+        if stat_type=='qntl':
+            days_in_month = da['time'].dt.days_in_month
+            da_out = da / days_in_month
+            da_out.attrs['units'] = 'mm/day'
+            return da_out
+        else:
+            # kg/m2/s = mm/s 이므로 86400초 곱해서 mm/day
+            return  da * 86400 
     else:
         raise ValueError(f"Unknown precipitation source: {source}")
 
