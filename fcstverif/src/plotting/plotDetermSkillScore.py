@@ -457,7 +457,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
             centerLon = 150 # Pacific center
             fs=14 # fontsize
         elif region_name == "EA":
-            figsize = (14, 7)
+            figsize = (14, 6)
             centerLon = 0
             fs =10
         else:
@@ -487,6 +487,9 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
             print(f"[WARN] No OBS for {target_date}")
             continue
         # print(ds_obs.lon) 0...360
+
+        if var == 'sst' and region_name == 'GL':
+            obs = obs.where((obs.lat >= -60) & (obs.lat <= 60))
 
         # OBS 패널 (0,-1)
         ax_obs = axs[0,-1]
@@ -535,9 +538,14 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
                     mask = mask.astype(bool)
             
                     fcst = fcst.where(mask)
+            
+            if var == 'sst' and region_name == 'GL':
+                fcst = fcst.where((fcst.lat >= -60) & (fcst.lat <= 60))
 
             bias = fcst - obs
-
+            if var == 'sst' and region_name == 'GL':
+                bias = bias.where((bias.lat >= -60) & (bias.lat <= 60))
+                
             # FCST 패널
             ax_fcst = axs[1, 6-lead]
             im_fcst = fcst.plot(ax=ax_fcst, cmap=cmap, levels=clevels, add_colorbar=False, extend='both', transform=ccrs.PlateCarree())

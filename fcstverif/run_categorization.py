@@ -1,5 +1,6 @@
 import argparse
 from config import *
+from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
 import logging 
 
 from src.analysis.categorizeTercile import (
@@ -14,8 +15,9 @@ logger = init_logger()
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Global Tercile Categorization for Obs/Fcst")
-    parser.add_argument("--var", required=True, choices=variables, help="Variable to categorize")
+    parser.add_argument("--var", required=True, choices=VARIABLES, help="Variable to categorize")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--run_mode", default=None, choices=["auto", "manual"], help="Execution mode (auto/manual)")
     return parser.parse_args()
 
 def categorize_observation(var):
@@ -48,6 +50,7 @@ def categorize_forecast(var, yyyymm_list):
 
 def main():
     args = parse_args()
+    run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
     log_level = logging.DEBUG if args.debug else logging.INFO
     global logger
     logger = init_logger(level=log_level)
@@ -55,10 +58,14 @@ def main():
     var = args.var
     yyyymm_list = generate_yyyymm_list(year_start, year_end)
 
-    if input('Proceed OBS categorization? [y/n] ').strip().lower() == 'y':
+    if run_mode == "auto":
         categorize_observation(var)
-    if input('Proceed forecast categorization? [y/n] ').strip().lower() == 'y':
         categorize_forecast(var, yyyymm_list)
+    else:
+        if input('Proceed OBS categorization? [y/n] ').strip().lower() == 'y':
+            categorize_observation(var)
+        if input('Proceed forecast categorization? [y/n] ').strip().lower() == 'y':
+            categorize_forecast(var, yyyymm_list)
 
 if __name__ == "__main__":
     main()

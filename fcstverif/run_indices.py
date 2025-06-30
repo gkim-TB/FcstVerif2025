@@ -1,5 +1,10 @@
 import argparse
-from config import *
+import os
+from fcstverif.config import (
+    VARIABLES, model, year_start, year_end, 
+    model_out_dir, sst_out_dir, output_fig_dir, 
+)
+from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
 import logging
 
 from src.analysis.calcIndices import calculate_indices
@@ -8,8 +13,9 @@ from fcstverif.src.utils.logging_utils import init_logger
 
 def parse_args():
     parser = argparse.ArgumentParser(description="ENSO/IOD Index Calculation")
-    parser.add_argument("--var", required=True, choices=variables, help="Variable to analyze")
+    parser.add_argument("--var", required=True, choices=VARIABLES, help="Variable to analyze")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--run_mode", default=None, choices=["auto", "manual"], help="Execution mode (auto/manual)")
     return parser.parse_args()
 
 def run_index_analysis(var, yyyymm_list, fig_dir):
@@ -25,6 +31,7 @@ def run_index_analysis(var, yyyymm_list, fig_dir):
 
 def main():
     args = parse_args()
+    run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
     log_level = logging.DEBUG if args.debug else logging.INFO
     global logger
     logger = init_logger(level=log_level)
@@ -34,7 +41,12 @@ def main():
     fig_dir = os.path.join(output_fig_dir, 'IDX')
     os.makedirs(fig_dir, exist_ok=True)
 
-    run_index_analysis(var, yyyymm_list, fig_dir)
+    if run_mode == "auto":
+        run_index_analysis(var, yyyymm_list, fig_dir)
+    else: 
+        if input('Proceed Indices? [y/n] ').strip().lower() == 'y':
+            run_index_analysis(var, yyyymm_list, fig_dir)
+
 
 if __name__ == "__main__":
     main()

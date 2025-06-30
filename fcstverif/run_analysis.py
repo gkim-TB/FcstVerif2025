@@ -3,7 +3,11 @@ import argparse
 import os
 import logging
 
-from fcstverif.config import *
+from fcstverif.config import (
+    VARIABLES, REGIONS, year_start, year_end,
+    model, model_out_dir, sst_out_dir, era5_out_dir, verification_out_dir
+)
+from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
 from fcstverif.src.analysis.calcDetermSkillScore import compute_deterministic_scores
 from fcstverif.src.analysis.calcProbSkillScore import compute_probabilistic_scores
 from fcstverif.src.analysis.verifyCategory import run_cate_verification_loop
@@ -15,8 +19,9 @@ logger = init_logger()
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Analysis pipeline for single var/region")
-    parser.add_argument("--var", required=True, choices=variables, help="Variable to analyze")
+    parser.add_argument("--var", required=True, choices=VARIABLES, help="Variable to analyze")
     parser.add_argument("--region", required=True, choices=list(REGIONS.keys()), help="Region name for verification")
+    parser.add_argument("--run_mode", default=None, choices=["auto", "manual"], help="Execution mode (auto/manual)")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging") 
     return parser.parse_args()
 
@@ -62,7 +67,9 @@ def main():
     args = parse_args()
     var = args.var
     region_name = args.region
+    run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
     log_level = logging.DEBUG if args.debug else logging.INFO
+
     global logger
     logger = init_logger(level=log_level)
 
@@ -73,10 +80,14 @@ def main():
     obs_dir = sst_out_dir if var == "sst" else era5_out_dir
     mask = get_combined_mask(model_name=model, obs_name=obs_name) if var == "sst" else None
 
-    if input('Process model Deterministic analysis? [y/n] ').strip().lower() == 'y':
+    if run_mode == "auto":
         run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, mask)
-    if input('Process model Probabilistic analysis? [y/n] ').strip().lower() == 'y':
         run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, mask)
+    else:
+        if input('Process model Deterministic analysis? [y/n] ').strip().lower() == 'y':
+            run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, mask)
+        if input('Process model Probabilistic analysis? [y/n] ').strip().lower() == 'y':
+            run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, mask)
 
     logger.info("✅ Analysis completed successfully.")
 

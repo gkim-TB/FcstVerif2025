@@ -2,6 +2,7 @@ import numpy as np
 import os
 
 # ================ USER SETTINGS =================
+RUN_MODE = 'manual' # 'manual' or 'auto'
 
 # --- 검증하고자 하는 forecast 기간 ---
 year_start = 2022
@@ -13,16 +14,16 @@ clim_start = 1991
 clim_end   = 2020
 
 # --- 변수 목록 ---
-variables = ['prcp']
-#variables = ['t2m', 'sst', 'prcp']
-#variables = ['t', 'z']
+VARIABLES = ['sst']
+#VARIABLES = ['t2m', 'sst', 'prcp']
+#VARIABLES = ['t', 'z']
 
 # --- 검증 영역 정의 ---
 REGIONS = {
     "GL": [0, 360, -90, 90], # default option
     # add addtional regions below
     # [lonL, lonR, latS, latN]
-    "EA": [100, 160, 10, 55]
+    "EA": [100, 150, 20, 50]
 }
 REGION_OVERRIDE_BY_VAR = {
     "sst": {

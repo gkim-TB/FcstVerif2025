@@ -26,17 +26,20 @@ def compute_rps_manual(fcst_prob, obs_ohe):
     rps = ((fcst_cdf - obs_cdf) ** 2).sum(dim='category')
     return rps
 
-def compute_rpss_manual(fcst_prob, obs_ohe):
+def compute_rpss_manual(fcst_prob, obs_ohe, region_name:str, var:str):
     """
     RPSS 계산: 1 - RPS / RPS_climatology
     """
     # Forecast RPS
+    #fcst_sub = clip_to_region(fcst_prob, region_name, var)
+    #obs_sub  = clip_to_region(obs_ohe, region_name, var)
     rps = compute_rps_manual(fcst_prob, obs_ohe)
 
     # Climatology: uniform [1/3, 1/3, 1/3]
     clim_prob = xr.full_like(fcst_prob, 1/3)
+    #clim_prob = clip_to_region(clim_prob_full, region_name, var)
+    
     rps_clim = compute_rps_manual(clim_prob, obs_ohe)
-
     # RPSS 계산 (0으로 나누는 경우 NaN 처리)
     rpss = xr.where(rps_clim == 0, float('nan'), 1 - rps / rps_clim)
 
@@ -183,11 +186,14 @@ def compute_probabilistic_scores(
         # 1 RPSS
         # calculated only once for Global
         if region_name == 'GL':
-            rpss = compute_rpss_manual(obs_ohe, fcst_prob)
+            rpss = compute_rpss_manual(fcst_prob, obs_ohe, 'GL', var)
             rpss = rpss.expand_dims(dim={"init": 1})
             rpss = rpss.assign_coords(init=("init", [init_time]))
             if mask is not None:
                 rpss = rpss.where(mask)
+            if var == 'sst' and region_name == 'GL':
+                rpss = rpss.where((rpss.lat >= -60) & (rpss.lat <= 60))
+
             ds_out = xr.Dataset({
                 f"{var}_rpss": rpss,
             })
