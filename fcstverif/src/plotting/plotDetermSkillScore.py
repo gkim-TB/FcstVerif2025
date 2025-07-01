@@ -249,6 +249,7 @@ def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_
         else:
             logger.info(f"[WARN] No data to plot for target month {target_date.strftime('%Y-%m')}")
 
+
 def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: str, data_dir: str, mode: str = "trajectory"):
     """
     전체 예측기간에 대해 초기화월별 시계열 또는 스킬라인을 그리는 함수
@@ -265,14 +266,14 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
     ANOM_RANGE_MAP= {
     "GL": {
         "t2m": [-0.2, 1.4],
-        "sst": [-0.1, 1.0],
+        "sst": [-0.1, 0.8],
         "prcp": [-0.1, 0.1],
     },
     "EA": {
         "default": [-0.8, 2.0],
-        "t2m":[-0.1, 2.5],
+        "t2m":[-1.5, 2.5],
         "prcp":[-1, 1.5],
-        "sst":[-1,2],
+        "sst":[-0.5,2],
 
     }
 }
@@ -382,9 +383,10 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
         bar_y = [acc_dict[k] for k in acc_dict]
         bar_colors = [month_colors[pd.to_datetime(k, format="%Y%m").month] for k in acc_dict]
         ax2.bar(bar_x, bar_y, color=bar_colors, alpha=0.3, width=20)
-        ax2.set_ylabel("ACC (lead=1, bars)", fontsize=14)
         ax2.set_ylim(-1, 1) # ACC ylim
-        ax2.axhline(0, linestyle="--", color="gray", lw=0.8)
+        ax2.set_ylabel("ACC (lead=1, bars)", fontsize=14, color='m')
+        ax2.axhline(0, linestyle=":", color="m", lw=0.7)
+        ax2.tick_params(axis='y', labelsize=14, labelcolor='m')
         ax1.set_title(f"Trajectory by Initialization ({year_start}–{year_end})\n Line = One Initialized Month, bar = ACC@lead-1 , Region: {region}, Var: {var}", 
                       fontsize=14, pad=40)
         ax1.set_ylim(anom_range) # Anomaly ylim
@@ -400,7 +402,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
             [d.strftime('%Y-%m') for d in xticks],
             ha='center', fontsize=12
         )
-        ax2.tick_params(axis='y', labelsize=14)
+        
 
     elif mode == 'skill':
         ax1.set_title(f"ACC Timeseries ({year_start}–{year_end})\nEach Line = One Initialized Month , Region: {region}, Var: {var}", 
@@ -408,10 +410,11 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
         ax1.axhline(0, linestyle="--", color="gray", lw=0.8)
     
     ax1.set_xlabel("Target Month", fontsize=14)
-    ax1.set_ylabel(xlabel, fontsize=14)
+    ax1.set_ylabel(xlabel, fontsize=14, color='k')
     ax1.grid(True, linestyle='--', color='lightgrey')
     ax1.tick_params(axis='y', labelsize=14)
     ax1.tick_params(axis='x', labelsize=14)
+    ax1.axhline(0, linestyle='--', color='k', lw=0.8)
      
     legend_elements = [
         Line2D([0], [0], color=month_colors[m], lw=2, label=f'Init {m:02d}')
