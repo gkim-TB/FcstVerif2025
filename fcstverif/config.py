@@ -2,7 +2,7 @@ import numpy as np
 import os
 
 # ================ USER SETTINGS =================
-RUN_MODE = 'manual' # 'manual' or 'auto'
+RUN_MODE = 'auto' # 'manual' or 'auto'
 
 # --- 검증하고자 하는 forecast 기간 ---
 year_start = 2022
@@ -14,8 +14,8 @@ clim_start = 1991
 clim_end   = 2020
 
 # --- 변수 목록 ---
-VARIABLES = ['sst']
-#VARIABLES = ['t2m', 'sst', 'prcp']
+#VARIABLES = ['sst']
+VARIABLES = ['t2m', 'prcp']
 #VARIABLES = ['t', 'z']
 
 # --- 검증 영역 정의 ---
