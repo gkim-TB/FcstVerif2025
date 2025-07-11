@@ -79,7 +79,7 @@ def plot_index_plum_by_init(fcst, obs, idx, yyyymm, fig_dir):
 
     ax.grid(axis='y', linestyle=':', alpha=.7)
     ax.tick_params(axis='y', labelsize=14)
-    ax.tick_params(axis='x', labelsize=14)
+    ax.tick_params(axis='x', labelsize=12)
 
     figname = os.path.join(fig_dir, f'{idx}_plum_{yyyymm}.png')
     plt.savefig(figname, dpi=300, bbox_inches='tight')
