@@ -321,7 +321,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
                 logger.warning(f"[WARN] No mask found")
 
         obs_idx = obs_region.mean(dim=["lat", "lon"], skipna=True).load()
-        obs_idx.plot(ax=ax1, color="black", linewidth=2.5, label="OBS")
+        obs_idx.plot(ax=ax1, color="black", linewidth=2., label="OBS")
 
     # 🔁 초기화월별 선 그리기
     acc_dict = {}
@@ -351,7 +351,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
                     target_dates = [init_date + pd.DateOffset(months=int(l)) for l in lead_vals]
                 
                     ax1.plot(target_dates, fanom.values,
-                             lw=1.0, alpha=0.9, color=color, label=yyyymm)
+                             lw=1.5, alpha=0.9, color=color, label=yyyymm)
                     # fcst_dict[yyyymm] = fanom
             except Exception as e:
                 print(f"[WARN] {yyyymm} forecast read error: {e}")
@@ -405,7 +405,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
         
 
     elif mode == 'skill':
-        ax1.set_title(f"ACC Timeseries ({year_start}–{year_end})\nEach Line = One Initialized Month , Region: {region}, Var: {var}", 
+        ax1.set_title(f"ACC Timeseries ({year_start}–{year_end})\nEach Line = Anomaly by One Initialized Month, Region: {region}, Var: {var}", 
                       fontsize=14, pad=40)
         ax1.axhline(0, linestyle="--", color="gray", lw=0.8)
     

@@ -140,6 +140,12 @@ elif tab_selection == "🖼️ Detailed Plots":  # Detailed Plots
 
 else:
     st.header("📈 Indices")
+    st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/ENSO_index_timeseries_all_init.png",
+        caption="Trajectory ENSO by Init", use_container_width=True)
+    st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/IOD_index_timeseries_all_init.png",
+        caption="Trajectory IOD index by Init", use_container_width=True)
+
+
     cols = st.columns(2)
     with cols[0]:
         st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/ENSO_plum_{selected_yyyymm}.png",

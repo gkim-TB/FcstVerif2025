@@ -14,7 +14,6 @@ from fcstverif.src.analysis.verifyCategory import run_cate_verification_loop
 from fcstverif.src.utils.general_utils import generate_yyyymm_list, get_combined_mask
 from fcstverif.src.utils.logging_utils import init_logger
 
-
 logger = init_logger()
 
 def parse_args():
