@@ -4,10 +4,15 @@ import os
 # ================ USER SETTINGS =================
 RUN_MODE = 'manual' # 'manual' or 'auto'
 
+# === 전체 fcst 데이터 기간
+fcst_start = 202201
+fcst_end = 202412 
+
 # --- 검증하고자 하는 forecast 기간 ---
-year_start = 2024
-year_end = 2025
-fyears = np.arange(year_start, year_end+1)
+verify_start = 202407
+#verify_end = 202412
+verify_end = fcst_end
+fyears = np.arange(verify_start//100, verify_end//100+1)
 
 # == obs hindcast 기간
 clim_start = 1991
@@ -39,18 +44,18 @@ model = 'GS6'
 enabled_plots = [
     # -- detailed plots
     "init_line",       # Timeseries of deterministic skill score by lead, every initialized month
-    "target_month",    # Timeseries of deterministic skill score by lead, every target month
-    "target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
-    "rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
-    "roc_curve",        # (Probabilistic skill score) ROC curve with AUC, every initialized month
+    #"target_month",    # Timeseries of deterministic skill score by lead, every target month
+    #"target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
+    #"rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
+    #"roc_curve",        # (Probabilistic skill score) ROC curve with AUC, every initialized month
     # -- overview plots
-    "target_line",      # Timeseries of all forecast initialization (ACC)
-    "traj_line",        # Trajectory lines of all forecast initialization
+    #"target_line",      # Timeseries of all forecast initialization (ACC)
+    #"traj_line",        # Trajectory lines of all forecast initialization
     "init_heatmap",    # Deterministic skill score heatmap
-    "cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
+    #"cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
     # -- analytics plots
-    "skill_relation",
-    "skill_relation_v2",
+    #"skill_relation",
+    #"skill_relation_v2",
     ]
 
 

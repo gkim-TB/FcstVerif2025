@@ -4,7 +4,7 @@ import os
 import logging
 
 from fcstverif.config import (
-    VARIABLES, REGIONS, year_start, year_end,
+    VARIABLES, REGIONS, verify_start, verify_end,
     model, model_out_dir, sst_out_dir, era5_out_dir, verification_out_dir
 )
 from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
@@ -73,7 +73,7 @@ def main():
     logger = init_logger(level=log_level)
 
     logger.info(f"🔍 Starting analysis: var={var}, region={region_name}")
-    yyyymm_list = generate_yyyymm_list(year_start, year_end)
+    yyyymm_list = generate_yyyymm_list(verify_start, verify_end)
 
     obs_name = "OISST" if var == "sst" else "ERA5"
     obs_dir = sst_out_dir if var == "sst" else era5_out_dir

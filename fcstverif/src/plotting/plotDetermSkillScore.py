@@ -10,13 +10,11 @@ from matplotlib.lines import Line2D
 import cmaps
 #import matplotlib.gridspec as gridspec
 import cartopy.crs as ccrs
-import os
-from config import *
-from src.utils.general_utils import *
-from src.utils.logging_utils import init_logger
+import os, glob
+#from config import 
+from fcstverif.src.utils.general_utils import *
+from fcstverif.src.utils.logging_utils import init_logger
 logger = init_logger()
-
-yyyymm_list = generate_yyyymm_list(year_start, year_end)
 
 def no_data_panel(ax_fcst, ax_bias):
     for ax in [ax_fcst, ax_bias]:
@@ -24,52 +22,51 @@ def no_data_panel(ax_fcst, ax_bias):
         ax.text(0.5, 0.5, 'No data', transform=ax.transAxes,
                 ha='center', va='center', fontsize=14, color='gray')
           
-def plot_skill_initialized_month(var, region_name, data_dir, fig_dir, score):
+def plot_skill_initialized_month(var, yyyymm, region_name, data_dir, fig_dir, score):
+
+    file_path = os.path.join(data_dir, f"ensScore_det_{var}_{yyyymm}.nc")
+    if not os.path.isfile(file_path):
+        logger.info(f"[WARN] {file_path} 없음.")
+        return
     
-    for yyyymm in yyyymm_list:
-        file_path = os.path.join(data_dir, f"ensScore_det_{var}_{yyyymm}.nc")
-        if not os.path.isfile(file_path):
-            logger.info(f"[WARN] {file_path} 없음.")
-            continue
-        
-        ds = xr.open_dataset(file_path)
-        lead_full = np.arange(1,7)
-        lead_valid = ds['lead'].values
+    ds = xr.open_dataset(file_path)
+    lead_full = np.arange(1,7)
+    lead_valid = ds['lead'].values
 
-        fig, ax = plt.subplots(figsize=(5,4), constrained_layout=True)
-        # 멤버별 점선 (회색)
-        if score in ds.data_vars:
-            for e in ds['ens'].values:
-                y_vals = [ds[score].sel(ens=e).sel(time=t).item() if t in ds['time'].values else np.nan
-                          for t in ds['time'].values]
-                ax.plot(lead_valid, y_vals, '--', color='gray', alpha=0.4, linewidth=0.8)
+    fig, ax = plt.subplots(figsize=(5,4), constrained_layout=True)
+    # 멤버별 점선 (회색)
+    if score in ds.data_vars:
+        for e in ds['ens'].values:
+            y_vals = [ds[score].sel(ens=e).sel(time=t).item() if t in ds['time'].values else np.nan
+                        for t in ds['time'].values]
+            ax.plot(lead_valid, y_vals, '--', color='gray', alpha=0.4, linewidth=0.8)
 
-        # 앙상블 평균 (진한 파란색)
-        mean_score_name = f"{score}_mean"
-        if mean_score_name in ds.data_vars:
-            y_vals = [ds[mean_score_name].sel(time=t).item() if t in ds['time'].values else np.nan
-                      for t in ds['time'].values]
-            ax.plot(lead_valid, y_vals, '-o', color='royalblue', label='Ensemble Mean')
+    # 앙상블 평균 (진한 파란색)
+    mean_score_name = f"{score}_mean"
+    if mean_score_name in ds.data_vars:
+        y_vals = [ds[mean_score_name].sel(time=t).item() if t in ds['time'].values else np.nan
+                    for t in ds['time'].values]
+        ax.plot(lead_valid, y_vals, '-o', color='royalblue', label='Ensemble Mean')
 
-        ax.set_xlabel('Lead Time (month)')
-        ax.set_ylabel(score.upper())
-        ax.set_title(f'{score.upper()} by Lead Time\n(Initialized: {yyyymm}, Region: {region_name}, Var: {var})')
-        ax.grid(True, linestyle='--', color='lightgrey')
-        if score == 'acc':
-            ax.set_ylim([-1,1])
-        elif score == 'rmse':
-            ax.set_ylim([0,6])
-        ax.set_xticks(lead_full)
-        #plt.xlim(0.9,6.1)
-        ax.legend()
+    ax.set_xlabel('Lead Time (month)')
+    ax.set_ylabel(score.upper())
+    ax.set_title(f'{score.upper()} by Lead Time\n(Initialized: {yyyymm}, Region: {region_name}, Var: {var})')
+    ax.grid(True, linestyle='--', color='lightgrey')
+    if score == 'acc':
+        ax.set_ylim([-1,1])
+    elif score == 'rmse':
+        ax.set_ylim([0,6])
+    ax.set_xticks(lead_full)
+    #plt.xlim(0.9,6.1)
+    ax.legend()
 
-        save_fname = os.path.join(fig_dir, f"{score}_init_{var}_{region_name}_{yyyymm}.png")
-        plt.savefig(save_fname, dpi=300 )#, bbox_inches='tight')
-        #plt.show()
-        plt.close()
+    save_fname = os.path.join(fig_dir, f"{score}_init_{var}_{region_name}_{yyyymm}.png")
+    plt.savefig(save_fname, dpi=300 )#, bbox_inches='tight')
+    #plt.show()
+    plt.close()
 
-        logger.info(f"[INFO] Saved: {save_fname}")
-        ds.close()
+    logger.info(f"[INFO] Saved: {save_fname}")
+    ds.close()
 
 def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir, fig_dir, score1='acc', score2='rmse'):
     import matplotlib.patches as patches
@@ -250,7 +247,9 @@ def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_
             logger.info(f"[WARN] No data to plot for target month {target_date.strftime('%Y-%m')}")
 
 
-def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: str, data_dir: str, mode: str = "trajectory"):
+def plot_trajectory_w_acc_by_initialized_line(
+        var: str, region: str, fig_dir: str, data_dir: str, mode: str = "trajectory"):
+    from config import fcst_start, fcst_end
     """
     전체 예측기간에 대해 초기화월별 시계열 또는 스킬라인을 그리는 함수
     - mode='skill' : 단독 스킬 스코어 (e.g. ACC, RMSE)
@@ -274,7 +273,6 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
         "t2m":[-1.5, 2.5],
         "prcp":[-1, 1.5],
         "sst":[-0.5,2],
-
     }
 }
     
@@ -303,7 +301,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
     month_colors = {m: cmap((m - 1) % 12) for m in range(1, 13)}
 
     # 📥 초기화월 목록
-    yyyymm_list = generate_yyyymm_list(year_start, year_end)
+    yyyymm_list = generate_yyyymm_list(fcst_start, fcst_end)
 
     # 📊 그림 준비
     fig, ax1 = plt.subplots(figsize=(14, 6))#, constrained_layout=True)
@@ -376,6 +374,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
                         logger.debug(f"[DEBUG] ACC value for target({target_dates[0].strftime('%Y%m')}): {np.round(acc_val,2)}")      
             except Exception:
                 acc_dict[yyyymm] = np.nan
+    print(acc_dict)
 
     # 🎯 bar plot (trajectory 전용)
     if mode == "trajectory" and ax2 is not None:
@@ -387,11 +386,13 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
         ax2.set_ylabel("ACC (lead=1, bars)", fontsize=14, color='m')
         ax2.axhline(0, linestyle=":", color="m", lw=0.7)
         ax2.tick_params(axis='y', labelsize=14, labelcolor='m')
-        ax1.set_title(f"Trajectory by Initialization ({year_start}–{year_end})\n Line = One Initialized Month, bar = ACC@lead-1 , Region: {region}, Var: {var}", 
+        ax1.set_title(f"Trajectory by Initialization ({fcst_start}–{fcst_end})\n Line = One Initialized Month, bar = ACC@lead-1 , Region: {region}, Var: {var}", 
                       fontsize=14, pad=40)
         ax1.set_ylim(anom_range) # Anomaly ylim
         
         # for xticklabel setting
+        if not acc_dict:
+            logger.warning("[WARN] acc_dict is empty. Skipping xtick")
         xticks = pd.date_range(
             start=min(pd.to_datetime(k, format="%Y%m") for k in acc_dict),
             end=max(pd.to_datetime(k, format="%Y%m") + pd.DateOffset(months=6) for k in acc_dict),
@@ -405,7 +406,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
         
 
     elif mode == 'skill':
-        ax1.set_title(f"ACC Timeseries ({year_start}–{year_end})\nEach Line = Anomaly by One Initialized Month, Region: {region}, Var: {var}", 
+        ax1.set_title(f"ACC Timeseries ({fcst_start}–{fcst_end})\nEach Line = Anomaly by One Initialized Month, Region: {region}, Var: {var}", 
                       fontsize=14, pad=40)
         ax1.axhline(0, linestyle="--", color="gray", lw=0.8)
     
@@ -426,7 +427,7 @@ def plot_trajectory_w_acc_by_initialized_line(var: str, region: str, fig_dir: st
 
     plt.tight_layout()
     os.makedirs(fig_dir, exist_ok=True)
-    fname = f"targetSeries_byInit_{var}_{region}_{'traj' if mode=='trajectory' else 'skill'}_{year_start}_{year_end}.png"
+    fname = f"targetSeries_byInit_{var}_{region}_{'traj' if mode=='trajectory' else 'skill'}_{fcst_start}_{fcst_end}.png"
     plt.savefig(os.path.join(fig_dir, fname), dpi=300)
     plt.close()
 
@@ -595,11 +596,66 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
         plt.close()
         logger.info(f"[INFO] Saved pattern comparison figure: {save_fname}")
 
-def plot_sst_hovmoller(target_year, region_name, fig_dir):
+def plot_nino34_hovmoller(yyyymm, obs_dir, fig_dir):
+     from config import model_out_dir
      """
      var=sst일때 enso, ido 영역에 대해 hovmoller
      by init, by target 둘다
      """
-    fig, axs = plt.subplots(ncols=2, nrows=1)
-    axs = axs.flatten()
 
+     fcst_file = os.path.join(f'{model_out_dir}/anomaly', f"ensMem_sst_anom_{yyyymm}.nc")
+     if not os.path.isfile(fcst_file):
+                logger.warning(f"[SKIP] {fcst_file} 없음.")
+     ds_fcst = xr.open_dataset(fcst_file)   
+
+     # Ensemble mean and regional selection
+     fcst = ds_fcst['sst'].mean(dim='ens', skipna=True)
+     lat_range = slice(-5, 5)
+     if ds_fcst['lon'].max() > 180:
+         lon_range = slice(190, 240)  # 170W~120W in 0-360 coordinates
+     else:
+         lon_range = slice(-170, -120)
+     fcst_reg = fcst.sel(lat=lat_range, lon=lon_range)
+     fcst_latmean = fcst_reg.mean(dim='lat', skipna=True) 
+
+     times = pd.to_datetime(ds_fcst['time'].values)
+     years = np.unique(times.year)
+
+     # Load observation files covering the required years
+     try:
+         obs_all = load_obs_data('sst', years=years, obs_dir=obs_dir, suffix='anom', var_suffix='sst')
+     except FileNotFoundError:
+         logger.info(f"[WARN] No observation files found for years: {years}")
+         ds_fcst.close()
+         return
+     
+     obs = obs_all.sel(time=times, lat=lat_range, lon=lon_range)
+     obs_latmean = obs.mean(dim='lat', skipna=True)
+ 
+     diff = fcst_latmean - obs_latmean
+ 
+     y = np.arange(len(times))
+     lon_vals = fcst_reg['lon'].values
+     time_labels = [t.strftime('%Y-%m') for t in times]
+ 
+     fig, ax = plt.subplots(figsize=(8, 4), constrained_layout=True)
+     cf = ax.contourf(lon_vals, y, diff, cmap='bwr', levels=np.linspace(-3, 3, 13), extend='both')
+     cs = ax.contour(lon_vals, y, obs_latmean, colors='k', linewidths=1)
+     ax.clabel(cs, fmt="%.1f", colors='k', fontsize=8)
+
+     ax.set_yticks(y)
+     ax.set_yticklabels(time_labels)
+     ax.set_xlabel('Longitude')
+     ax.set_ylabel('Time (YYYY-MM)')
+     init_yyyymm = os.path.basename(fcst_file).split('_')[-1].split('.')[0]
+     ax.set_title(f'Nino3.4 SST Anomaly Hovmoller (Init: {init_yyyymm})')
+
+     plt.colorbar(cf, ax=ax, label='Forecast - Obs (℃)')
+
+     save_fname = os.path.join(fig_dir, f"hovmoller_nino34_{init_yyyymm}.png")
+     plt.savefig(save_fname, dpi=300)
+     plt.close()
+     logger.info(f"[INFO] Saved Nino3.4 Hovmoller: {save_fname}")
+
+     ds_fcst.close()
+    

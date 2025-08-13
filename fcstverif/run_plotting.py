@@ -4,28 +4,28 @@ import os
 import logging
 
 from fcstverif.config import (
-    VARIABLES, REGIONS, year_start, year_end, fyears, 
+    VARIABLES, REGIONS, verify_start, verify_end, fyears, 
     score_dir, idx_dir, tercile_dir, output_fig_dir, enabled_plots
 )
 from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
-from src.utils.logging_utils import init_logger
-from src.utils.general_utils import generate_yyyymm_list
-
+from fcstverif.src.utils.logging_utils import init_logger
+from fcstverif.src.utils.general_utils import generate_yyyymm_list
 
 # plotting 함수 import
-from src.plotting.plotDetermSkillScore import (
+from fcstverif.src.plotting.plotDetermSkillScore import (
     plot_skill_initialized_month,
     plot_skill_heatmap_initialized_month,
     plot_skill_target_month,
     #plot_skill_by_initialized_line,
     plot_trajectory_w_acc_by_initialized_line,
-    plot_spatial_pattern_fcst_vs_obs
+    plot_spatial_pattern_fcst_vs_obs,
+    plot_nino34_hovmoller,
 )
-from src.plotting.plotProbSkillScore import (
+from fcstverif.src.plotting.plotProbSkillScore import (
     plot_rpss_map,
     plot_roc_by_lead_per_init
 )
-from src.plotting.plotCateHeatmap import plot_det_cate_heatmap
+from fcstverif.src.plotting.plotCateHeatmap import plot_det_cate_heatmap
 
 from fcstverif.src.plotting.plotSkillRelation import plot_scatter_enso_with_var, plot_scatter_by_lead
 
@@ -41,8 +41,10 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
     return {
         "init_line": lambda: [
             plot_skill_initialized_month(
-                var=var, region_name=region_name, data_dir=data_dir, fig_dir=fig_dir, score=score
-            ) for score in ['acc', 'rmse']
+                var=var, yyyymm=yyyymm, 
+                region_name=region_name, 
+                data_dir=data_dir, fig_dir=fig_dir, score=score
+            ) for yyyymm in yyyymm_list for score in ['acc', 'rmse']
         ],
         "init_heatmap": lambda: [
             plot_skill_heatmap_initialized_month(
@@ -56,14 +58,14 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
                 score=score, data_dir=data_dir, fig_dir=fig_dir
             ) for y in fyears for score in ['acc', 'rmse']
         ],
-        "traj_line": lambda: plot_trajectory_w_acc_by_initialized_line(
+        "traj_line": plot_trajectory_w_acc_by_initialized_line(
             var=var,
             region=region_name,
             fig_dir=fig_dir,
             data_dir=score_dir,
             mode="trajectory"  # ✨ mode 지정
         ),
-        "target_line": lambda: plot_trajectory_w_acc_by_initialized_line(
+        "target_line": plot_trajectory_w_acc_by_initialized_line(
             var=var,
             region=region_name,
             fig_dir=fig_dir,
@@ -105,7 +107,13 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
                 idx_dir=idx_dir, 
                 fig_dir=fig_dir,
                 mode='IOD'
-                )
+                ),
+        # "nino34_hovmoller": lambda: [
+        #     plot_nino34_hovmoller(
+        #         yyyymm=ym,
+        #         obs_dir = 
+        #     ) for ym in yyyymm_list
+        # ],
     }
 
 def run_plotting(var, region_name, yyyymm_list):
@@ -113,12 +121,12 @@ def run_plotting(var, region_name, yyyymm_list):
     fig_dir = os.path.join(output_fig_dir, region_name, var)
     os.makedirs(fig_dir, exist_ok=True)
 
-    logger.info(f"📌 Starting plotting for var={var}, region={region_name}")
+    logger.info(f"📌 Start plotting for var={var}, region={region_name}")
     task_funcs = define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
 
     for task_name in enabled_plots:
-        if task_name.startswith("trajectory"):
-            continue
+        # if task_name.startswith("traj"):
+        #     continue
         task_func = task_funcs.get(task_name)
         if task_func:
             logger.info(f"▶️ Running: {task_name}")
@@ -137,7 +145,7 @@ def main():
 
     var = args.var
     region_name = args.region
-    yyyymm_list = generate_yyyymm_list(year_start, year_end)
+    yyyymm_list = generate_yyyymm_list(verify_start, verify_end)
     if run_mode == "auto":
         run_plotting(var, region_name, yyyymm_list)
     else:

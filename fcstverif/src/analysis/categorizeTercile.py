@@ -61,7 +61,7 @@ def make_onehot(
 
 def categorize_obs_tercile(var, years, obs_dir):
     """
-    관측 아노말리(anomaly)와 표준편차(std, 걍수량은 quantile)를 이용하여
+    관측 아노말리(anomaly)와 표준편차(std, 강수량은 quantile)를 이용하여
     ±0.43σ 기준의 3분위 범주(BN=0, NN=1, AN=2)를 구분하고 저장.
     """
     logger.info(f"[TERCILE] OBS categorize: years={years}, var={var}")
@@ -190,7 +190,7 @@ def categorize_fcst_tercile_det(var, yyyymm, fcst_dir, stat_dir, out_dir):
     
     if not os.path.isfile(fcst_file):
         #raise FileNotFoundError(f"[FCST] File not found: {fcst_file}")
-        logger.warming(f"[FCST] File not found: {fcst_file}")
+        logger.warning(f"[FCST] File not found: {fcst_file}")
         return None
     
     ds_fcst = xr.open_dataset(fcst_file)

@@ -8,10 +8,9 @@ import cartopy.crs as ccrs
 
 from config import *
 from src.utils.logging_utils import init_logger
-from src.utils.general_utils import generate_yyyymm_list
+#from src.utils.general_utils import generate_yyyymm_list
 
 logger = init_logger()
-yyyymm_list = generate_yyyymm_list(year_start, year_end)
 
 def plot_rpss_map(var, yyyymm, region_name, fig_dir):
     """

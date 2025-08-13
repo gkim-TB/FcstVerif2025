@@ -9,9 +9,9 @@ from config import *
 from src.utils.logging_utils import init_logger
 logger = init_logger()
 
-def generate_yyyymm_list(start_year, end_year):
+def generate_yyyymm_list(verify_start, verify_end):
     """예: 2022~2024 → ['202201', ..., '202412']"""
-    return pd.date_range(start=f"{start_year}-01", end=f"{end_year}-12", freq="MS").strftime("%Y%m").tolist()
+    return pd.date_range(start=f"{verify_start}01", end=f"{verify_end}01", freq="MS").strftime("%Y%m").tolist()
 
 def load_obs_data(var, years, obs_dir, suffix='anom', var_suffix=None):
     """
@@ -56,7 +56,7 @@ def clip_to_region(da, region, var: str):
     lon_min, lon_max, lat_min, lat_max = region_box
     return da.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
 
-def convert_prcp_to_mm_per_day(da: xr.DataArray, source: xr.DataArray, stat_type: str=None):
+def convert_prcp_to_mm_per_day(da: xr.DataArray, source: str, stat_type: str=None):
     """
     강수량 DataArray를 mm/day 단위로 변환
     - source='ERA5': 단위 m (월별 적산) -> mm/day
