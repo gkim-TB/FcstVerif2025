@@ -5,7 +5,7 @@ import logging
 
 from fcstverif.config import (
     VARIABLES, REGIONS, year_start, year_end, fyears, 
-    verification_out_dir, output_fig_dir, enabled_plots
+    score_dir, idx_dir, tercile_dir, output_fig_dir, enabled_plots
 )
 from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
 from src.utils.logging_utils import init_logger
@@ -27,6 +27,8 @@ from src.plotting.plotProbSkillScore import (
 )
 from src.plotting.plotCateHeatmap import plot_det_cate_heatmap
 
+from fcstverif.src.plotting.plotSkillRelation import plot_scatter_enso_with_var, plot_scatter_by_lead
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Plotting pipeline for var/region")
     parser.add_argument("--var", required=True, choices=VARIABLES, help="Variable to plot")
@@ -35,7 +37,7 @@ def parse_args():
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     return parser.parse_args()
 
-def define_plot_tasks(var, region_name, data_dir, fig_dir, yyyymm_list):
+def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list):
     return {
         "init_line": lambda: [
             plot_skill_initialized_month(
@@ -58,7 +60,7 @@ def define_plot_tasks(var, region_name, data_dir, fig_dir, yyyymm_list):
             var=var,
             region=region_name,
             fig_dir=fig_dir,
-            data_dir=data_dir,
+            data_dir=score_dir,
             mode="trajectory"  # ✨ mode 지정
         ),
         "target_line": lambda: plot_trajectory_w_acc_by_initialized_line(
@@ -86,16 +88,33 @@ def define_plot_tasks(var, region_name, data_dir, fig_dir, yyyymm_list):
                 var=var, yyyymm=ym, region_name=region_name,
                 data_dir=data_dir, fig_dir=fig_dir
             ) for ym in yyyymm_list
-        ]
+        ],
+        "skill_relation": lambda: [
+            plot_scatter_enso_with_var(
+                var=var, yyyymm=ym,
+                fcst_score_dir=data_dir,
+                idx_dir=idx_dir,
+                fig_dir=fig_dir,
+                mode='IOD'
+            ) for ym in yyyymm_list
+        ],
+        "skill_relation_v2":
+            plot_scatter_by_lead(
+                var=var, yyyymm_list=yyyymm_list, 
+                fcst_score_dir=data_dir, 
+                idx_dir=idx_dir, 
+                fig_dir=fig_dir,
+                mode='IOD'
+                )
     }
 
 def run_plotting(var, region_name, yyyymm_list):
-    data_dir = os.path.join(verification_out_dir, 'SCORE', region_name, var)
+    data_dir = os.path.join(score_dir, region_name, var)
     fig_dir = os.path.join(output_fig_dir, region_name, var)
     os.makedirs(fig_dir, exist_ok=True)
 
     logger.info(f"📌 Starting plotting for var={var}, region={region_name}")
-    task_funcs = define_plot_tasks(var, region_name, data_dir, fig_dir, yyyymm_list)
+    task_funcs = define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
 
     for task_name in enabled_plots:
         if task_name.startswith("trajectory"):

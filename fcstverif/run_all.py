@@ -22,7 +22,6 @@ def main():
     for var in VARIABLES:
         
         print("📦 [1] Preprocessing...")
-        print(f"\n🔧 Processing: var={var}, region=GL")
         run_script("run_preprocessing.py", var)
 
         run_script("run_categorization.py", var)
@@ -31,11 +30,11 @@ def main():
             run_script("run_indices.py", var)
 
         for region in REGIONS:
-            print("📊 [2] Analysis...")
+            print(f"📊 [2] Analysis... {var}/{region}")
             run_script("run_analysis.py", var, region)
 
         for region in REGIONS:
-            print("🖼️  [3] Plotting...")
+            print(f"🖼️  [3] Plotting... {var}/{region}")
             run_script("run_plotting.py", var, region)
 
 if __name__ == "__main__":

@@ -7,6 +7,33 @@ from config import *
 from src.utils.general_utils import convert_prcp_to_mm_per_day, convert_geopotential_to_m
 logger = logging.getLogger("fcstverif")
 
+def rename_dims_coords(da: xr.DataArray) -> xr.DataArray:
+    """
+    Rename dimension or coordinate names of a DataArray conditionally:
+    - 'LATITUDE' or 'latitude' → 'lat'
+    - 'LONGITUDE' or 'longitude' → 'lon'
+    - 'pressure_level' → 'level'
+    """
+    rename_dict = {}
+
+    if 'LATITUDE' in da.dims or 'LATITUDE' in da.coords:
+        rename_dict['LATITUDE'] = 'lat'
+    elif 'latitude' in da.dims or 'latitude' in da.coords:
+        rename_dict['latitude'] = 'lat'
+
+    if 'LONGITUDE' in da.dims or 'LONGITUDE' in da.coords:
+        rename_dict['LONGITUDE'] = 'lon'
+    elif 'longitude' in da.dims or 'longitude' in da.coords:
+        rename_dict['longitude'] = 'lon'
+
+    if 'pressure_level' in da.dims or 'pressure_level' in da.coords:
+        rename_dict['pressure_level'] = 'level'
+
+    if rename_dict:
+        da = da.rename(rename_dict)
+
+    return da
+
 def get_subfolder_for_var(var):
     if var in PRESSURE_VARS:
         return 'pressure'
@@ -55,7 +82,8 @@ def compute_era5_clim_and_anom(
             continue
         with xr.open_dataset(fpath) as ds:
             da = ds[rename_var]
-            da = da.rename({'LATITUDE': 'lat', 'LONGITUDE': 'lon'})
+            #da = da.rename({'LATITUDE': 'lat', 'LONGITUDE': 'lon'})
+            da = rename_dims_coords(da)
             da.name = rename_var # change ERA5 variable name to universal name
         da_list.append(da)
 
@@ -65,9 +93,10 @@ def compute_era5_clim_and_anom(
 
     # === merge and interpolation ===
     da_merged = xr.concat(da_list, dim='time')
+    del da_list
     da_interp = da_merged.interp(lat=target_lat, lon=target_lon, kwargs={"fill_value": "extrapolate"})
     #print(da_interp)
-    del da_merged, da_list
+    del da_merged
 
     # === convert units ===
     if var == 'prcp':

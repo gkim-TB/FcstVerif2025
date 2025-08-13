@@ -1,22 +1,23 @@
+# fcstverif/src/analysis/calcIndices.py
+
 import numpy as np
 import xarray as xr
 import pandas as pd
-from scipy.stats import pearsonr
-from sklearn.metrics import mean_squared_error
+# from scipy.stats import pearsonr
+# from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import os
-from config import fyears
 
-from src.utils.general_utils import get_combined_mask, load_obs_data
-
-from src.utils.logging_utils import init_logger
+from fcstverif.config import fyears, ENSO_BOX, IOD_WEST_BOX, IOD_EAST_BOX
+from fcstverif.src.utils.general_utils import get_combined_mask, load_obs_data
+from fcstverif.src.utils.logging_utils import init_logger
 logger = init_logger()
 
-# Define ENSO and IOD regions
-# region box: (latS, latN, lonL, lonR)
-ENSO_BOX = (-5, 5, 190, 240)  # Niño 3.4 영역
-IOD_WEST_BOX = (-10, 10, 50, 70)
-IOD_EAST_BOX = (-10, 0, 90, 110)
+# # Define ENSO and IOD regions
+# # region box: (latS, latN, lonL, lonR)
+# ENSO_BOX = (-5, 5, 190, 240)  # Niño 3.4 영역
+# IOD_WEST_BOX = (-10, 10, 50, 70)
+# IOD_EAST_BOX = (-10, 0, 90, 110)
 
 def calculate_enso_index(sst, mask=None):
     """Calculate ENSO index based on SST anomalies in a specific region."""
@@ -50,18 +51,18 @@ def calculate_iod_index(sst, mask=None):
 
 def plot_index_plum_by_init(fcst, obs, idx, yyyymm, fig_dir):
     """
-    ENSO/IOD 인덱스의 예측값과 관측값을 플롯합니다.
+    Plotting index. OBS as black line & forecast ensembles as red lines.
     
     Parameters
     ----------
     fcst : xarray.DataArray
-        예측 인덱스
+        forecast index
     obs : xarray.DataArray
-        관측 인덱스
+        OBS index
     idx : str
         'ENSO' 또는 'IOD'
     yyyymm : str
-        초기화 시점
+        initialized month
     """
 
     fig, ax = plt.subplots()
@@ -98,7 +99,8 @@ def plot_spatial(fcst, obs, yyyymm):
         관측 SST 데이터
     yyyymm: str
     """
-    pass
+    pass 
+   
 
 def calc_index_skill(fcst, obs):
     """
@@ -135,7 +137,7 @@ def plot_index_timeseries_all_init(mode, obs_index, fcst_index_dict, fig_dir):
     fig_dir : str
         저장 경로
     """
-    import matplotlib.dates as mdates
+    # import matplotlib.dates as mdates
     from matplotlib.lines import Line2D
 
     fig, ax = plt.subplots(figsize=(14,6))
@@ -200,9 +202,19 @@ def plot_index_timeseries_all_init(mode, obs_index, fcst_index_dict, fig_dir):
 
 def calculate_index(var, yyyymm_list, model, fcst_dir, obs_dir, idx_dir, fig_dir, mode='ALL'):
     '''
+    [[MAIN CODE]]
     Calculate ENSO and IOD indices then validate obs vs. fcst indices (ACC, RMSE)
+    ---------------------------------------------------------------------------------------------
+    parameters:
+    - mode : 'ENSO', 'IOD', 'ALL'
 
-    mode : 'ENSO', 'IOD', 'ALL'
+    return:
+    - data : fcst_{mode}_index_{yyyymm}.nc
+    - plot :
+        1. ENSO/IOD plum 
+        2. timeseries trajectory 
+    - score : ACC, RMSE score for ENSO/IOD index -> {mode}_index_skill_score_summary.csv
+    ----------------------------------------------------------------------------------------------
 
     '''
     try:
@@ -317,7 +329,7 @@ def calculate_index(var, yyyymm_list, model, fcst_dir, obs_dir, idx_dir, fig_dir
     # 결과 CSV로 저장
     if score_rows:
         df_score = pd.DataFrame(score_rows)
-        #score_dir = f"{verification_out_dir}/SCORE/IDX/"
+        #score_dir = f"{verification_out_dir}/SCORE/IDX/" 
         os.makedirs(idx_dir, exist_ok=True)
         score_file = os.path.join(idx_dir, f"{mode}_index_skill_score_summary.csv")
         df_score.to_csv(score_file, index=False)

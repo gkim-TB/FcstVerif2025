@@ -595,3 +595,11 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
         plt.close()
         logger.info(f"[INFO] Saved pattern comparison figure: {save_fname}")
 
+def plot_sst_hovmoller(target_year, region_name, fig_dir):
+     """
+     var=sst일때 enso, ido 영역에 대해 hovmoller
+     by init, by target 둘다
+     """
+    fig, axs = plt.subplots(ncols=2, nrows=1)
+    axs = axs.flatten()
+

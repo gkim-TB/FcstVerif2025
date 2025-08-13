@@ -80,7 +80,7 @@ def run_obs_preprocessing(var):
             clim_start=clim_start,
             clim_end=clim_end,
             anom_start=year_start,
-            anom_end=year_end,
+            anom_end=year_end+1,
             era5_out_dir=era5_out_dir
         )
 
