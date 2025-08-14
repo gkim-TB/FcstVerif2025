@@ -31,15 +31,6 @@ def get_yyyymm_for_plot(plot_type, selected_yyyymm):
 #st.set_page_config(layout="wide")
 #st.title("Seasonal Forecast Verification Dashboard")
 
-# plot_types = [
-#     "ACC_byTarget",
-#     "RMSE_byTarget"
-#     "ACC_byInit",
-#     "RMSE_byInit",
-#     "Bias_byTarget",
-#     "RPSS_byInit",
-#     "ROC_byInit"
-# ]
 # ✅ Mapping for file names per plot type
 PLOT_FILENAME_MAP = {
     #"init_line":      [f"acc_targetSeries_byInit_{{var}}_{{region}}_{year_start}_{year_end}.png"],
@@ -72,15 +63,18 @@ def get_image_urls(plot_type, var, region, yyyymm=None, year=None, year_only=Non
 # tab selection radio button
 tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots", "📈 Indices"])
 
+fcst_start_year = fcst_start//100
+fcst_end_year = fcst_end//100
+
 # 탭 선택에 따라 사이드바 옵션 바꾸기
 if tab_selection == "📊 Overview":
     var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
     region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
 
-    selected_year = st.sidebar.selectbox("Select Year:", list(range(fcst_start, fcst_end+1)))
+    selected_year = st.sidebar.selectbox("Select Year:", list(range(fcst_start_year, fcst_end_year + 1)))
 elif tab_selection == "📈 Indices":
     st.sidebar.markdown("Select options for Indices")
-    selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(fcst_start, fcst_end+1)))
+    selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(fcst_start_year, fcst_end_year + 1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
     selected_yyyymm = f"{selected_year_int}{selected_month_int:02d}"
     #plot_types=list(IDX_FILENAME_MAP.keys())
@@ -88,7 +82,7 @@ elif tab_selection == "📈 Indices":
 elif tab_selection == "🖼️ Detailed Plots":  # Detailed
     var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
     region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
-    selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(fcst_start, fcst_end+1)))
+    selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(fcst_start_year, fcst_end_year + 1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
     selected_yyyymm = f"{selected_year_int}{selected_month_int:02d}"
     plot_types = list(PLOT_FILENAME_MAP.keys())
@@ -110,10 +104,10 @@ if tab_selection == "📊 Overview":
     st.header("📊 Key Metrics Overview")
 
     st.image(get_fig_url(model, region, var,
-        f"targetSeries_byInit_{var}_{region}_traj_{fcst_start}_{fcst_end}.png"),
+        f"targetSeries_byInit_{var}_{region}_traj_{fcst_start_year}_{fcst_end_year}.png"),
         caption="Trajectory by Init (with lead-1 ACC)", use_container_width=True)
     st.image(get_fig_url(model, region, var,
-        f"targetSeries_byInit_{var}_{region}_skill_{fcst_start}_{fcst_end}.png"),
+        f"targetSeries_byInit_{var}_{region}_skill_{fcst_start_year}_{fcst_end_year}.png"),
         caption="ACC skill by Init", use_container_width=True)
 
     cols = st.columns(2)

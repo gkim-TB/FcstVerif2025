@@ -457,7 +457,7 @@ def plot_trajectory_w_acc_by_initialized_line(
 
     plt.tight_layout()
     os.makedirs(fig_dir, exist_ok=True)
-    fname = f"targetSeries_byInit_{var}_{region}_{'traj' if mode=='trajectory' else 'skill'}_{fcst_start}_{fcst_end}.png"
+    fname = f"targetSeries_byInit_{var}_{region}_{'traj' if mode=='trajectory' else 'skill'}_{fcst_start//100}_{fcst_end//100}.png"
     plt.savefig(os.path.join(fig_dir, fname), dpi=300)
     plt.close()
 
