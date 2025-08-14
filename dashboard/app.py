@@ -13,7 +13,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from fcstverif.config import year_start, year_end, REGIONS, model
+from fcstverif.config import fcst_start, fcst_end, REGIONS, model
 
 # ✅ GitHub base raw URL
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/gkim-TB/FcstVerif2025/main"
@@ -77,10 +77,10 @@ if tab_selection == "📊 Overview":
     var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
     region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
 
-    selected_year = st.sidebar.selectbox("Select Year:", list(range(year_start, year_end+1)))
+    selected_year = st.sidebar.selectbox("Select Year:", list(range(fcst_start, fcst_end+1)))
 elif tab_selection == "📈 Indices":
     st.sidebar.markdown("Select options for Indices")
-    selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(year_start, year_end+1)))
+    selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(fcst_start, fcst_end+1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
     selected_yyyymm = f"{selected_year_int}{selected_month_int:02d}"
     #plot_types=list(IDX_FILENAME_MAP.keys())
@@ -88,7 +88,7 @@ elif tab_selection == "📈 Indices":
 elif tab_selection == "🖼️ Detailed Plots":  # Detailed
     var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
     region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
-    selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(year_start, year_end+1)))
+    selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(fcst_start, fcst_end+1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
     selected_yyyymm = f"{selected_year_int}{selected_month_int:02d}"
     plot_types = list(PLOT_FILENAME_MAP.keys())
@@ -110,10 +110,10 @@ if tab_selection == "📊 Overview":
     st.header("📊 Key Metrics Overview")
 
     st.image(get_fig_url(model, region, var,
-        f"targetSeries_byInit_{var}_{region}_traj_{year_start}_{year_end}.png"),
+        f"targetSeries_byInit_{var}_{region}_traj_{fcst_start}_{fcst_end}.png"),
         caption="Trajectory by Init (with lead-1 ACC)", use_container_width=True)
     st.image(get_fig_url(model, region, var,
-        f"targetSeries_byInit_{var}_{region}_skill_{year_start}_{year_end}.png"),
+        f"targetSeries_byInit_{var}_{region}_skill_{fcst_start}_{fcst_end}.png"),
         caption="ACC skill by Init", use_container_width=True)
 
     cols = st.columns(2)

@@ -108,8 +108,12 @@ def compute_deterministic_scores(
     
     # load observation data
     try:
+        oyears = fyears.tolist()
+        oyears.append(max(oyears)+1) 
+        # oyears: Extends the observation data period to the following year 
+        #         to account for forecasts initialized in the second half of the year (July onward).
         obs_data = load_obs_data(
-            var, fyears, obs_dir, 
+            var, oyears, obs_dir, 
             suffix='anom',
             var_suffix=var
             )

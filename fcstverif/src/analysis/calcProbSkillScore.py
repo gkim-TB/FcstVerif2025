@@ -140,9 +140,14 @@ def compute_probabilistic_scores(
     # os.makedirs(region_out_dir, exist_ok=True)
 
     try:
+        oyears = fyears.tolist()
+        oyears.append(max(oyears)+1) 
+        # oyears: Extends the observation data period to the following year 
+        #         to account for forecasts initialized in the second half of the year (July onward).
+        
         obs_ohe_all = load_obs_data(
             var=var,
-            years=fyears,
+            years=oyears,
             obs_dir=obs_dir,
             suffix='cate',
             var_suffix='obs_ohe'

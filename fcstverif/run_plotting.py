@@ -14,7 +14,7 @@ from fcstverif.src.utils.general_utils import generate_yyyymm_list
 # plotting 함수 import
 from fcstverif.src.plotting.plotDetermSkillScore import (
     plot_skill_initialized_month,
-    plot_skill_heatmap_initialized_month,
+    plot_det_skill_heatmap,
     plot_skill_target_month,
     #plot_skill_by_initialized_line,
     plot_trajectory_w_acc_by_initialized_line,
@@ -47,7 +47,7 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
             ) for yyyymm in yyyymm_list for score in ['acc', 'rmse']
         ],
         "init_heatmap": lambda: [
-            plot_skill_heatmap_initialized_month(
+            plot_det_skill_heatmap(
                 var=var, target_year=y, region_name=region_name,
                 data_dir=data_dir, fig_dir=fig_dir, score1='acc', score2='rmse'
             ) for y in fyears
@@ -58,29 +58,35 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
                 score=score, data_dir=data_dir, fig_dir=fig_dir
             ) for y in fyears for score in ['acc', 'rmse']
         ],
-        "traj_line": plot_trajectory_w_acc_by_initialized_line(
+        "traj_line": lambda: [
+            plot_trajectory_w_acc_by_initialized_line(
             var=var,
             region=region_name,
             fig_dir=fig_dir,
             data_dir=score_dir,
             mode="trajectory"  # ✨ mode 지정
-        ),
-        "target_line": plot_trajectory_w_acc_by_initialized_line(
+        )
+        ],
+        "target_line": lambda: [
+            plot_trajectory_w_acc_by_initialized_line(
             var=var,
             region=region_name,
             fig_dir=fig_dir,
             data_dir=data_dir,
             mode="skill"  # ✨ mode 지정
-        ),
+        )
+        ],
         "target_pattern": lambda: [
             plot_spatial_pattern_fcst_vs_obs(
                 var=var, target_year=y, region_name=region_name, fig_dir=fig_dir
             ) for y in fyears
         ],
-        "cate_heatmap": lambda: (
+        "cate_heatmap": lambda: [
             plot_det_cate_heatmap(
-                var=var, years=fyears, region_name=region_name, data_dir=data_dir, fig_dir=fig_dir
-            ) if var in ['t2m', 'prcp'] else logger.warning(f"[SKIP] {var} not supported for deterministic tercile heatmap.")
+                var=var, target_year=y, region_name=region_name, data_dir=data_dir, fig_dir=fig_dir
+            ) for y in fyears 
+            ] if var in ['t2m', 'prcp'] else logger.warning(
+                f"[SKIP] {var} not supported for deterministic tercile heatmap."
         ),
         "rpss_map": lambda: [
             plot_rpss_map(var=var, yyyymm=ym, region_name=region_name, fig_dir=fig_dir) for ym in yyyymm_list
@@ -100,14 +106,15 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
                 mode='IOD'
             ) for ym in yyyymm_list
         ],
-        "skill_relation_v2":
+        "skill_relation_v2": lambda :[
             plot_scatter_by_lead(
                 var=var, yyyymm_list=yyyymm_list, 
                 fcst_score_dir=data_dir, 
                 idx_dir=idx_dir, 
                 fig_dir=fig_dir,
                 mode='IOD'
-                ),
+                )
+        ],
         # "nino34_hovmoller": lambda: [
         #     plot_nino34_hovmoller(
         #         yyyymm=ym,

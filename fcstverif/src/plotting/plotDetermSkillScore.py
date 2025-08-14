@@ -22,8 +22,22 @@ def no_data_panel(ax_fcst, ax_bias):
         ax.text(0.5, 0.5, 'No data', transform=ax.transAxes,
                 ha='center', va='center', fontsize=14, color='gray')
           
-def plot_skill_initialized_month(var, yyyymm, region_name, data_dir, fig_dir, score):
-
+def plot_skill_initialized_month(
+        var: str, yyyymm: int, region_name: str, data_dir: str, fig_dir: str, score: str):
+    """
+    Plot the deterministic skill scores (ACC, RMSE) for the initialized month.
+    One plot for each initialization. x-axis along with the lead time.
+    
+    Parameters:
+        var (str): The variable to plot.
+        yyyymm (int): The year and month of initialization.
+        region_name (str): The name of the region.
+        data_dir (str): The directory containing the score data files.
+        fig_dir (str): The directory to save the figures.
+        score (str): The score to plot (e.g., 'acc', 'rmse').
+    
+    """
+    # load deterministic score data
     file_path = os.path.join(data_dir, f"ensScore_det_{var}_{yyyymm}.nc")
     if not os.path.isfile(file_path):
         logger.info(f"[WARN] {file_path} 없음.")
@@ -34,14 +48,15 @@ def plot_skill_initialized_month(var, yyyymm, region_name, data_dir, fig_dir, sc
     lead_valid = ds['lead'].values
 
     fig, ax = plt.subplots(figsize=(5,4), constrained_layout=True)
-    # 멤버별 점선 (회색)
+
+    # Dash lines for each ensemble member (grey)
     if score in ds.data_vars:
         for e in ds['ens'].values:
             y_vals = [ds[score].sel(ens=e).sel(time=t).item() if t in ds['time'].values else np.nan
                         for t in ds['time'].values]
             ax.plot(lead_valid, y_vals, '--', color='gray', alpha=0.4, linewidth=0.8)
 
-    # 앙상블 평균 (진한 파란색)
+    # Solid line for ensemble mean (blue)
     mean_score_name = f"{score}_mean"
     if mean_score_name in ds.data_vars:
         y_vals = [ds[mean_score_name].sel(time=t).item() if t in ds['time'].values else np.nan
@@ -68,17 +83,34 @@ def plot_skill_initialized_month(var, yyyymm, region_name, data_dir, fig_dir, sc
     logger.info(f"[INFO] Saved: {save_fname}")
     ds.close()
 
-def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir, fig_dir, score1='acc', score2='rmse'):
+def plot_det_skill_heatmap(
+        var: str, target_year: int, region_name: str, data_dir: str, fig_dir: str, 
+        score1='acc', score2='rmse'):
+    
+    """
+    Plot the heatmap of deterministic skill scores (ACC, RMSE) for the initialized month.
+    One heatmap for **each target year**. 
+    x-axis along with the lead time and y-axis for the initialized month.
+
+    Parameters
+        var (str): The variable to plot.
+        target_year (int): The target year for the heatmap.
+        region_name (str): The name of the region.
+        data_dir (str): The directory containing the score data files.
+        fig_dir (str): The directory to save the figures.
+        score1 (str): The first score to plot (default is 'acc').
+        score2 (str): The second score to plot (default is 'rmse').
+    """
     import matplotlib.patches as patches
     import matplotlib.colors as mcolors
 
-    # 설정
+    # Setting labels
     months = range(1, 13)
     leads = range(1, 7)
     y_labels = [f"{target_year}-{m:02d}" for m in months]
     x_labels = list(leads)
 
-    # 색상 및 colormap 설정
+    # color configuration
     cmap1 = plt.get_cmap('bwr', 10)    # 💡 ACC
     cmap2 = plt.get_cmap('Greys', 10)  # 💡 RMSE
     bounds1 = np.linspace(-1, 1, 11)     # ACC
@@ -86,17 +118,16 @@ def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir
     norm1 = mcolors.BoundaryNorm(bounds1, cmap1.N)
     norm2 = mcolors.BoundaryNorm(bounds2, cmap2.N)
 
-    # 빈 grid
+    # empty grid for storing skill scores
     grid1 = np.full((len(y_labels), len(x_labels)), np.nan)
     grid2 = np.full((len(y_labels), len(x_labels)), np.nan)
 
-    # 데이터 로드
+    # load data
     for i, month in enumerate(months):
         yyyymm = f"{target_year}{month:02d}"
         file_path = os.path.join(data_dir, f"ensScore_det_{var}_{yyyymm}.nc")
-
         if not os.path.isfile(file_path):
-            logger.info(f"[WARN] {file_path} 없음.")
+            logger.info(f"[WARN] No file exist: {file_path}")
             continue
 
         ds = xr.open_dataset(file_path)
@@ -107,16 +138,15 @@ def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir
                 grid1[i, j] = ds[f"{score1}_mean"].isel(time=time_idx).item()
                 grid2[i, j] = ds[f"{score2}_mean"].isel(time=time_idx).item()
             except Exception:
-                logger.info(f"[WARN] {yyyymm} Lead={lead} 없음")
+                logger.info(f"[WARN] No data for {yyyymm} Lead={lead}")
                 continue
 
-    # 그림 생성
+    # plot
     fig, ax = plt.subplots(figsize=(5, len(y_labels) * 0.5))
 
     for i in range(len(y_labels)):
         for j in range(len(x_labels)):
-            x = j
-            y = i
+            x, y = j, i
             val1 = grid1[i, j]
             val2 = grid2[i, j]
 
@@ -137,7 +167,7 @@ def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir
                 ax.text(x + 0.3, y + 0.25, f'{val1:.2f}', ha='center', va='center', fontsize=7, color=color1)
                 ax.text(x + 0.7, y + 0.75, f'{val2:.2f}', ha='center', va='center', fontsize=7, color=color2)
 
-    # 축 설정
+    # Set axis
     ax.set_xticks(np.arange(len(x_labels)) + 0.5)
     ax.set_xticklabels([f'Lead {l}' for l in x_labels])
     ax.set_yticks(np.arange(len(y_labels)) + 0.5)
@@ -163,7 +193,7 @@ def plot_skill_heatmap_initialized_month(var, target_year, region_name, data_dir
     cbar2 = plt.colorbar(sm2, cax=cax2, ticks=bounds2)
     cbar2.set_label(score2.upper())
 
-    # 저장
+    # save figure
     save_fname = os.path.join(fig_dir, f"det_heatmap_init_{var}_{region_name}_{target_year}.png")
     fig.savefig(save_fname, dpi=300, bbox_inches='tight')
     logger.info(f"[INFO] Saved Dual-Score Heatmap: {save_fname}")

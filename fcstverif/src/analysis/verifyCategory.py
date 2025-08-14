@@ -1,6 +1,7 @@
 #fcstverif/analysis/verifyCategory.py
 
 import os
+import glob  # <<< CHANGED
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -9,32 +10,72 @@ from src.utils.general_utils import load_obs_data, clip_to_region
 from src.utils.logging_utils import init_logger
 logger = init_logger()
 
+def _obs_years_for_verif():  # 보조 함수 (관측 연장 규칙)
+    oyears = fyears.tolist()
+    if len(oyears):
+        oyears.append(max(oyears) + 1)
+    return oyears
+
+def _shard_dir(out_dir, region_name, var): 
+    return os.path.join(out_dir, "DET_CATE", "shards", region_name, var)
+
+def _shard_path(out_dir, region_name, var, yyyymm):  
+    return os.path.join(_shard_dir(out_dir, region_name, var),
+                        f"cateScore_det_{var}_{region_name}_{yyyymm}.csv")
+
+def _write_monthly_shard(df_rowwise, out_dir, region_name, var, yyyymm):  # <<< CHANGED
+    os.makedirs(_shard_dir(out_dir, region_name, var), exist_ok=True)
+    fpath = _shard_path(out_dir, region_name, var, yyyymm)
+    df_rowwise.to_csv(fpath, index=False)
+    logger.info(f"[SHARD] saved: {fpath}")
+
+def _build_rollup_from_shards(out_dir, region_name, var): 
+    shard_pattern = os.path.join(_shard_dir(out_dir, region_name, var),
+                                 f"cateScore_det_{var}_{region_name}_*.csv")
+    files = sorted(glob.glob(shard_pattern))
+    if not files:
+        logger.warning(f"[ROLLUP] No shards found for {region_name}/{var}")
+        return None
+
+    parts = []
+    for f in files:
+        try:
+            parts.append(pd.read_csv(f))
+        except Exception as e:
+            logger.warning(f"[ROLLUP] skip broken shard: {f} ({e})")
+    if not parts:
+        return None
+
+    df = pd.concat(parts, ignore_index=True).drop_duplicates(subset=["yyyymm","lead"])  # 안정성  # <<< CHANGED
+    # 정렬: yyyymm, lead
+    df = df.sort_values(by=["yyyymm","lead"])
+    return df
+
 def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_name):
     """
     관측 vs 예측 삼분위 범주를 비교하여 Hit Rate, HSS 등 multi-category 검증 지표 계산
+    반환: pd.DataFrame (columns: yyyymm, lead, target, acc, hss)  # <<< CHANGED
     """
-    #year = int(yyyymm[:4])
-    #month = int(yyyymm[4:])
-
-    # 관측 파일: 연도별, 예측 파일: 월별
+    # 관측: 연도별, 예측: 월별
     try:
-        obs_data = load_obs_data(var, fyears, obs_dir, suffix='cate', var_suffix=f"obs_cate")
+        obs_data = load_obs_data(
+            var, _obs_years_for_verif(), obs_dir,
+            suffix='cate', var_suffix=f"obs_cate"
+        )
     except FileNotFoundError as e:
         logger.warning(str(e))
-        return None
+        return pd.DataFrame(columns=["yyyymm","lead","target","acc","hss"])  # <<< CHANGED
 
     fcst_file = os.path.join(fcst_dir, f"cate_det_{var}_{yyyymm}.nc")
     if not os.path.isfile(fcst_file):
         logger.warning(f"[Cate Det VERIFY] Missing file: {fcst_file}")
-        return None
+        return pd.DataFrame(columns=["yyyymm","lead","target","acc","hss"])  # <<< CHANGED
 
     ds_fcst = xr.open_dataset(fcst_file)
 
-    results = []
-
+    rows = []  # <<< CHANGED
     if "lead" in ds_fcst[f"{var}_fcst_det"].dims:
         for lead in ds_fcst["lead"].values:
-            # 예측 초기값 + lead개월 = 타겟 월
             init_date = pd.to_datetime(f"{yyyymm}01")
             target_date = init_date + pd.DateOffset(months=int(lead))
             target_str = target_date.strftime("%Y-%m")
@@ -71,44 +112,53 @@ def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_name):
             expected = np.outer(row_sum, col_sum) / total if total else np.zeros_like(table)
             hss = (hits - expected.trace()) / (total - expected.trace()) if total else np.nan
 
-            # pod_dict = {}
-            # far_dict = {}
-            # for c in range(3):  # BN=0, NN=1, AN=2
-            #     obs_total = table[c, :].sum()
-            #     fcst_total = table[:, c].sum()
-            #     hit = table[c, c]
-
-            #     pod = hit / obs_total if obs_total > 0 else np.nan
-            #     far = (fcst_total - hit) / fcst_total if fcst_total > 0 else np.nan
-
-            #     pod_dict[f'pod_{c}'] = pod
-            #     far_dict[f'far_{c}'] = far
-            
-            results.append({
+            rows.append({  # <<< CHANGED
                 'yyyymm': yyyymm,
                 'lead': int(lead),
                 'target': target_str,
                 'acc': acc,
                 'hss': hss,
             })
-    #print(results)
-    #logger.info(f"[VERIFY] {yyyymm} ACC={np.nanmean([result['acc'] for result in results]):.3f}, HSS={np.nanmean([result['hss'] for result in results]):.3f}")
-    return results
+
+    return pd.DataFrame(rows)  # <<< CHANGED
 
 def run_cate_verification_loop(
-        var, yyyymm_list, 
-        region_name, 
-        obs_dir, fcst_dir, out_dir):
-    results = []
-    for yyyymm in yyyymm_list:
-        result = compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_name)
-        if result:
-            results.append(result)
+        var, yyyymm_list,
+        region_name,
+        obs_dir, fcst_dir, out_dir,
+        recompute=False,           # <<< CHANGED: True면 shards를 강제 재계산
+        discover=False             # <<< CHANGED: True면 fcst_dir 스캔으로 yyyymm 자동 추출
+    ):
+    """
+    증분 계산 + 월별 shard 저장 + 롤업 CSV 생성
+    - 결과 롤업 CSV: {out_dir}/Det_tercile_score_{var}_{region_name}.csv
+    """
+    # yyyymm 후보군 결정
+    if discover:  # <<< CHANGED
+        patt = os.path.join(fcst_dir, f"cate_det_{var}_*.nc")
+        files = sorted(glob.glob(patt))
+        yyyymm_list = [os.path.basename(f).split("_")[-1].split(".")[0] for f in files]
+        logger.info(f"[DISCOVER] found {len(yyyymm_list)} months in fcst_dir")
 
-    # DataFrame 및 CSV 저장
-    df = pd.DataFrame(results)
-    out_csv = os.path.join(
-        out_dir, f"Det_tercile_score_{var}_{region_name}.csv"
-    )
-    df.to_csv(out_csv, index=False)
-    logger.info(f"[SAVED] {out_csv}")
+    # 월별 계산(증분)
+    for yyyymm in yyyymm_list:
+        shard_fp = _shard_path(out_dir, region_name, var, yyyymm)
+        if (not recompute) and os.path.isfile(shard_fp):  # <<< CHANGED
+            logger.info(f"[SKIP] shard exists: {shard_fp}")
+            continue
+
+        df_month = compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_name)
+        if df_month is None or df_month.empty:
+            logger.info(f"[SKIP] empty month: {yyyymm}")
+            continue
+
+        _write_monthly_shard(df_month, out_dir, region_name, var, yyyymm)  # <<< CHANGED
+
+    # 롤업 재구성
+    df_rollup = _build_rollup_from_shards(out_dir, region_name, var)  # <<< CHANGED
+    if df_rollup is not None:
+        out_csv = os.path.join(out_dir, f"Det_tercile_score_{var}_{region_name}.csv")
+        df_rollup.to_csv(out_csv, index=False)
+        logger.info(f"[ROLLUP] saved: {out_csv}")
+    else:
+        logger.warning(f"[ROLLUP] nothing to save for {region_name}/{var}")

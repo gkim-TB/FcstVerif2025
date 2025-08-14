@@ -4,7 +4,7 @@ import os
 import logging
 
 from fcstverif.config import (
-    VARIABLES, model, year_start, year_end, clim_start, clim_end,
+    VARIABLES, model, fcst_start, fcst_end, clim_start, clim_end,
     model_raw_dir, model_out_dir, sst_out_dir, era5_base_dir, era5_out_dir,
 )
 from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
@@ -30,8 +30,8 @@ def run_model_preprocessing(var):
 
     logger.info(f"[INFO] === GloSea : {var} ===")
     forecast_range = dict(
-        forecast_start=f'{year_start}-01-01',
-        forecast_end=f'{year_end}-12-31',
+        forecast_start=f'{fcst_start}01',
+        forecast_end=f'{fcst_end}01',
         var=var,
         init_rule=init_rule
     )
@@ -56,8 +56,8 @@ def run_model_preprocessing(var):
     logger.info(f"[INFO] Processing anomaly for variable: {var}")
     settingUpGloSea.compute_anomaly(
         var=var,
-        year_start=year_start,
-        year_end=year_end,
+        year_start=fcst_start,
+        year_end=fcst_end,
         hindcast_dir=f'{model_out_dir}/hindcast',
         forecast_dir=f'{model_out_dir}/forecast',
         out_dir=f'{model_out_dir}/anomaly'
@@ -66,7 +66,7 @@ def run_model_preprocessing(var):
 def run_obs_preprocessing(var):
     if var == 'sst':
         missing_years = [
-            year for year in range(year_start, year_end + 1)
+            year for year in range(fcst_start, fcst_end + 1)
             if not os.path.exists(f"{sst_out_dir}/sst_anom_{year}.nc")
         ]
         regrid = 'y' if missing_years else 'n'
@@ -79,8 +79,8 @@ def run_obs_preprocessing(var):
             var=var,
             clim_start=clim_start,
             clim_end=clim_end,
-            anom_start=year_start,
-            anom_end=year_end+1,
+            anom_start=fcst_start,
+            anom_end=fcst_end+1,
             era5_out_dir=era5_out_dir
         )
 

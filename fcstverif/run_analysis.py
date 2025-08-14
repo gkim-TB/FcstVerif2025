@@ -46,8 +46,11 @@ def run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, mask):
             region_name=region_name,
             obs_dir=obs_dir,
             fcst_dir=f"{verification_out_dir}/CATE/DET",
-            out_dir=out_score_dir
-        )
+            out_dir=out_score_dir,
+            # 필요 시 True (이미 만들어 둔 **shard(월별 CSV)**가 있어도 강제로 다시 계산·덮어쓰기)
+            recompute=False,   
+            # 필요 시 True (가용한 모든 월을 항상 계산)
+            discover=False     )
 
 def run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, mask):
     logger.info("📌 Step 2: Probabilistic Skill Scores")
@@ -89,9 +92,6 @@ def main():
             run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, mask)
 
     logger.info("✅ Analysis completed successfully.")
-
-
-
 
 if __name__ == "__main__":
     main()

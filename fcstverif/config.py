@@ -9,10 +9,10 @@ fcst_start = 202201
 fcst_end = 202412 
 
 # --- 검증하고자 하는 forecast 기간 ---
-verify_start = 202407
+verify_start = 202201
 #verify_end = 202412
 verify_end = fcst_end
-fyears = np.arange(verify_start//100, verify_end//100+1)
+fyears = np.arange(verify_start//100, verify_end//100 + 1)
 
 # == obs hindcast 기간
 clim_start = 1991
@@ -20,8 +20,7 @@ clim_end   = 2020
 
 # --- 변수 목록 ---
 #VARIABLES = ['sst']
-VARIABLES = ['prcp']
-#VARIABLES = ['t2m', 'prcp', 'sst']
+VARIABLES = ['t2m', 'prcp', 'sst']
 #VARIABLES = ['t', 'z']
 
 # --- 검증 영역 정의 ---
@@ -43,7 +42,7 @@ model = 'GS6'
 # --- plot list ---
 enabled_plots = [
     # -- detailed plots
-    "init_line",       # Timeseries of deterministic skill score by lead, every initialized month
+    #"init_line",       # Timeseries of deterministic skill score by lead, every initialized month
     #"target_month",    # Timeseries of deterministic skill score by lead, every target month
     #"target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
     #"rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
@@ -51,10 +50,10 @@ enabled_plots = [
     # -- overview plots
     #"target_line",      # Timeseries of all forecast initialization (ACC)
     #"traj_line",        # Trajectory lines of all forecast initialization
-    "init_heatmap",    # Deterministic skill score heatmap
-    #"cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
+    #"init_heatmap",    # Deterministic skill score heatmap
+    "cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
     # -- analytics plots
-    #"skill_relation",
+    #"skill_relation",   # Skill relation plot
     #"skill_relation_v2",
     ]
 
