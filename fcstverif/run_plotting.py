@@ -5,7 +5,7 @@ import logging
 
 from fcstverif.config import (
     VARIABLES, REGIONS, verify_start, verify_end, fyears, 
-    score_dir, idx_dir, tercile_dir, output_fig_dir, enabled_plots
+    score_dir, idx_dir, sst_out_dir, tercile_dir, output_fig_dir, enabled_plots
 )
 from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
 from fcstverif.src.utils.logging_utils import init_logger
@@ -83,13 +83,16 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
         ],
         "cate_heatmap": lambda: [
             plot_det_cate_heatmap(
-                var=var, target_year=y, region_name=region_name, data_dir=data_dir, fig_dir=fig_dir
+                var=var, target_year=y, region_name=region_name, 
+                data_dir=data_dir, fig_dir=fig_dir
             ) for y in fyears 
             ] if var in ['t2m', 'prcp'] else logger.warning(
                 f"[SKIP] {var} not supported for deterministic tercile heatmap."
         ),
         "rpss_map": lambda: [
-            plot_rpss_map(var=var, yyyymm=ym, region_name=region_name, fig_dir=fig_dir) for ym in yyyymm_list
+            plot_rpss_map(
+                var=var, yyyymm=ym, region_name=region_name, fig_dir=fig_dir
+            ) for ym in yyyymm_list
         ],
         "roc_curve": lambda: [
             plot_roc_by_lead_per_init(
@@ -115,15 +118,16 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
                 mode='IOD'
                 )
         ],
-        # "nino34_hovmoller": lambda: [
-        #     plot_nino34_hovmoller(
-        #         yyyymm=ym,
-        #         obs_dir = 
-        #     ) for ym in yyyymm_list
-        # ],
+         "nino34_hovmoller": lambda: [
+             # this will only run for var == 'sst'
+             plot_nino34_hovmoller(
+                 yyyymm=ym,
+                ) for ym in yyyymm_list
+         ],
     }
 
 def run_plotting(var, region_name, yyyymm_list):
+
     data_dir = os.path.join(score_dir, region_name, var)
     fig_dir = os.path.join(output_fig_dir, region_name, var)
     os.makedirs(fig_dir, exist_ok=True)

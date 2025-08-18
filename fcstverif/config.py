@@ -8,13 +8,13 @@ RUN_MODE = 'manual' # 'manual' or 'auto'
 fcst_start = 202201
 fcst_end = 202412 
 
-# --- 검증하고자 하는 forecast 기간 ---
+# --- forecast to verify : initialized months---
 verify_start = 202201
 #verify_end = 202412
 verify_end = fcst_end
 fyears = np.arange(verify_start//100, verify_end//100 + 1)
 
-# == obs hindcast 기간
+# == obs hindcast period
 clim_start = 1991
 clim_end   = 2020
 
@@ -51,10 +51,11 @@ enabled_plots = [
     #"target_line",      # Timeseries of all forecast initialization (ACC)
     #"traj_line",        # Trajectory lines of all forecast initialization
     #"init_heatmap",    # Deterministic skill score heatmap
-    "cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
+    #"cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
     # -- analytics plots
     #"skill_relation",   # Skill relation plot
     #"skill_relation_v2",
+    "nino34_hovm",
     ]
 
 

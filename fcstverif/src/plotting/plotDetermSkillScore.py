@@ -626,16 +626,18 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
         plt.close()
         logger.info(f"[INFO] Saved pattern comparison figure: {save_fname}")
 
-def plot_nino34_hovmoller(yyyymm, obs_dir, fig_dir):
-     from config import model_out_dir
+def plot_nino34_hovmoller(yyyymm):
      """
      var=sst일때 enso, ido 영역에 대해 hovmoller
      by init, by target 둘다
      """
+      
+     from config import sst_out_dir, model_out_dir, idx_dir
 
      fcst_file = os.path.join(f'{model_out_dir}/anomaly', f"ensMem_sst_anom_{yyyymm}.nc")
      if not os.path.isfile(fcst_file):
                 logger.warning(f"[SKIP] {fcst_file} 없음.")
+                return
      ds_fcst = xr.open_dataset(fcst_file)   
 
      # Ensemble mean and regional selection
@@ -653,7 +655,7 @@ def plot_nino34_hovmoller(yyyymm, obs_dir, fig_dir):
 
      # Load observation files covering the required years
      try:
-         obs_all = load_obs_data('sst', years=years, obs_dir=obs_dir, suffix='anom', var_suffix='sst')
+         obs_all = load_obs_data('sst', years=years, obs_dir=sst_out_dir, suffix='anom', var_suffix='sst')
      except FileNotFoundError:
          logger.info(f"[WARN] No observation files found for years: {years}")
          ds_fcst.close()
@@ -682,7 +684,7 @@ def plot_nino34_hovmoller(yyyymm, obs_dir, fig_dir):
 
      plt.colorbar(cf, ax=ax, label='Forecast - Obs (℃)')
 
-     save_fname = os.path.join(fig_dir, f"hovmoller_nino34_{init_yyyymm}.png")
+     save_fname = os.path.join(idx_dir, f"hovmoller_nino34_{init_yyyymm}.png")
      plt.savefig(save_fname, dpi=300)
      plt.close()
      logger.info(f"[INFO] Saved Nino3.4 Hovmoller: {save_fname}")
