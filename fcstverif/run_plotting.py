@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+# fcstverif/run_plotting.py
+
 import argparse
 import os
 import logging
@@ -20,6 +21,7 @@ from fcstverif.src.plotting.plotDetermSkillScore import (
     plot_trajectory_w_acc_by_initialized_line,
     plot_spatial_pattern_fcst_vs_obs,
     plot_nino34_hovmoller,
+    plot_iod_hovmoller,
 )
 from fcstverif.src.plotting.plotProbSkillScore import (
     plot_rpss_map,
@@ -60,34 +62,38 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
         ],
         "traj_line": lambda: [
             plot_trajectory_w_acc_by_initialized_line(
-            var=var,
-            region=region_name,
-            fig_dir=fig_dir,
-            data_dir=score_dir,
-            mode="trajectory"  # ✨ mode 지정
-        )
+                var=var,
+                region=region_name,
+                fig_dir=fig_dir,
+                data_dir=score_dir,
+                mode="trajectory"  # ✨ mode 지정
+            )
         ],
         "target_line": lambda: [
             plot_trajectory_w_acc_by_initialized_line(
-            var=var,
-            region=region_name,
-            fig_dir=fig_dir,
-            data_dir=data_dir,
-            mode="skill"  # ✨ mode 지정
-        )
+                var=var,
+                region=region_name,
+                fig_dir=fig_dir,
+                data_dir=data_dir,
+                mode="skill"  # ✨ mode 지정
+            )
         ],
         "target_pattern": lambda: [
             plot_spatial_pattern_fcst_vs_obs(
                 var=var, target_year=y, region_name=region_name, fig_dir=fig_dir
             ) for y in fyears
         ],
-        "cate_heatmap": lambda: [
+        "cate_heatmap": lambda: (
+            [
             plot_det_cate_heatmap(
                 var=var, target_year=y, region_name=region_name, 
                 data_dir=data_dir, fig_dir=fig_dir
             ) for y in fyears 
-            ] if var in ['t2m', 'prcp'] else logger.warning(
+            ] 
+            if var in ['t2m', 'prcp'] 
+            else logger.warning(
                 f"[SKIP] {var} not supported for deterministic tercile heatmap."
+            )
         ),
         "rpss_map": lambda: [
             plot_rpss_map(
@@ -118,12 +124,18 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
                 mode='IOD'
                 )
         ],
-         "nino34_hovmoller": lambda: [
-             # this will only run for var == 'sst'
+        "nino34_hovmoller": lambda: [
              plot_nino34_hovmoller(
                  yyyymm=ym,
                 ) for ym in yyyymm_list
-         ],
+         ] if (var =='sst' and region_name == 'GL') else logger.info(
+             f"[SKIP] {var} not supported for Nino3.4 Hovmoller plot."
+             ),
+        "iod_hovmoller": lambda: [
+            plot_iod_hovmoller(ym) for ym in yyyymm_list
+        ] if (var == 'sst' and region_name == 'GL') else logger.info(
+            f"[SKIP] Hovmöller runs only for var=sst & region=GL (got var={var}, region={region_name})."
+        ),
     }
 
 def run_plotting(var, region_name, yyyymm_list):

@@ -34,6 +34,31 @@ def load_obs_data(var, years, obs_dir, suffix='anom', var_suffix=None):
     else:
         return ds_all[var]  # 변수명이 var와 동일한 경우
     
+def ensure_time_from_lead(da: xr.DataArray, init_yyyymm: int) -> xr.DataArray:
+    """If DA has 'lead' but no 'time', convert lead=1..N to target monthly time."""
+    if "time" in da.dims: 
+        return da
+    if "lead" not in da.dims:
+        raise ValueError("DataArray has neither 'time' nor 'lead'.")
+    init_ts = pd.to_datetime(str(init_yyyymm) + "01", format="%Y%m%d")
+    tgt_times = pd.date_range(init_ts + pd.offsets.MonthBegin(1), periods=da.sizes["lead"], freq="MS")
+    return da.assign_coords(time=("lead", tgt_times)).swap_dims({"lead": "time"})
+
+def match_common_times_by_month(fc_times, obs_times):
+    """
+    Return (fc_idx, ob_idx, common_time) where month(YYYY-MM) matches exactly.
+    보간 없이 월 교집합만 사용.
+    """
+    fc = pd.to_datetime(fc_times); ob = pd.to_datetime(obs_times)
+    fc_lab = fc.to_period("M").astype(str); ob_lab = ob.to_period("M").astype(str)
+    common = np.intersect1d(fc_lab, ob_lab)
+    if common.size == 0:
+        return [], [], pd.DatetimeIndex([])
+    fc_idx = [int(np.where(fc_lab == m)[0][0]) for m in common]
+    ob_idx = [int(np.where(ob_lab == m)[0][0]) for m in common]
+    common_time = pd.to_datetime(common + "-01")
+    return fc_idx, ob_idx, common_time
+
 def get_region_extent(region_name: str, var: str):
     """
     Return region extent with optional variable-specific override

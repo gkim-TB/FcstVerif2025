@@ -1,19 +1,20 @@
+# fcstverif/src/plotting/plotDetermSkillScore.py
+
 import xarray as xr
 import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-#import matplotlib.colors as mcolors
-#import matplotlib.patches as patches
 from matplotlib.lines import Line2D
+import matplotlib.dates as mdates
 import cmaps
-#import matplotlib.gridspec as gridspec
 import cartopy.crs as ccrs
-import os, glob
-#from config import 
+import os
+
 from fcstverif.src.utils.general_utils import *
 from fcstverif.src.utils.logging_utils import init_logger
+from fcstverif.src.utils.lon_utils import convert_lon_to_dataset, sel_lon_with_wrap
 logger = init_logger()
 
 def no_data_panel(ax_fcst, ax_bias):
@@ -626,68 +627,156 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
         plt.close()
         logger.info(f"[INFO] Saved pattern comparison figure: {save_fname}")
 
-def plot_nino34_hovmoller(yyyymm):
-     """
-     var=sst일때 enso, ido 영역에 대해 hovmoller
-     by init, by target 둘다
-     """
-      
-     from config import sst_out_dir, model_out_dir, idx_dir
+def _compute_sst_hovmoller_data(yyyymm, region_box):
+    """
+    Draw a Hovmöller (lon vs time) of (Forecast - Obs) SST anomalies,
+    lat-averaged over `region_box`.
 
-     fcst_file = os.path.join(f'{model_out_dir}/anomaly', f"ensMem_sst_anom_{yyyymm}.nc")
-     if not os.path.isfile(fcst_file):
-                logger.warning(f"[SKIP] {fcst_file} 없음.")
-                return
-     ds_fcst = xr.open_dataset(fcst_file)   
+    Parameters
+    ----------
+    yyyymm : int (e.g., 202401)
+    region_box : tuple (latS, latN, lonL, lonR) in degrees (degE)  
+    title_prefix : str
+    save_prefix : str
+    """
+    from fcstverif.config import sst_out_dir, model_out_dir  
 
-     # Ensemble mean and regional selection
-     fcst = ds_fcst['sst'].mean(dim='ens', skipna=True)
-     lat_range = slice(-5, 5)
-     if ds_fcst['lon'].max() > 180:
-         lon_range = slice(190, 240)  # 170W~120W in 0-360 coordinates
-     else:
-         lon_range = slice(-170, -120)
-     fcst_reg = fcst.sel(lat=lat_range, lon=lon_range)
-     fcst_latmean = fcst_reg.mean(dim='lat', skipna=True) 
+    fcst_file = os.path.join(f"{model_out_dir}/anomaly", f"ensMem_sst_anom_{yyyymm}.nc")
+    if not os.path.isfile(fcst_file):
+        logger.warning(f"[SKIP] NO {fcst_file} exist.")
+        return None, None, None, None
 
-     times = pd.to_datetime(ds_fcst['time'].values)
-     years = np.unique(times.year)
-
-     # Load observation files covering the required years
-     try:
-         obs_all = load_obs_data('sst', years=years, obs_dir=sst_out_dir, suffix='anom', var_suffix='sst')
-     except FileNotFoundError:
-         logger.info(f"[WARN] No observation files found for years: {years}")
-         ds_fcst.close()
-         return
-     
-     obs = obs_all.sel(time=times, lat=lat_range, lon=lon_range)
-     obs_latmean = obs.mean(dim='lat', skipna=True)
- 
-     diff = fcst_latmean - obs_latmean
- 
-     y = np.arange(len(times))
-     lon_vals = fcst_reg['lon'].values
-     time_labels = [t.strftime('%Y-%m') for t in times]
- 
-     fig, ax = plt.subplots(figsize=(8, 4), constrained_layout=True)
-     cf = ax.contourf(lon_vals, y, diff, cmap='bwr', levels=np.linspace(-3, 3, 13), extend='both')
-     cs = ax.contour(lon_vals, y, obs_latmean, colors='k', linewidths=1)
-     ax.clabel(cs, fmt="%.1f", colors='k', fontsize=8)
-
-     ax.set_yticks(y)
-     ax.set_yticklabels(time_labels)
-     ax.set_xlabel('Longitude')
-     ax.set_ylabel('Time (YYYY-MM)')
-     init_yyyymm = os.path.basename(fcst_file).split('_')[-1].split('.')[0]
-     ax.set_title(f'Nino3.4 SST Anomaly Hovmoller (Init: {init_yyyymm})')
-
-     plt.colorbar(cf, ax=ax, label='Forecast - Obs (℃)')
-
-     save_fname = os.path.join(idx_dir, f"hovmoller_nino34_{init_yyyymm}.png")
-     plt.savefig(save_fname, dpi=300)
-     plt.close()
-     logger.info(f"[INFO] Saved Nino3.4 Hovmoller: {save_fname}")
-
-     ds_fcst.close()
+    ds_fcst = xr.open_dataset(fcst_file)
     
+    # --- Region from config (not hard-coded) ---
+    latS, latN, lonL_raw, lonR_raw = region_box  
+    # Convert region longitudes to the dataset's lon convention  
+    lonL = convert_lon_to_dataset(float(lonL_raw), ds_fcst["lon"])  
+    lonR = convert_lon_to_dataset(float(lonR_raw), ds_fcst["lon"])  
+
+    # Subset forecast with wrap-aware lon selection                 
+    fcst_mean = ds_fcst["sst"].mean(dim="ens", skipna=True)         
+    fcst_sel = sel_lon_with_wrap(fcst_mean.sel(lat=slice(latS, latN)), lonL, lonR)  
+    fcst_latmean = fcst_sel.mean(dim="lat", skipna=True).squeeze()
+    fcst = ensure_time_from_lead(fcst_latmean, yyyymm)
+
+    fc_times = pd.to_datetime(fcst["time"].values)
+    years = np.unique(fc_times.year)
+
+    obs_all = load_obs_data("sst", years=years, obs_dir=sst_out_dir, suffix="anom", var_suffix="sst")
+    lonL_ob = convert_lon_to_dataset(float(lonL_raw), obs_all["lon"])
+    lonR_ob = convert_lon_to_dataset(float(lonR_raw), obs_all["lon"])
+    obs = sel_lon_with_wrap(obs_all.sel(lat=slice(latS, latN)), lonL_ob, lonR_ob).sortby("lon")
+    obs = obs.mean("lat", skipna=True)
+
+    fc_idx, ob_idx, common_time = match_common_times_by_month(fcst["time"].values, obs["time"].values)
+    if len(fc_idx) == 0:
+        logger.warning("[SKIP] No common YYYY-MM between fcst and obs."); ds_fcst.close(); return
+    fcst_common = fcst.isel(time=fc_idx).assign_coords(time=("time", common_time))
+    obs_common  =  obs.isel(time=ob_idx).assign_coords(time=("time", common_time))
+
+    if not np.allclose(fcst_common["lon"].values, obs_common["lon"].values, atol=1e-6):
+        logger.warning("[WARN] lon grids differ unexpectedly; proceeding without interpolation.")
+
+    diff = fcst_common - obs_common
+   # 전부 NaN인 time/경도는 버림(중간 NaN은 그대로 둠)
+    if "time" in diff.dims:
+        diff = diff.dropna(dim="time", how="all")
+    if "lon" in diff.dims:
+        diff = diff.dropna(dim="lon",  how="all")
+
+    # 남은 게 없으면 스킵
+    if diff.sizes.get("time", 0) == 0 or diff.sizes.get("lon", 0) == 0:
+        logger.warning("[SKIP] No data to plot after alignment.")
+        ds_fcst.close()
+        return None, None, None, None
+
+    init_yyyymm = os.path.basename(fcst_file).split("_")[-1].split(".")[0]
+    ds_fcst.close()
+
+    # obs는 컨투어 라벨용으로 diff와 같은 좌표만 넘겨주면 됨
+    return diff, obs_common.sel(time=diff["time"], lon=diff["lon"]), diff["time"].to_index(), init_yyyymm
+
+
+def _plot_hovmoller_panel(ax, diff, obs, title, subtitle, levels=None, cmap="bwr", add_colorbar=False):
+    """
+    Draw one Hovmöller panel on given ax with X=lon, Y=time.
+    Returns QuadContourSet for colorbar.
+    """
+    if levels is None:
+        levels = np.arange(-3,3.1,.5)
+
+    mappable = diff.plot.contourf(
+        ax=ax, x="lon", y="time",
+        levels=levels, cmap=cmap, extend="both",
+        add_colorbar=add_colorbar,
+        cbar_kwargs={"label": "Forecast - Obs (℃)"} if add_colorbar else None,
+    )
+    try:
+        cs = obs.plot.contour(
+            ax=ax, x="lon", y="time",
+            levels=np.arange(-5,5.1,.5), colors="k", add_colorbar=False, linewidths=1,
+        )
+        ax.clabel(cs, fmt="%.1f", fontsize=8)
+    except Exception:
+        pass
+
+    ax.set_xlabel("Longitude (degE)")
+    ax.set_ylabel("Time (YYYY-MM)")
+    ax.yaxis.set_major_locator(mdates.MonthLocator(interval=1))
+    ax.yaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    ax.set_title(title, pad=25)
+    ax.text(0.5, 1.01, subtitle, transform=ax.transAxes,
+            ha='center', va="bottom", fontsize=8)
+    ax.invert_yaxis()  # 시간 위→아래 진행
+    return mappable
+
+
+def plot_nino34_hovmoller(yyyymm):
+    from fcstverif.config import ENSO_BOX
+    diff, obs, common_time, init_yyyymm = _compute_sst_hovmoller_data(yyyymm, ENSO_BOX)
+    if diff is None:
+        return
+    if diff.sizes.get("time", 0) <= 1 or diff.sizes.get("lon", 0) < 2:
+        logger.info(f"[SKIP] Nino3.4 Hovmöller: insufficient grid (time={diff.sizes.get('time',0)}, lon={diff.sizes.get('lon',0)})")
+        pass
+
+    fig, ax = plt.subplots(figsize=(4, 5))
+    _ = _plot_hovmoller_panel(ax, diff, obs, 
+                              f"Nino3.4 diff (Init: {init_yyyymm})", 
+                              f"Shade: (Fcst - OBS) anomaly,\nContour: OBS anomaly", 
+                              add_colorbar=True)
+
+    save_fname = os.path.join(output_fig_dir, "IDX", f"hovmoller_nino34_{init_yyyymm}.png")
+    os.makedirs(os.path.dirname(save_fname), exist_ok=True)
+    plt.savefig(save_fname, dpi=300, bbox_inches='tight')
+    plt.close()
+    logger.info(f"[INFO] Saved Nino3.4 Hovmöller → {save_fname}")
+
+def plot_iod_hovmoller(yyyymm):
+    from fcstverif.config import IOD_WEST_BOX, IOD_EAST_BOX
+
+    diff_w, obs_w, t_w, init_w = _compute_sst_hovmoller_data(yyyymm, IOD_WEST_BOX)
+    diff_e, obs_e, t_e, init_e = _compute_sst_hovmoller_data(yyyymm, IOD_EAST_BOX)
+    if (diff_w is None) or (diff_e is None):
+        return
+    # 동일 init 라벨 가정(같은 yyyymm 호출)
+    init_yyyymm = init_w
+
+    # 공통 컬러 레벨(양 패널 동일 스케일)
+    vmax = 3.0
+    levels = np.linspace(-vmax, vmax, 13)
+
+    fig, axes = plt.subplots(ncols=2, sharey=True, figsize=(8, 5))
+    m1 = _plot_hovmoller_panel(axes[0], diff_w, obs_w, f"IOD West (Init: {init_yyyymm})", levels=levels, add_colorbar=False)
+    m2 = _plot_hovmoller_panel(axes[1], diff_e, obs_e, f"IOD East (Init: {init_yyyymm})", levels=levels, add_colorbar=False)
+
+    # 공통 컬러바(오른쪽 패널 기준으로)
+    cbar = fig.colorbar(m2, ax=axes.ravel().tolist(), label="Forecast - Obs (℃)", fraction=0.046, pad=0.04)
+
+    save_fname = os.path.join(output_fig_dir, "IDX", f"hovmoller_iod_{init_yyyymm}.png")
+    os.makedirs(os.path.dirname(save_fname), exist_ok=True)
+    plt.savefig(save_fname, dpi=300, bbox_inches='tight')
+    plt.close()
+    logger.info(f"[INFO] Saved IOD Hovmöller (2-panels) → {save_fname}")

@@ -45,8 +45,10 @@ PLOT_FILENAME_MAP = {
     #"cate_heatmap":   ["det_ter_score_{var}_{region}_{year}.png"]
 }
 # IDX_FILENAME_MAP={
-#     "ENSO_index" :   ["ENSO_plum_{yyyymm}.png"],
-#     "IOD_index" :    ["IOD_plum_{yyyymm}.png"]
+#      "ENSO_index" :   ["ENSO_plum_{yyyymm}.png"],
+#      "IOD_index" :    ["IOD_plum_{yyyymm}.png"],
+#      "ENSO_hovmoller": ['hovmoller_nino34_{yyyymm}.png'],
+#      "IOD_hovmoller": ['hovmoller_iod_{yyyymm}.png'],
 # }
 
 def get_image_urls(plot_type, var, region, yyyymm=None, year=None, year_only=None):
@@ -144,9 +146,14 @@ else:
     with cols[0]:
         st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/ENSO_plum_{selected_yyyymm}.png",
             caption=f"ENSO plums initialized ({selected_yyyymm})", use_container_width=True)
+        st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/hovmoller_nino34_{selected_yyyymm}.png",
+            caption="Hovmöller Nino3.4", use_container_width=True)  
     with cols[1]:
         st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/IOD_plum_{selected_yyyymm}.png",
             caption=f"IOD plums initialized ({selected_yyyymm})", use_container_width=True)
+        st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/hovmoller_iod_{selected_yyyymm}.png",
+            caption="Hovmöller IOD", use_container_width=True)  
+        
     # st.markdown("""
     # <div style='text-align: center; padding-top: 100px;'>
     #     <h1 style='font-size: 60px; color: #8A2BE2; font-weight: bold;'>
