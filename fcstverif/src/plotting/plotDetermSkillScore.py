@@ -5,16 +5,21 @@ import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
+from matplotlib import cm
+from matplotlib.colors import BoundaryNorm 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-import matplotlib.dates as mdates
 import cmaps
 import cartopy.crs as ccrs
 import os
+from typing import List, Dict, Tuple, Optional
 
-from fcstverif.src.utils.general_utils import *
+from fcstverif.src.utils.general_utils import (
+    load_obs_data,
+    ensure_time_from_lead,
+    clip_to_region,
+)
 from fcstverif.src.utils.logging_utils import init_logger
-from fcstverif.src.utils.lon_utils import convert_lon_to_dataset, sel_lon_with_wrap
 logger = init_logger()
 
 def no_data_panel(ax_fcst, ax_bias):
@@ -69,9 +74,9 @@ def plot_skill_initialized_month(
     ax.set_title(f'{score.upper()} by Lead Time\n(Initialized: {yyyymm}, Region: {region_name}, Var: {var})')
     ax.grid(True, linestyle='--', color='lightgrey')
     if score == 'acc':
-        ax.set_ylim([-1,1])
+        ax.set_ylim(bottom=-1.0,top=1.0)
     elif score == 'rmse':
-        ax.set_ylim([0,6])
+        ax.set_ylim(0.0,6.0)
     ax.set_xticks(lead_full)
     #plt.xlim(0.9,6.1)
     ax.legend()
@@ -103,7 +108,6 @@ def plot_det_skill_heatmap(
         score2 (str): The second score to plot (default is 'rmse').
     """
     import matplotlib.patches as patches
-    import matplotlib.colors as mcolors
 
     # Setting labels
     months = range(1, 13)
@@ -112,12 +116,12 @@ def plot_det_skill_heatmap(
     x_labels = list(leads)
 
     # color configuration
-    cmap1 = plt.get_cmap('bwr', 10)    # 💡 ACC
-    cmap2 = plt.get_cmap('Greys', 10)  # 💡 RMSE
+    cmap1 = cm.get_cmap('bwr', 10)    # 💡 ACC
+    cmap2 = cm.get_cmap('Greys', 10)  # 💡 RMSE
     bounds1 = np.linspace(-1, 1, 11)     # ACC
     bounds2 = np.linspace(0, 4, 11)    # RMSE (적절히 조정 필요)
-    norm1 = mcolors.BoundaryNorm(bounds1, cmap1.N)
-    norm2 = mcolors.BoundaryNorm(bounds2, cmap2.N)
+    norm1 = BoundaryNorm(bounds1, cmap1.N) # type: ignore[reportAttributeAccessIssue]
+    norm2 = BoundaryNorm(bounds2, cmap2.N) # type: ignore[reportAttributeAccessIssue]
 
     # empty grid for storing skill scores
     grid1 = np.full((len(y_labels), len(x_labels)), np.nan)
@@ -153,12 +157,12 @@ def plot_det_skill_heatmap(
 
             if not np.isnan(val1):
                 ax.add_patch(patches.Polygon(
-                    [[x, y], [x+1, y], [x, y+1]],
+                    [[x, y], [x+1, y], [x, y+1]], # type: ignore[arg-type]
                     facecolor=cmap1(norm1(val1)), edgecolor='white', lw=2
                 ))
             if not np.isnan(val2):
                 ax.add_patch(patches.Polygon(
-                    [[x+1, y+1], [x+1, y], [x, y+1]],
+                    [[x+1, y+1], [x+1, y], [x, y+1]], # type: ignore[arg-type]
                     facecolor=cmap2(norm2(val2)), edgecolor='white', lw=2
                 ))
 
@@ -183,13 +187,13 @@ def plot_det_skill_heatmap(
     # colorbar
     fig.subplots_adjust(right=0.88)
     cax1 = fig.add_axes([0.90, 0.55, 0.015, 0.3])
-    sm1 = plt.cm.ScalarMappable(cmap=cmap1, norm=norm1)
+    sm1 = cm.ScalarMappable(cmap=cmap1, norm=norm1)
     sm1.set_array([])
     cbar1 = plt.colorbar(sm1, cax=cax1, ticks=bounds1)
     cbar1.set_label(score1.upper())
 
     cax2 = fig.add_axes([0.90, 0.15, 0.015, 0.3])
-    sm2 = plt.cm.ScalarMappable(cmap=cmap2, norm=norm2)
+    sm2 = cm.ScalarMappable(cmap=cmap2, norm=norm2)
     sm2.set_array([])
     cbar2 = plt.colorbar(sm2, cax=cax2, ticks=bounds2)
     cbar2.set_label(score2.upper())
@@ -199,7 +203,7 @@ def plot_det_skill_heatmap(
     fig.savefig(save_fname, dpi=300, bbox_inches='tight')
     logger.info(f"[INFO] Saved Dual-Score Heatmap: {save_fname}")
 
-def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_dir=None):
+def plot_skill_target_month(var: str, target_year: int, region_name: str, score: str, data_dir: str, fig_dir: str):
     target_months = range(1, 13)
 
     for target_month in target_months:
@@ -260,9 +264,9 @@ def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_
             ax.set_xlabel('Lead Time (month)')
             ax.set_ylabel(score.upper())
             if score == 'acc':
-                ax.set_ylim([-1,1]) # if score ACC
+                ax.set_ylim(-1.0,1.0) # if score ACC
             elif score == 'rmse':
-                ax.set_ylim([0,6])
+                ax.set_ylim(0.0,6.0)
             ax.set_title(f'{score.upper()} by Lead Time\n(Target Month: {target_date.strftime("%Y-%m")}, Region: {region_name}, Var: {var})')
             ax.set_xticks([1, 2, 3, 4, 5, 6])
             ax.grid(True, linestyle='--', color='lightgrey')
@@ -280,12 +284,20 @@ def plot_skill_target_month(var, target_year, region_name, score, data_dir, fig_
 
 def plot_trajectory_w_acc_by_initialized_line(
         var: str, region: str, fig_dir: str, data_dir: str, mode: str = "trajectory"):
-    from config import fcst_start, fcst_end
     """
     전체 예측기간에 대해 초기화월별 시계열 또는 스킬라인을 그리는 함수
     - mode='skill' : 단독 스킬 스코어 (e.g. ACC, RMSE)
     - mode='trajectory' : anomaly 시계열 + lead1 ACC bar
     """
+    from fcstverif.config import (
+        fcst_start, fcst_end, REGIONS, fyears,
+        era5_out_dir, model_out_dir, model
+    )
+    from fcstverif.src.utils.general_utils import (
+        generate_yyyymm_list,
+        get_combined_mask
+    )
+
     assert mode in ["skill", "trajectory"], f"Invalid mode: {mode}"
     mask = None
 
@@ -328,7 +340,7 @@ def plot_trajectory_w_acc_by_initialized_line(
         xlabel = "ACC"
     
     # 📦 컬러 설정
-    cmap = plt.colormaps['tab20']
+    cmap = cm.get_cmap('tab20')
     month_colors = {m: cmap((m - 1) % 12) for m in range(1, 13)}
 
     # 📥 초기화월 목록
@@ -341,11 +353,11 @@ def plot_trajectory_w_acc_by_initialized_line(
     # ▶ trajectory 모드: 관측 불러오기
     if mode == "trajectory":
         obs = load_obs_data(var, years=fyears, obs_dir=era5_out_dir, suffix="anom", var_suffix=var)
-        obs_region = clip_to_region(obs, region, var)
+        obs_region = clip_to_region(obs, region)
         if var == 'sst':
             mask = get_combined_mask(model_name=model, obs_name="OISST")
             if mask is not None:
-                obs_region = obs_region.where(clip_to_region(mask, region, var))
+                obs_region = obs_region.where(clip_to_region(mask, region))
             else:
                 logger.warning(f"[WARN] No mask found")
 
@@ -370,9 +382,9 @@ def plot_trajectory_w_acc_by_initialized_line(
                 with xr.open_dataset(fpath) as ds:
                     da = ds[var].mean("ens", skipna=True).squeeze()
                     da = da.assign_coords(time=("lead", ds["time"].values)).swap_dims({"lead": "time"})
-                    da_region = clip_to_region(da, region, var)
+                    da_region = clip_to_region(da, region)
                     if mask is not None:
-                        da_region = da_region.where(clip_to_region(mask, region, var))
+                        da_region = da_region.where(clip_to_region(mask, region))
                     fanom = da_region.mean(dim=["lat", "lon"], skipna=True).load()
                     
                     lead_vals = fanom["lead"].values
@@ -467,7 +479,11 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
     """
     target month 기준, OBS vs FCST (lead 1~6), BIAS(FCST-OBS) 패턴을 3x6 패널로 그림
     """
-
+    from fcstverif.config import (model, sst_out_dir, era5_out_dir, model_out_dir)
+    from fcstverif.src.utils.general_utils import (
+        get_region_extent,
+        get_combined_mask
+    )
     plot_settings = {
     't2m':   {'clevels': np.arange(-5,5.1,0.5), 'blevels': np.arange(-5, 5.1, 0.5), 'cmap': 'RdBu_r'},
     'prcp':  {'clevels': np.arange(-5,5.1,0.5), 'blevels': np.arange(-5,5.1,0.5), 'cmap': 'BrBG'},
@@ -528,7 +544,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
 
         # OBS 패널 (0,-1)
         ax_obs = axs[0,-1]
-        im_obs = obs.plot(ax=ax_obs, cmap=cmap, levels=clevels, add_colorbar=False, extend='both', transform=ccrs.PlateCarree())
+        im_obs = obs.plot.contourf(ax=ax_obs, cmap=cmap, levels=clevels, add_colorbar=False, extend='both', transform=ccrs.PlateCarree())
         ax_obs.set_title("OBS", loc='left', fontsize=fs)
         ax_obs.set_title(target_date.strftime("%Y-%m"), loc='right', fontsize=fs)
         ax_obs.set_title('',loc='center')
@@ -565,7 +581,8 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
                 no_data_panel(axs[1, 6-lead], axs[2, 6-lead]) # fcst pattern row no data
                 continue
 
-            fcst = ds_fcst[var].isel(lead=lead_idx).mean("ens").squeeze()
+            #fcst = ds_fcst[var].isel(lead=lead_idx).mean("ens").squeeze()
+            fcst = ds_fcst[var].sel(time=np.datetime64(target_date)).mean("ens").squeeze()
             if var == 'sst':
                 obs_name = "OISST"
                 mask = get_combined_mask(model_name=model, obs_name=obs_name)
@@ -583,7 +600,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
                 
             # FCST 패널
             ax_fcst = axs[1, 6-lead]
-            im_fcst = fcst.plot(ax=ax_fcst, cmap=cmap, levels=clevels, add_colorbar=False, extend='both', transform=ccrs.PlateCarree())
+            im_fcst = fcst.plot.contourf(ax=ax_fcst, cmap=cmap, levels=clevels, add_colorbar=False, extend='both', transform=ccrs.PlateCarree())
             ax_fcst.set_title(f"Lead -{lead}", loc='left', fontsize=fs)
             ax_fcst.set_title(f"init: {init_yyyymm}", loc='right', fontsize=fs)
             ax_fcst.set_title('')
@@ -597,12 +614,12 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
 
             # BIAS 패널
             if var != 'prcp':
-                bcmap = cmaps.temp_diff_18lev
+                bcmap = cmaps.temp_diff_18lev # type: ignore[reportUnknownMemberType]
             else:
-                bcmap = cmaps.MPL_BrBG
+                bcmap = cmaps.MPL_BrBG # type: ignore[reportUnknownMemberType]
 
             ax_bias = axs[2, 6-lead]
-            im_bias = bias.plot(ax=ax_bias, cmap=bcmap, levels=blevels, add_colorbar=False, extend='both', transform=ccrs.PlateCarree())
+            im_bias = bias.plot.contourf(ax=ax_bias, cmap=bcmap, levels=blevels, add_colorbar=False, extend='both', transform=ccrs.PlateCarree())
             ax_bias.set_title('', loc='center')
             ax_bias.set_title(f"Bias L-{lead}", loc='left', fontsize=fs)
             if region_name != 'GL':
@@ -629,76 +646,84 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
 
 def _compute_sst_hovmoller_data(yyyymm, region_box):
     """
-    Draw a Hovmöller (lon vs time) of (Forecast - Obs) SST anomalies,
-    lat-averaged over `region_box`.
+    Return (diff_full, obs_full, fc_times, init_yyyymm)
 
-    Parameters
-    ----------
-    yyyymm : int (e.g., 202401)
-    region_box : tuple (latS, latN, lonL, lonR) in degrees (degE)  
-    title_prefix : str
-    save_prefix : str
+    - fc_times: forecast time (y-axis) 전체
+    - diff_full: (time×lon) with NaN outside common_time  → shade는 공통 구간만 채색
+    - obs_full : (time×lon) with NaN outside common_time  → contour는 공통 구간만 표시
+    - common_time 길이가 1 이하이면 None 반환(플롯 스킵)
+    - 보간 없음 (관측은 전처리에서 이미 모델 격자에 맞춰짐)
     """
-    from fcstverif.config import sst_out_dir, model_out_dir  
+    from fcstverif.config import sst_out_dir, model_out_dir
 
     fcst_file = os.path.join(f"{model_out_dir}/anomaly", f"ensMem_sst_anom_{yyyymm}.nc")
     if not os.path.isfile(fcst_file):
-        logger.warning(f"[SKIP] NO {fcst_file} exist.")
+        logger.info(f"[SKIP] forecast file not found: {fcst_file}")
         return None, None, None, None
 
     ds_fcst = xr.open_dataset(fcst_file)
-    
-    # --- Region from config (not hard-coded) ---
-    latS, latN, lonL_raw, lonR_raw = region_box  
-    # Convert region longitudes to the dataset's lon convention  
-    lonL = convert_lon_to_dataset(float(lonL_raw), ds_fcst["lon"])  
-    lonR = convert_lon_to_dataset(float(lonR_raw), ds_fcst["lon"])  
 
-    # Subset forecast with wrap-aware lon selection                 
-    fcst_mean = ds_fcst["sst"].mean(dim="ens", skipna=True)         
-    fcst_sel = sel_lon_with_wrap(fcst_mean.sel(lat=slice(latS, latN)), lonL, lonR)  
-    fcst_latmean = fcst_sel.mean(dim="lat", skipna=True).squeeze()
-    fcst = ensure_time_from_lead(fcst_latmean, yyyymm)
+    # ── Forecast: ens-mean → region clip → lat-mean → time 보장
+    fcst_mean = ds_fcst["sst"].mean(dim="ens", skipna=True).squeeze() # drop dim=init by squeezing
+    fcst_reg  = clip_to_region(fcst_mean, region_box)              # 경도체계/래핑/정렬 포함
+    fcst_latm = fcst_reg.mean(dim="lat", skipna=True).astype(float)
 
-    fc_times = pd.to_datetime(fcst["time"].values)
-    years = np.unique(fc_times.year)
+    # lead→time(또는 time 그대로 유지)
+    fcst = ensure_time_from_lead(fcst_latm, yyyymm)
+    if "time" not in fcst.dims:
+        logger.info("[SKIP] forecast has neither 'time' nor 'lead'.")
+        ds_fcst.close(); return None, None, None, None
 
-    obs_all = load_obs_data("sst", years=years, obs_dir=sst_out_dir, suffix="anom", var_suffix="sst")
-    lonL_ob = convert_lon_to_dataset(float(lonL_raw), obs_all["lon"])
-    lonR_ob = convert_lon_to_dataset(float(lonR_raw), obs_all["lon"])
-    obs = sel_lon_with_wrap(obs_all.sel(lat=slice(latS, latN)), lonL_ob, lonR_ob).sortby("lon")
-    obs = obs.mean("lat", skipna=True)
+    fc_times = pd.to_datetime(fcst["time"].values)  # y-axis 그대로 사용
 
-    fc_idx, ob_idx, common_time = match_common_times_by_month(fcst["time"].values, obs["time"].values)
-    if len(fc_idx) == 0:
-        logger.warning("[SKIP] No common YYYY-MM between fcst and obs."); ds_fcst.close(); return
-    fcst_common = fcst.isel(time=fc_idx).assign_coords(time=("time", common_time))
-    obs_common  =  obs.isel(time=ob_idx).assign_coords(time=("time", common_time))
+    # ── Observation: 존재 연도만 load_obs_data가 처리(없으면 예외 → 스킵)
+    try:
+        obs_all = load_obs_data("sst",
+                                years=np.unique(fc_times.year),
+                                obs_dir=sst_out_dir, suffix="anom", var_suffix="sst")
+    except FileNotFoundError:
+        logger.info("[SKIP] no OBS files for forecast time window.")
+        ds_fcst.close(); return None, None, None, None
 
-    if not np.allclose(fcst_common["lon"].values, obs_common["lon"].values, atol=1e-6):
-        logger.warning("[WARN] lon grids differ unexpectedly; proceeding without interpolation.")
+    obs_reg = clip_to_region(obs_all, region_box)
+    obs     = obs_reg.mean(dim="lat", skipna=True).astype(float)
 
-    diff = fcst_common - obs_common
-   # 전부 NaN인 time/경도는 버림(중간 NaN은 그대로 둠)
-    if "time" in diff.dims:
-        diff = diff.dropna(dim="time", how="all")
-    if "lon" in diff.dims:
-        diff = diff.dropna(dim="lon",  how="all")
+    # ── common_time(월 교집합) 계산 (보간 없음)
+    fc_lab = pd.to_datetime(fc_times).to_period("M").astype(str)
+    ob_t   = pd.to_datetime(obs["time"].values)
+    ob_lab = pd.to_datetime(ob_t).to_period("M").astype(str)
 
-    # 남은 게 없으면 스킵
-    if diff.sizes.get("time", 0) == 0 or diff.sizes.get("lon", 0) == 0:
-        logger.warning("[SKIP] No data to plot after alignment.")
-        ds_fcst.close()
-        return None, None, None, None
+    # forecast 순서를 보존하는 공통 월 라벨 및 시간
+    fc_mask      = np.isin(fc_lab, ob_lab)
+    common_time  = fc_times[fc_mask]
+    common_lab   = fc_lab[fc_mask]
+
+    if common_time.size <= 1:
+        logger.info(f"[SKIP] common months <= 1 (len={common_time.size}).")
+        ds_fcst.close(); return None, None, None, None
+
+    # OBS에서 각 공통 월의 첫 등장 인덱스 선택 → fcst common_time에 좌표 맞춤
+    ob_idx = [int(np.where(ob_lab == lab)[0][0]) for lab in common_lab]
+    obs_common = obs.isel(time=ob_idx).assign_coords(time=("time", pd.to_datetime(common_time)))
+
+    # ── diff/obs를 forecast 전체 y축 크기로 만들고 공통 구간만 채움
+    diff_full = xr.full_like(fcst, np.nan)
+    obs_full  = xr.full_like(fcst, np.nan)
+
+    fc_common = fcst.sel(time=pd.to_datetime(common_time))
+    diff_full.loc[dict(time=pd.to_datetime(common_time))] = (fc_common - obs_common)
+    obs_full.loc[dict(time=pd.to_datetime(common_time))]  = obs_common
+
+    # # (희귀) 경도 전부 NaN 열 제거
+    # if "lon" in diff_full.dims:
+    #     diff_full = diff_full.dropna(dim="lon", how="all")
+    #     obs_full  = obs_full.dropna(dim="lon",  how="all")
 
     init_yyyymm = os.path.basename(fcst_file).split("_")[-1].split(".")[0]
     ds_fcst.close()
+    return diff_full, obs_full, fc_times, init_yyyymm
 
-    # obs는 컨투어 라벨용으로 diff와 같은 좌표만 넘겨주면 됨
-    return diff, obs_common.sel(time=diff["time"], lon=diff["lon"]), diff["time"].to_index(), init_yyyymm
-
-
-def _plot_hovmoller_panel(ax, diff, obs, title, subtitle, levels=None, cmap="bwr", add_colorbar=False):
+def _plot_hovmoller_panel(ax, diff, obs, title, subtitle, levels=None, cmap="bwr", add_colorbar=False, y_times=None):
     """
     Draw one Hovmöller panel on given ax with X=lon, Y=time.
     Returns QuadContourSet for colorbar.
@@ -723,8 +748,15 @@ def _plot_hovmoller_panel(ax, diff, obs, title, subtitle, levels=None, cmap="bwr
 
     ax.set_xlabel("Longitude (degE)")
     ax.set_ylabel("Time (YYYY-MM)")
-    ax.yaxis.set_major_locator(mdates.MonthLocator(interval=1))
-    ax.yaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    if y_times is not None:
+        yt = pd.to_datetime(y_times)
+        ax.set_ylim(yt.min(), yt.max())   # 전체 리드 범위
+        ax.set_yticks(yt)
+        ax.set_yticklabels([pd.Timestamp(t).strftime("%Y-%m") for t in yt])
+
+    #ax.yaxis.set_major_locator(mdates.MonthLocator(interval=1))
+    #ax.yaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
 
     ax.set_title(title, pad=25)
     ax.text(0.5, 1.01, subtitle, transform=ax.transAxes,
@@ -734,19 +766,20 @@ def _plot_hovmoller_panel(ax, diff, obs, title, subtitle, levels=None, cmap="bwr
 
 
 def plot_nino34_hovmoller(yyyymm):
-    from fcstverif.config import ENSO_BOX
-    diff, obs, common_time, init_yyyymm = _compute_sst_hovmoller_data(yyyymm, ENSO_BOX)
+    from fcstverif.config import ENSO_BOX, output_fig_dir
+
+    diff, obs, fc_times, init_yyyymm = _compute_sst_hovmoller_data(yyyymm, ENSO_BOX)
     if diff is None:
         return
     if diff.sizes.get("time", 0) <= 1 or diff.sizes.get("lon", 0) < 2:
         logger.info(f"[SKIP] Nino3.4 Hovmöller: insufficient grid (time={diff.sizes.get('time',0)}, lon={diff.sizes.get('lon',0)})")
-        pass
+        return
 
     fig, ax = plt.subplots(figsize=(4, 5))
     _ = _plot_hovmoller_panel(ax, diff, obs, 
                               f"Nino3.4 diff (Init: {init_yyyymm})", 
                               f"Shade: (Fcst - OBS) anomaly,\nContour: OBS anomaly", 
-                              add_colorbar=True)
+                              add_colorbar=True, y_times=fc_times)
 
     save_fname = os.path.join(output_fig_dir, "IDX", f"hovmoller_nino34_{init_yyyymm}.png")
     os.makedirs(os.path.dirname(save_fname), exist_ok=True)
@@ -755,7 +788,7 @@ def plot_nino34_hovmoller(yyyymm):
     logger.info(f"[INFO] Saved Nino3.4 Hovmöller → {save_fname}")
 
 def plot_iod_hovmoller(yyyymm):
-    from fcstverif.config import IOD_WEST_BOX, IOD_EAST_BOX
+    from fcstverif.config import IOD_WEST_BOX, IOD_EAST_BOX, output_fig_dir
 
     diff_w, obs_w, t_w, init_w = _compute_sst_hovmoller_data(yyyymm, IOD_WEST_BOX)
     diff_e, obs_e, t_e, init_e = _compute_sst_hovmoller_data(yyyymm, IOD_EAST_BOX)
@@ -768,9 +801,15 @@ def plot_iod_hovmoller(yyyymm):
     vmax = 3.0
     levels = np.linspace(-vmax, vmax, 13)
 
-    fig, axes = plt.subplots(ncols=2, sharey=True, figsize=(8, 5))
-    m1 = _plot_hovmoller_panel(axes[0], diff_w, obs_w, f"IOD West (Init: {init_yyyymm})", levels=levels, add_colorbar=False)
-    m2 = _plot_hovmoller_panel(axes[1], diff_e, obs_e, f"IOD East (Init: {init_yyyymm})", levels=levels, add_colorbar=False)
+    fig, axes = plt.subplots(ncols=2, sharey=True, figsize=(6, 5))
+    m1 = _plot_hovmoller_panel(
+        axes[0], diff_w, obs_w, f"IOD West (Init: {init_yyyymm})", 
+        f"Shade: (Fcst - OBS) anomaly,\nContour: OBS anomaly", 
+        levels=levels, add_colorbar=False, y_times=t_w)
+    m2 = _plot_hovmoller_panel(
+        axes[1], diff_e, obs_e, f"IOD East (Init: {init_yyyymm})", 
+        f"Shade: (Fcst - OBS) anomaly,\nContour: OBS anomaly", 
+        levels=levels, add_colorbar=False, y_times=t_w)
 
     # 공통 컬러바(오른쪽 패널 기준으로)
     cbar = fig.colorbar(m2, ax=axes.ravel().tolist(), label="Forecast - Obs (℃)", fraction=0.046, pad=0.04)

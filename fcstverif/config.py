@@ -57,7 +57,7 @@ enabled_plots = [
     # -- analytics plots
     #"skill_relation",   # Skill relation plot
     #"skill_relation_v2",
-    "nino34_hovmoller",
+    #"nino34_hovmoller",
     "iod_hovmoller",
     ]
 
@@ -65,24 +65,24 @@ enabled_plots = [
 # --- 주요 디렉토리 경로 ---
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 #root_dir =  "../" #"/home/gkim/2025FcstVerif/"
-base_dir = f"{root_dir}/fcstverif/"
+base_dir: str = f"{root_dir}/fcstverif/"
 
-model_raw_dir = f"{root_dir}/{model}_KMApost_raw/"
-model_out_dir = f"{root_dir}/{model}_KMApost_monthly"
+model_raw_dir: str = f"{root_dir}/{model}_KMApost_raw/"
+model_out_dir: str = f"{root_dir}/{model}_KMApost_monthly"
 
-era5_base_dir = f"{root_dir}/ERA5_monthly_{model}grid" # regridded to GSgrid
+era5_base_dir: str = f"{root_dir}/ERA5_monthly_{model}grid" # regridded to GSgrid
 #era5_base_dir = f"/home/gkim/DATA/ERA5/Monthly" # ERA5 raw
-era5_out_dir  = f"{root_dir}/ERA5_OUT/{model}_grid"
+era5_out_dir: str  = f"{root_dir}/ERA5_OUT/{model}_grid"
 
-sst_base_dir = f"{root_dir}/OISST"
-sst_out_dir  = era5_out_dir #f"{sst_base_dir}/{model}_grid/"
+sst_base_dir: str = f"{root_dir}/OISST"
+sst_out_dir: str  = era5_out_dir #f"{sst_base_dir}/{model}_grid/"
 
-verification_out_dir = f"{base_dir}/OUT/{model}"
-score_dir            = f"{verification_out_dir}/SCORE/"
-idx_dir              = f"{verification_out_dir}/IDX/"
-tercile_dir          = f"{verification_out_dir}/CATE/"
+verification_out_dir: str = f"{base_dir}/OUT/{model}"
+score_dir: str = f"{verification_out_dir}/SCORE/"
+idx_dir: str = f"{verification_out_dir}/IDX/"
+tercile_dir: str = f"{verification_out_dir}/CATE/"
 
-output_fig_dir = os.path.join(root_dir, "fig", model)
+output_fig_dir: str = os.path.join(root_dir, "fig", model)
 #output_fig_dir = f"{root_dir}/fig/{model}"
 
 # --- GRIB/NetCDF 변수명 매핑 ---

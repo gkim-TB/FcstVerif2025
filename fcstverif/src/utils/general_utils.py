@@ -7,6 +7,7 @@ import calendar
 import numpy as np
 from config import *
 from src.utils.logging_utils import init_logger
+from typing import Optional
 logger = init_logger()
 
 def generate_yyyymm_list(verify_start, verify_end):
@@ -68,20 +69,61 @@ def get_region_extent(region_name: str, var: str):
         return REGION_OVERRIDE_BY_VAR[var][region_name]
     return REGIONS[region_name]  
 
-def clip_to_region(da, region, var: str):
-    """
-    da: DataArray
-    region: region_box(tuple) or region_name(str)
-    var: variable
-    """
-    if isinstance(region, str):
-            region_box = get_region_extent(region, var)
-    else:
-        region_box = region
-    lon_min, lon_max, lat_min, lat_max = region_box
-    return da.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+# def clip_to_region(da, region, var: str):
+#     """
+#     da: DataArray
+#     region: region_box(tuple) or region_name(str)
+#     var: variable
+#     """
+#     if isinstance(region, str):
+#             region_box = get_region_extent(region, var)
+#     else:
+#         region_box = region
+#     lon_min, lon_max, lat_min, lat_max = region_box
+#     return da.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
 
-def convert_prcp_to_mm_per_day(da: xr.DataArray, source: str, stat_type: str=None):
+def clip_to_region(obj, region_box):
+    """
+    obj(xr.DataArray or xr.Dataset)을 region_box=(latS, latN, lonL, lonR)로 잘라서 반환.
+    - 경도 체계 자동 감지(0~360 / -180~180)
+    - 날짜변경선 래핑 자동 처리(lonL > lonR인 경우)
+    - lon 정렬 보장
+    """
+    latS, latN, lonL_raw, lonR_raw = region_box
+
+    # 좌표 이름 추론
+    lon_name = "lon"  if "lon"  in obj.coords else ("longitude" if "longitude" in obj.coords else None)
+    lat_name = "lat"  if "lat"  in obj.coords else ("latitude"  if "latitude"  in obj.coords else None)
+    if lon_name is None or lat_name is None:
+        raise ValueError("clip_to_region: lon/lat 좌표를 찾을 수 없습니다.")
+
+    # 데이터셋 경도 체계 파악
+    lon_vals = obj[lon_name].values
+    use_0360 = (np.nanmin(lon_vals) >= 0.0) and (np.nanmax(lon_vals) <= 360.0)
+
+    # region 경도를 데이터셋 체계로 변환
+    def to_ds_lon(x):
+        return (x % 360.0) if use_0360 else (( (x + 180.0) % 360.0 ) - 180.0)
+    lonL = float(to_ds_lon(lonL_raw))
+    lonR = float(to_ds_lon(lonR_raw))
+
+    # 위도 슬라이스
+    clipped = obj.sel({lat_name: slice(latS, latN)})
+
+    # 경도 슬라이스(날짜변경선 래핑 지원)
+    if lonL <= lonR:
+        clipped = clipped.sel({lon_name: slice(lonL, lonR)})
+    else:
+        # wrap: [lonL..max] + [min..lonR]
+        part1 = clipped.sel({lon_name: slice(lonL, float(np.nanmax(lon_vals)))})
+        part2 = clipped.sel({lon_name: slice(float(np.nanmin(lon_vals)), lonR)})
+        clipped = xr.concat([part1, part2], dim=lon_name)
+
+    # 경도 정렬 보장
+    clipped = clipped.sortby(lon_name)
+    return clipped
+
+def convert_prcp_to_mm_per_day(da: xr.DataArray, source: str, stat_type: Optional[str] = None):
     """
     강수량 DataArray를 mm/day 단위로 변환
     - source='ERA5': 단위 m (월별 적산) -> mm/day

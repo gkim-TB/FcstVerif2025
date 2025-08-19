@@ -1,3 +1,4 @@
+from typing import Dict, List, Tuple, Optional
 import streamlit as st
 st.set_page_config(layout="wide", initial_sidebar_state='expanded')
 st.sidebar.title("Seasonal Forecast Verification Dashboard")
@@ -16,12 +17,12 @@ if PROJECT_ROOT not in sys.path:
 from fcstverif.config import fcst_start, fcst_end, REGIONS, model
 
 # ✅ GitHub base raw URL
-GITHUB_RAW_BASE = "https://raw.githubusercontent.com/gkim-TB/FcstVerif2025/main"
+GITHUB_RAW_BASE: str = "https://raw.githubusercontent.com/gkim-TB/FcstVerif2025/main"
 
-def get_fig_url(model, region, var, filename):
+def get_fig_url(model: str, region: str, var: str, filename:str) -> str:
     return f"{GITHUB_RAW_BASE}/FIG/{model}/{region}/{var}/{filename}"
 
-def get_yyyymm_for_plot(plot_type, selected_yyyymm):
+def get_yyyymm_for_plot(plot_type:str, selected_yyyymm:str) -> str:
     dt = datetime.strptime(selected_yyyymm, "%Y%m")
     if "byTarget" in plot_type:
         dt += relativedelta(months=1)
@@ -32,8 +33,7 @@ def get_yyyymm_for_plot(plot_type, selected_yyyymm):
 #st.title("Seasonal Forecast Verification Dashboard")
 
 # ✅ Mapping for file names per plot type
-PLOT_FILENAME_MAP = {
-    #"init_line":      [f"acc_targetSeries_byInit_{{var}}_{{region}}_{year_start}_{year_end}.png"],
+PLOT_FILENAME_MAP: Dict[str, List[str]] = {
     "ACC_byInit":    ["acc_init_{var}_{region}_{yyyymm}.png"],
     "RMSE_byInit":   ["rmse_init_{var}_{region}_{yyyymm}.png"],
     "ACC_byTarget":  ["acc_target_{var}_{region}_{yyyymm}.png"],
@@ -41,8 +41,8 @@ PLOT_FILENAME_MAP = {
     "Bias_byTarget": ["{var}_pattern_compare_{region}_{yyyymm}.png"],
     "RPSS_byInit":   ["rpss_map_{var}_{region}_{yyyymm}.png"],
     "ROC_byInit":    ["roc_curve_by_lead_{var}_{region}_{yyyymm}.png"],
-    #"init_heatmap":   [f"det_heatmap_init_{{var}}_{{region}}_{{year_only}}.png"],
-    #"cate_heatmap":   ["det_ter_score_{var}_{region}_{year}.png"]
+    #"init_heatmap":   [f"det_heatmap_init_{{var}}_{{region}}_{{year_only}}.png"], <- default
+    #"cate_heatmap":   ["det_ter_score_{var}_{region}_{year}.png"] <- default
 }
 # IDX_FILENAME_MAP={
 #      "ENSO_index" :   ["ENSO_plum_{yyyymm}.png"],
@@ -51,12 +51,15 @@ PLOT_FILENAME_MAP = {
 #      "IOD_hovmoller": ['hovmoller_iod_{yyyymm}.png'],
 # }
 
-def get_image_urls(plot_type, var, region, yyyymm=None, year=None, year_only=None):
-    templates = PLOT_FILENAME_MAP.get(plot_type, [])
-    urls = []
+def get_image_urls(
+        plot_type:str, var:str, region:str, 
+        yyyymm: Optional[str] = None, year: Optional[int] = None, year_only: Optional[int]=None
+    ) -> List[Tuple[str, str]]:
+    templates: List[str] = PLOT_FILENAME_MAP.get(plot_type, [])
+    urls: List[Tuple[str, str]] = []
     for tmpl in templates:
         fname = tmpl.format(var=var, region=region, yyyymm=yyyymm, year=year, year_only=year_only)
-        url = get_fig_url(model, region, var, fname)
+        url: str = get_fig_url(model, region, var, fname)
         urls.append((fname, url))
     return urls
 
@@ -101,7 +104,17 @@ st.sidebar.markdown(
     </div>
     """, unsafe_allow_html=True
 )
+
 # ───────────────────────────────────────────────────────────────
+# ---- Defaults for type checker (will be overwritten in each tab) ----
+var: str = "sst"
+region: str = list(REGIONS.keys())[0]
+selected_year: int = fcst_start // 100
+selected_month_int: int = 1
+selected_yyyymm: str = f"{selected_year}{selected_month_int:02d}"
+selected_plots: List[str] = list(PLOT_FILENAME_MAP.keys())
+# ───────────────────────────────────────────────────────────────
+
 if tab_selection == "📊 Overview":
     st.header("📊 Key Metrics Overview")
 
@@ -112,7 +125,8 @@ if tab_selection == "📊 Overview":
         f"targetSeries_byInit_{var}_{region}_skill_{fcst_start_year}_{fcst_end_year}.png"),
         caption="ACC skill by Init", use_container_width=True)
 
-    cols = st.columns(2)
+    cols = st.columns(2) # type: ignore[reportUnknownArgumentType]
+
     with cols[0]:
         st.image(get_fig_url(model, region, var, 
             f"det_heatmap_init_{var}_{region}_{selected_year}.png"),
