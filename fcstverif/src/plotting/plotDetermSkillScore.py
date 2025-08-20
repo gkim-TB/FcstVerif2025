@@ -801,7 +801,7 @@ def plot_iod_hovmoller(yyyymm):
     vmax = 3.0
     levels = np.linspace(-vmax, vmax, 13)
 
-    fig, axes = plt.subplots(ncols=2, sharey=True, figsize=(6, 5))
+    fig, axes = plt.subplots(ncols=2, sharey=True, figsize=(4, 5))
     m1 = _plot_hovmoller_panel(
         axes[0], diff_w, obs_w, f"IOD West (Init: {init_yyyymm})", 
         f"Shade: (Fcst - OBS) anomaly,\nContour: OBS anomaly", 
