@@ -723,7 +723,14 @@ def _compute_sst_hovmoller_data(yyyymm, region_box):
     ds_fcst.close()
     return diff_full, obs_full, fc_times, init_yyyymm
 
-def _plot_hovmoller_panel(ax, diff, obs, title, subtitle, levels=None, cmap="bwr", add_colorbar=False, y_times=None):
+def _plot_hovmoller_panel(
+        ax, diff, obs, 
+        title:str, 
+        subtitle:str,
+        levels=None, cmap:str="bwr", add_colorbar: bool=False, 
+        y_times=None, 
+        draw_title: bool = True
+        ):
     """
     Draw one Hovmöller panel on given ax with X=lon, Y=time.
     Returns QuadContourSet for colorbar.
@@ -754,14 +761,14 @@ def _plot_hovmoller_panel(ax, diff, obs, title, subtitle, levels=None, cmap="bwr
         ax.set_ylim(yt.min(), yt.max())   # 전체 리드 범위
         ax.set_yticks(yt)
         ax.set_yticklabels([pd.Timestamp(t).strftime("%Y-%m") for t in yt])
-
-    #ax.yaxis.set_major_locator(mdates.MonthLocator(interval=1))
-    #ax.yaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-
-    ax.set_title(title, pad=25)
-    ax.text(0.5, 1.01, subtitle, transform=ax.transAxes,
-            ha='center', va="bottom", fontsize=8)
+    
     ax.invert_yaxis()  # 시간 위→아래 진행
+
+    if draw_title:
+        ax.set_title(title, pad=25)
+        ax.text(0.5, 1.01, subtitle, transform=ax.transAxes,
+                ha="center", va="bottom", fontsize=8)
+
     return mappable
 
 
@@ -777,9 +784,11 @@ def plot_nino34_hovmoller(yyyymm):
 
     fig, ax = plt.subplots(figsize=(4, 5))
     _ = _plot_hovmoller_panel(ax, diff, obs, 
-                              f"Nino3.4 diff (Init: {init_yyyymm})", 
-                              f"Shade: (Fcst - OBS) anomaly,\nContour: OBS anomaly", 
-                              add_colorbar=True, y_times=fc_times)
+                             f"Nino3.4 diff (Init: {init_yyyymm})", 
+                             f"Shade: (Fcst - OBS) anomaly,\nContour: OBS anomaly", 
+                             add_colorbar=True, y_times=fc_times, 
+                             draw_title=True
+                              )
 
     save_fname = os.path.join(output_fig_dir, "IDX", f"hovmoller_nino34_{init_yyyymm}.png")
     os.makedirs(os.path.dirname(save_fname), exist_ok=True)
@@ -792,30 +801,67 @@ def plot_iod_hovmoller(yyyymm):
 
     diff_w, obs_w, t_w, init_w = _compute_sst_hovmoller_data(yyyymm, IOD_WEST_BOX)
     diff_e, obs_e, t_e, init_e = _compute_sst_hovmoller_data(yyyymm, IOD_EAST_BOX)
-    if (diff_w is None) or (diff_e is None):
+    if diff_w is None and diff_e is None:
         return
-    # 동일 init 라벨 가정(같은 yyyymm 호출)
-    init_yyyymm = init_w
+    init_yyyymm = init_w or init_e
 
-    # 공통 컬러 레벨(양 패널 동일 스케일)
-    vmax = 3.0
-    levels = np.linspace(-vmax, vmax, 13)
+    fig, axes = plt.subplots(ncols=2, sharey=True, figsize=(4, 5.5))
+    fig.subplots_adjust(top=0.85, wspace=0.08)  # suptitle 자리만 살짝
 
-    fig, axes = plt.subplots(ncols=2, sharey=True, figsize=(4, 5))
-    m1 = _plot_hovmoller_panel(
-        axes[0], diff_w, obs_w, f"IOD West (Init: {init_yyyymm})", 
-        f"Shade: (Fcst - OBS) anomaly,\nContour: OBS anomaly", 
-        levels=levels, add_colorbar=False, y_times=t_w)
-    m2 = _plot_hovmoller_panel(
-        axes[1], diff_e, obs_e, f"IOD East (Init: {init_yyyymm})", 
-        f"Shade: (Fcst - OBS) anomaly,\nContour: OBS anomaly", 
-        levels=levels, add_colorbar=False, y_times=t_w)
+    # 컬러레벨 공통
+    levels = np.linspace(-3, 3, 13)
 
-    # 공통 컬러바(오른쪽 패널 기준으로)
-    cbar = fig.colorbar(m2, ax=axes.ravel().tolist(), label="Forecast - Obs (℃)", fraction=0.046, pad=0.04)
+    # 각 패널 그릴 때 draw_title=False로 축제목/부제 출력 끔
+    if diff_w is not None:
+        _ = _plot_hovmoller_panel(
+            axes[0], diff_w, obs_w, 
+            f"IOD diff (Init: {init_yyyymm})",
+            "IOD west",
+            levels=levels, add_colorbar=False, y_times=t_w,
+            draw_title=False
+        )
+        axes[0].set_title('IOD West', fontsize=9)
+    else:
+        axes[0].axis("off")
+
+    if diff_e is not None:
+        # y_times는 서쪽과 동일 리드 축 고정(t_w) 권장
+        _m = _plot_hovmoller_panel(
+            axes[1], diff_e, obs_e, 
+            f"IOD diff (Init: {init_yyyymm})",
+            "IOD East",
+            levels=levels, add_colorbar=False, y_times=t_w, 
+            draw_title=False
+        )
+        axes[1].set_ylabel('')
+        axes[1].set_title('IOD East', fontsize=9)
+    else:
+        axes[1].axis("off")
+        _m = None
+
+    # 가운데 한 줄만 제목(그림 공통 제목)
+    fig.suptitle(f"IOD diff (Init: {init_yyyymm})", fontsize=12, y=0.98, ha="center")
+    fig.text(0.5, 0.9, 
+            f"Shade: (Fcst - OBS) anomaly,\nContour: OBS anomaly",
+            #transform=ax.transAxes,
+            ha='center', va="bottom", fontsize=8
+             )
+            
+    
+    # 공통 컬러바(두 패널 기준). 한 패널만 유효해도 fig 컬러바로 달아줌
+    mappable = _m
+    if mappable is None and diff_w is not None:
+        # 동쪽이 비었으면 서쪽 패널의 mappable을 다시 가져오기 어려우니,
+        # 레벨 정보로 빈 mappable 생성해서 공통 컬러바만 표시
+        from matplotlib.cm import ScalarMappable
+        from matplotlib.colors import Normalize
+        mappable = ScalarMappable(norm=Normalize(vmin=levels[0], vmax=levels[-1]),
+                                  cmap=cm.get_cmap("bwr", len(levels)-1))
+    cbar = fig.colorbar(mappable, ax=axes.ravel().tolist(),
+                        label="Forecast - Obs (℃)", fraction=0.046, pad=0.04)
 
     save_fname = os.path.join(output_fig_dir, "IDX", f"hovmoller_iod_{init_yyyymm}.png")
     os.makedirs(os.path.dirname(save_fname), exist_ok=True)
     plt.savefig(save_fname, dpi=300, bbox_inches='tight')
     plt.close()
-    logger.info(f"[INFO] Saved IOD Hovmöller (2-panels) → {save_fname}")
+    logger.info(f"[INFO] Saved IOD Hovmöller → {save_fname}")

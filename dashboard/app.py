@@ -105,15 +105,15 @@ st.sidebar.markdown(
     """, unsafe_allow_html=True
 )
 
-# ───────────────────────────────────────────────────────────────
-# ---- Defaults for type checker (will be overwritten in each tab) ----
-var: str = "sst"
-region: str = list(REGIONS.keys())[0]
-selected_year: int = fcst_start // 100
-selected_month_int: int = 1
-selected_yyyymm: str = f"{selected_year}{selected_month_int:02d}"
-selected_plots: List[str] = list(PLOT_FILENAME_MAP.keys())
-# ───────────────────────────────────────────────────────────────
+# # ───────────────────────────────────────────────────────────────
+# # ---- Defaults for type checker (will be overwritten in each tab) ----
+# var: str = None
+# region: str = list(REGIONS.keys())[0]
+# selected_year: int = fcst_start // 100
+# selected_month_int: int = 1
+# selected_yyyymm: str = f"{selected_year}{selected_month_int:02d}"
+# selected_plots: List[str] = list(PLOT_FILENAME_MAP.keys())
+# # ───────────────────────────────────────────────────────────────
 
 if tab_selection == "📊 Overview":
     st.header("📊 Key Metrics Overview")
