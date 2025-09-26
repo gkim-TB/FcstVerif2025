@@ -4,7 +4,11 @@ import pandas as pd
 import logging
 
 from config import *
-from src.utils.general_utils import convert_prcp_to_mm_per_day, convert_geopotential_to_m
+from src.utils.general_utils import (
+    parse_var_level,
+    convert_prcp_to_mm_per_day, 
+    convert_geopotential_to_m,
+)
 logger = logging.getLogger("fcstverif")
 
 def rename_dims_coords(da: xr.DataArray) -> xr.DataArray:
@@ -34,20 +38,14 @@ def rename_dims_coords(da: xr.DataArray) -> xr.DataArray:
 
     return da
 
-def get_subfolder_for_var(var):
-    if var in PRESSURE_VARS:
-        return 'pressure'
-    else:
-        return 'surface'
-
 def compute_era5_clim_and_anom(
-    era5_base_dir,
-    var,
-    clim_start,
-    clim_end,
-    anom_start,
-    anom_end,
-    era5_out_dir,
+    era5_base_dir : str,
+    var : str,
+    clim_start : int,
+    clim_end : int,
+    anom_start: int,
+    anom_end : int,
+    era5_out_dir : str,
 ):
     """
     1) (var) 월별 클라이모 계산
@@ -58,19 +56,25 @@ def compute_era5_clim_and_anom(
     여기서 var가 'msl'이면 최종 파일 변수명은 'mslp',
                  'tp' 면 'prcp' 로 저장
     """
-
-    rename_var = ERAvar2rename.get(var, var)
-
     os.makedirs(era5_out_dir, exist_ok=True)
-
-    subfolder = get_subfolder_for_var(var)  # 'surface' or 'pressure'
-    var_dir = os.path.join(era5_base_dir, subfolder, rename_var)
-
+    
     # === target grid ===
     logger.info(f"Checking target grid .....")
     with xr.open_dataset(f'{root_dir}/target_grid.nc') as target:
         target_lat, target_lon = target.lat, target.lon
         print(len(target_lat), len(target_lon))
+    if len(target_lat) == 0 or len(target_lon) == 0:
+        logger.error("Target grid dimensions are invalid.")
+        return
+
+    base, lvl = parse_var_level(var)
+    rename_var = ERAvar2rename.get(base, base)
+    if lvl is not None:
+        var_dir = os.path.join(era5_base_dir, "pressure", base) 
+    else:
+        var_dir = os.path.join(era5_base_dir, 'surface', rename_var)  
+    print(rename_var)
+    # subfolder = get_subfolder_for_var(rename_var)  # 'surface' or 'pressure'
     
     # === read raw data include rename === 
     da_list = []
@@ -80,10 +84,18 @@ def compute_era5_clim_and_anom(
         if not os.path.isfile(fpath):
             logger.warning(f"{fpath} not found. skip.")
             continue
+
         with xr.open_dataset(fpath) as ds:
+            # 1) pick the ERA5 field by its token name
             da = ds[rename_var]
-            #da = da.rename({'LATITUDE': 'lat', 'LONGITUDE': 'lon'})
+
+            # 2) normalize coordinate/dimension names (e.g., lat/lon, level)
             da = rename_dims_coords(da)
+
+            # 3) for pressure-level variables, slice the requested level (e.g., 500, 300)
+            if lvl is not None:
+                da = da.sel(level=lvl)
+
             da.name = rename_var # change ERA5 variable name to universal name
         da_list.append(da)
 
@@ -103,13 +115,13 @@ def compute_era5_clim_and_anom(
         # ERA5 prcp: m → mm/day
         da_proc = convert_prcp_to_mm_per_day(da_interp, source='ERA5')
         da_proc.attrs['units'] = 'mm/day'
-    elif var in ['z','zg','geopotential']:
+    elif base == 'z':
         # ERA5 geopotential: m2/s2 → m
         da_proc = convert_geopotential_to_m(da_interp, source='ERA5')
         da_proc.attrs['units'] = 'm'
     else:
         da_proc = da_interp
-    print(da_proc)
+    #print(da_proc)
 
     # --- climatology ---
     # === average by month (month=1..12) ===
@@ -168,27 +180,34 @@ def compute_era5_clim_and_anom(
     with xr.open_dataset(clim_file) as ds_ref:
         da_ref = ds_ref[var]
 
-        for year in range(anom_start, anom_end+1):
-            # === read raw data by year ===
+        for year in range(anom_start//100, anom_end//100 + 1):
+            # 1) read raw ERA5 of the year
             fcpath = os.path.join(var_dir, f"{rename_var}_{year}.nc")
             if not os.path.isfile(fcpath):
                 logger.warning(f"{fcpath} not found for anomaly. skip.")
                 continue
+
             with xr.open_dataset(fcpath) as ds_f:
-                da_f = ds_f[rename_var].rename({'LATITUDE': 'lat', 'LONGITUDE': 'lon'})
-            # === interpolation to model grid ===
+                da_f = ds_f[rename_var]
+                da_f = rename_dims_coords(da_f) 
+
+                # slice pressure level if needed
+                if lvl is not None:
+                    da_f = da_f.sel(level=lvl)
+
+            # 2) interpolation to model grid
             da_f_interp = da_f.interp(lat=target_lat, lon=target_lon, kwargs={"fill_value": "extrapolate"})
 
             if var == 'prcp':
                 da_f_proc = convert_prcp_to_mm_per_day(da_f_interp, source='ERA5')
                 da_f_proc.attrs['units'] = 'mm/day'
-            elif var in ['z','zg','geopotential']:
+            elif base == 'z':
                 da_f_proc = convert_geopotential_to_m(da_f_interp, source='ERA5')
                 da_f_proc.attrs['units'] = 'm'
             else:
                 da_f_proc = da_f_interp
         
-            # === calulate anomaly ===
+            # 4) month-wise anomaly using monthly climatology
             da_anom = da_f_proc.groupby('time.month') - da_ref
             ds_anom = da_anom.to_dataset(name=var)
             ds_anom.attrs['description'] = f"ERA5 {var} anomaly from {clim_start}-{clim_end} clim"
@@ -199,7 +218,7 @@ def compute_era5_clim_and_anom(
             logger.info(f"Anomaly saved => {out_anom_file}")
             ds_anom.close()
 
-            # === save precipitation total file ===
+            # 5) (prcp only) save total field after unit conversion
             if var == 'prcp':
                 ds_total = da_f_proc.to_dataset(name=var)
 

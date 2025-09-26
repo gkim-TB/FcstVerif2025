@@ -6,9 +6,25 @@ import os
 import logging
 
 from fcstverif.config import *
-from fcstverif.src.utils.general_utils import convert_prcp_to_mm_per_day, convert_geopotential_to_m
+from fcstverif.src.utils.general_utils import (
+    generate_yyyymm_list,
+    convert_prcp_to_mm_per_day, 
+    convert_geopotential_to_m, 
+    parse_var_level
+)
 #from fcstverif.src.utils.logging_utils import init_logger
 logger = logging.getLogger("fcstverif")
+
+def _resolve_gs_rename(var: str):
+    """ 
+    1. take universial name variable from config.py
+    2. convert pressure level variable to GS6 varname (z500 -> h500)
+        or convert suface level variable to GS6 varname (t2m -> t15m)
+    """
+    base, lvl = parse_var_level(var)
+    if lvl is not None:
+        return GSvar2rename.get(base, var), lvl
+    return GSvar2rename.get(var, var), None
 
 def _get_init_mondays(start: str, end: str, rule: str = 'last') -> list[pd.Timestamp]:
     weekly = pd.date_range(start, end, freq='W-MON')
@@ -109,21 +125,34 @@ def convert_single_hindcast_file(
         out_dir
     ):
 
-    rename_var = GSvar2rename.get(var, var)
+    #rename_var = GSvar2rename.get(var, var)
+    rename_var, level = _resolve_gs_rename(var)
+    print(f"convert to GS6 var ===> VAR= {rename_var}, LEVEL= {level}")
+    
     date_tag = pd.to_datetime(init_date_str).strftime('%Y%m%d')
     stat_part = "" if stat_type is None else f"{stat_type}_"
 
-    # hindcast data path [ modify if needed ]
-    fpath = os.path.join(
-        data_dir, rename_var, f"{file_prefix}{stat_part}{rename_var}_{date_tag}.grb2"
-    )
-    if not os.path.isfile(fpath):
-        logger.warning(f"[HIND] {stat_type} 파일 없음: {fpath}")
-        return
+    if level is not None:
+        logger.info(f"VAR is in pressure level")
+        # hindcast data path [ modify if needed ]
+        fpath = f"{data_dir}/{rename_var}/{file_prefix}{stat_part}{rename_var}{level}_{date_tag}.grb2"
+        if not os.path.isfile(fpath):
+            logger.warning(f"[HIND] {stat_type} 파일 없음: {fpath}")
+            return
+        
+        grbs = pygrib.open(fpath)
+        msgs = grbs.select(name=var2grib_name[rename_var], level=level)
+    else:
+        logger.info(f"VAR is in surface level")
+        fpath = f"{data_dir}/{rename_var}/{file_prefix}{stat_part}{rename_var}_{date_tag}.grb2"
+        if not os.path.isfile(fpath):
+            logger.warning(f"[HIND] {stat_type} 파일 없음: {fpath}")
+        
+        grbs = pygrib.open(fpath)
+        msgs = grbs.select(name=var2grib_name[rename_var])
 
-    grbs = pygrib.open(fpath)
-    msgs = grbs.select(name=var2grib_name[rename_var])
     grbs.close()
+    logger.info(msgs)
 
     init_date = pd.to_datetime(init_date_str).replace(day=1)
     ds_out = _grib_messages_to_dataset(msgs, init_date, var, stat_type)
@@ -169,20 +198,41 @@ def convert_monthly_forecast_from_mem(
         out_dir : str
     ):
 
-    rename_var   = GSvar2rename.get(var, var)
+    #rename_var   = GSvar2rename.get(var, var)
+    rename_var, level = _resolve_gs_rename(var)
     init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)
 
     for d in init_dates:
         date_tag   = d.strftime('%Y%m%d')
-        # forecast data path [ modify if needed ]
-        fpath = os.path.join(data_dir, rename_var,
-                             f"{file_prefix}{rename_var}_{date_tag}_mem.grb2")
-        if not os.path.isfile(fpath):
-            logger.warning(f"[MEM] 파일 없음: {fpath}")
-            continue
 
-        grbs = pygrib.open(fpath)
-        msgs = grbs.select(name=var2grib_name[rename_var])
+        # forecast data path 
+        if level is not None:
+            logger.info(f"VAR is in pressure level")
+            fpath = f"{data_dir}/{rename_var}/{file_prefix}{rename_var}{level}_{date_tag}_mem.grb2"
+            if not os.path.isfile(fpath):
+                logger.warning(f"[MEM] 파일 없음: {fpath}")
+                return
+            
+            grbs = pygrib.open(fpath)
+            msgs = grbs.select(name=var2grib_name[rename_var], level=level)
+
+        else:
+            logger.info(f"VAR is in surface level")
+            fpath = f"{data_dir}/{rename_var}/{file_prefix}{rename_var}_{date_tag}_mem.grb2.grb2"
+            if not os.path.isfile(fpath):
+                logger.warning(f"[MEM] 파일 없음: {fpath}")
+        
+            grbs = pygrib.open(fpath)
+            msgs = grbs.select(name=var2grib_name[rename_var])
+
+        # fpath = os.path.join(data_dir, rename_var,
+        #                      f"{file_prefix}{rename_var}_{date_tag}_mem.grb2")
+        # if not os.path.isfile(fpath):
+        #     logger.warning(f"[MEM] 파일 없음: {fpath}")
+        #     continue
+
+        # grbs = pygrib.open(fpath)
+        # msgs = grbs.select(name=var2grib_name[rename_var])
         grbs.close()
 
         if len(msgs) % 6 != 0:
@@ -212,13 +262,31 @@ def convert_monthly_forecast_from_mem(
         ds_ens.to_netcdf(out_nc)
         logger.info(f"[MEM] saved → {out_nc}")
 
-def compute_anomaly(var, year_start, year_end, hindcast_dir, forecast_dir, out_dir):
+def compute_anomaly(
+        forecast_start : str,
+        forecast_end : str,
+        var : str,
+        init_rule : str,
+        # var, year_start, year_end, 
+        hindcast_dir : str, 
+        forecast_dir : str, 
+        out_dir : str):
+    """
+    compute anomaly from forecast data and hindcast data
+    parameter
+    - forecast_start : YYYYMM01 first day of the monthly forecast start month
+    - forecast_end   : YYYYMM01 first day of the monthly forecast end month
+    - var            : variable name for which the anomaly is computed
+    - init_rule      : not used
+    - hindcast_dir   : directory containing hindcast files
+    - forecast_dir   : directory containing forecast files
+    - out_dir        : directory to save anomaly files
+    """
+    
     os.makedirs(out_dir, exist_ok=True)
-    dates = pd.date_range(start=f"{year_start}-01", end=f"{year_end}-12", freq="MS")
+    yyyymm_list = generate_yyyymm_list(forecast_start, forecast_end)
 
-    for date in dates:
-        yyyymm = date.strftime('%Y%m')
-
+    for yyyymm in yyyymm_list:
         hind_file = os.path.join(hindcast_dir, f"ensMean_{var}_{yyyymm}.nc")
         fcst_file = os.path.join(forecast_dir, f"ensMem_{var}_{yyyymm}.nc")
         

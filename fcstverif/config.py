@@ -23,9 +23,12 @@ fyears = np.arange(verify_start // 100, verify_end // 100 + 1)
 clim_start = 1991
 clim_end   = 2020
 
-# --- 변수 목록 ---
+# --- List of variables to verify ---
+""" list all variables in case manually select in command line"""
 #VARIABLES = ["sst"]
-VARIABLES = ["t2m", "prcp", "sst"]
+#VARIABLES = ["t2m"]
+VARIABLES = ["z500"]
+#VARIABLES = ["z500", "t2m", "prcp", "sst"]
 #VARIABLES = ["t", "z"]
 
 # --- 검증 영역 정의 ---
@@ -44,21 +47,21 @@ REGION_OVERRIDE_BY_VAR = {
 # --- plot list ---
 enabled_plots = [
     # -- detailed plots
-    #"init_line",       # Timeseries of deterministic skill score by lead, every initialized month
-    #"target_month",    # Timeseries of deterministic skill score by lead, every target month
-    #"target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
-    #"rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
-    #"roc_curve",        # (Probabilistic skill score) ROC curve with AUC, every initialized month
+    "init_line",       # Timeseries of deterministic skill score by lead, every initialized month
+    "target_month",    # Timeseries of deterministic skill score by lead, every target month
+    "target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
+    "rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
+    "roc_curve",        # (Probabilistic skill score) ROC curve with AUC, every initialized month
     # -- overview plots
-    #"target_line",      # Timeseries of all forecast initialization (ACC)
-    #"traj_line",        # Trajectory lines of all forecast initialization
-    #"init_heatmap",    # Deterministic skill score heatmap
-    #"cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
+    "target_line",      # Timeseries of all forecast initialization (ACC)
+    "traj_line",        # Trajectory lines of all forecast initialization
+    "init_heatmap",    # Deterministic skill score heatmap
+    "cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
     # -- analytics plots
     #"skill_relation",   # Skill relation plot
     #"skill_relation_v2",
     #"nino34_hovmoller",
-    "iod_hovmoller",
+    #"iod_hovmoller",
     ]
 
 
@@ -86,15 +89,19 @@ output_fig_dir: str = os.path.join(root_dir, "fig", model)
 #output_fig_dir = f"{root_dir}/fig/{model}"
 
 # --- GRIB/NetCDF 변수명 매핑 ---
+# universial : GS6
 GSvar2rename = {
     "t2m": "t15m",
     "sst": "tsfc",
+    "z": "h"
 }
 
+# universial : ERA5
 ERAvar2rename = {
     "mslp":"msl",
     "prcp": "tp",
 }
+
 
 var2grib_name = {
     "tsfc": "Skin temperature",

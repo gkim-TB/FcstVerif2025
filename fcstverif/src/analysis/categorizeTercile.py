@@ -238,7 +238,7 @@ def categorize_fcst_tercile_prob(var, yyyymm, fcst_dir, stat_dir, out_dir):
     # Forecast ensemble 파일 로드
     fcst_file = os.path.join(fcst_dir, f"ensMem_{var}_{yyyymm}.nc")
     if not os.path.isfile(fcst_file):
-        logger.warming(f"[FCST] File not found: {fcst_file}")
+        logger.warning(f"[FCST] File not found: {fcst_file}")
         return None
     ds_fcst = xr.open_dataset(fcst_file)
     da = ds_fcst[var]

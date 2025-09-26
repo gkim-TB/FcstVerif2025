@@ -31,13 +31,10 @@ def compute_rpss_manual(fcst_prob, obs_ohe, region_name:str, var:str):
     RPSS 계산: 1 - RPS / RPS_climatology
     """
     # Forecast RPS
-    #fcst_sub = clip_to_region(fcst_prob, region_name, var)
-    #obs_sub  = clip_to_region(obs_ohe, region_name, var)
     rps = compute_rps_manual(fcst_prob, obs_ohe)
 
     # Climatology: uniform [1/3, 1/3, 1/3]
     clim_prob = xr.full_like(fcst_prob, 1/3)
-    #clim_prob = clip_to_region(clim_prob_full, region_name, var)
     
     rps_clim = compute_rps_manual(clim_prob, obs_ohe)
     # RPSS 계산 (0으로 나누는 경우 NaN 처리)
@@ -69,8 +66,10 @@ def compute_roc_auc_all_categories(var, fcst_prob, obs_ohe, init_time, region_na
     categories = fcst_prob.category.values.tolist()
 
     # 지역 클리핑
-    fcst_sub = clip_to_region(fcst_prob, region_name, var)
-    obs_sub  = clip_to_region(obs_ohe, region_name, var)
+    fcst_sub = clip_to_region(fcst_prob, region_name)
+    obs_sub  = clip_to_region(obs_ohe, region_name)
+    print(fcst_sub)
+    print(obs_sub)
 
     n_lead = fcst_sub.sizes['time']
     n_cat = len(categories)

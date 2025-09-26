@@ -10,9 +10,49 @@ from src.utils.logging_utils import init_logger
 from typing import Optional
 logger = init_logger()
 
+def parse_var_level(v: str):
+    import re
+    m = re.match(r'([A-Za-z]+)(\d+)$', v)
+    return (m.group(1), int(m.group(2))) if m else (v, None)
+
+# def generate_yyyymm_list(verify_start, verify_end) -> list[str]:
+#     return pd.date_range(start=f"{verify_start}01", end=f"{verify_end}01", freq="MS").strftime("%Y%m").tolist()
+
 def generate_yyyymm_list(verify_start, verify_end):
-    """예: 2022~2024 → ['202201', ..., '202412']"""
-    return pd.date_range(start=f"{verify_start}01", end=f"{verify_end}01", freq="MS").strftime("%Y%m").tolist()
+    """
+    Build a month list between start and end (inclusive) in 'YYYYMM' format.
+
+    Parameters
+    ----------
+    verify_start : int | str
+        Either 6 digits (YYYYMM) or 8 digits (YYYYMMDD).
+    verify_end   : int | str
+        Either 6 digits (YYYYMM) or 8 digits (YYYYMMDD).
+
+    Returns
+    -------
+    list[str]
+        ['YYYYMM', 'YYYYMM', ...] including both endpoints.
+    """
+    def norm_yyyymm(x):
+        s = str(x).strip()
+        if not s.isdigit():
+            raise ValueError("Expected numeric YYYYMM or YYYYMMDD.")
+        if len(s) == 8:
+            s = s[:6]  # YYYYMMDD -> YYYYMM
+        elif len(s) != 6:
+            raise ValueError("Length must be 6 (YYYYMM) or 8 (YYYYMMDD).")
+        # Basic month sanity check
+        mm = int(s[4:6])
+        if not (1 <= mm <= 12):
+            raise ValueError("Month must be in 1..12.")
+        return s
+
+    s = norm_yyyymm(verify_start)
+    e = norm_yyyymm(verify_end)
+
+    rng = pd.date_range(start=f"{s}01", end=f"{e}01", freq="MS")
+    return rng.strftime("%Y%m").tolist()
 
 def load_obs_data(var, years, obs_dir, suffix='anom', var_suffix=None):
     """
@@ -82,14 +122,14 @@ def get_region_extent(region_name: str, var: str):
 #     lon_min, lon_max, lat_min, lat_max = region_box
 #     return da.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
 
-def clip_to_region(obj, region_box):
+def clip_to_region(obj, region_name):
     """
     obj(xr.DataArray or xr.Dataset)을 region_box=(latS, latN, lonL, lonR)로 잘라서 반환.
     - 경도 체계 자동 감지(0~360 / -180~180)
     - 날짜변경선 래핑 자동 처리(lonL > lonR인 경우)
     - lon 정렬 보장
     """
-    latS, latN, lonL_raw, lonR_raw = region_box
+    lonL_raw, lonR_raw, latS, latN = REGIONS[region_name]
 
     # 좌표 이름 추론
     lon_name = "lon"  if "lon"  in obj.coords else ("longitude" if "longitude" in obj.coords else None)

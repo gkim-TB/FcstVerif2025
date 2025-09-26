@@ -581,8 +581,8 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
                 no_data_panel(axs[1, 6-lead], axs[2, 6-lead]) # fcst pattern row no data
                 continue
 
-            #fcst = ds_fcst[var].isel(lead=lead_idx).mean("ens").squeeze()
-            fcst = ds_fcst[var].sel(time=np.datetime64(target_date)).mean("ens").squeeze()
+            fcst = ds_fcst[var].isel(lead=lead_idx).mean("ens" , skipna=True).squeeze()
+            #fcst = ds_fcst[var].sel(time=np.datetime64(target_date)).mean("ens").squeeze()
             if var == 'sst':
                 obs_name = "OISST"
                 mask = get_combined_mask(model_name=model, obs_name=obs_name)
@@ -805,7 +805,7 @@ def plot_iod_hovmoller(yyyymm):
         return
     init_yyyymm = init_w or init_e
 
-    fig, axes = plt.subplots(ncols=2, sharey=True, figsize=(4, 5.5))
+    fig, axes = plt.subplots(ncols=2, sharey=True, figsize=(4, 5))
     fig.subplots_adjust(top=0.85, wspace=0.08)  # suptitle 자리만 살짝
 
     # 컬러레벨 공통

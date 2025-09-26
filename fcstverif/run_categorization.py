@@ -56,7 +56,7 @@ def main():
     logger = init_logger(level=log_level)
 
     var = args.var
-    yyyymm_list = generate_yyyymm_list(year_start, year_end)
+    yyyymm_list = generate_yyyymm_list(fcst_start, fcst_end)
 
     if run_mode == "auto":
         categorize_observation(var)
