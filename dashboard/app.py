@@ -85,7 +85,7 @@ elif tab_selection == "📈 Indices":
     #plot_types=list(IDX_FILENAME_MAP.keys())
     
 elif tab_selection == "🖼️ Detailed Plots":  # Detailed
-    var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
+    var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','z500','sst'])
     region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
     selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(fcst_start_year, fcst_end_year + 1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
