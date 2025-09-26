@@ -73,7 +73,7 @@ fcst_end_year = fcst_end//100
 
 # 탭 선택에 따라 사이드바 옵션 바꾸기
 if tab_selection == "📊 Overview":
-    var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','sst'])
+    var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','z500','sst'])
     region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
 
     selected_year = st.sidebar.selectbox("Select Year:", list(range(fcst_start_year, fcst_end_year + 1)))
