@@ -5,24 +5,42 @@ import os, sys
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-# Sidebar configuration
+# Sidebar / page state 초기화
+if 'page' not in st.session_state:
+    st.session_state['page'] = ""          # "" 또는 "guidance"
+if 'selected_tab' not in st.session_state:
+    st.session_state['selected_tab'] = "📊 Overview"
+
+# 콜백: 사이드바 라디오(탭)를 바꾸면 guidance 모드를 해제
+def _on_tab_change():
+    st.session_state['page'] = ""
+
+# 콜백: Guidance 버튼 클릭시 guidance 모드로 전환
+def _show_guidance():
+    st.session_state['page'] = "guidance"
+
+# Streamlit 페이지 설정
 st.set_page_config(layout="wide", initial_sidebar_state='expanded')
 st.sidebar.title("Seasonal Forecast Verification Dashboard")
 
-# Guidance page link
-GUIDANCE_FILENAMES = ["GUIDANCE.md"]
-st.sidebar.markdown(
-    '<div style="margin-top:6px;">'
-    '<a href="?page=guidance" style="text-decoration:none; font-weight:600;">📘 Guidance page</a>'
-    '</div>',
-    unsafe_allow_html=True,
-)
+# 사이드바: Guidance 버튼 (메인 화면만 전환, 사이드바는 유지)
+st.sidebar.button("📘 Guidance", key="guidance_menu_button", on_click=_show_guidance)
+
 st.sidebar.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
 
-page = st.query_params.get("page", [""])[0]
+# 사이드바: 탭 라디오 (on_change 콜백으로 guidance 해제)
+tab_selection = st.sidebar.radio(
+    "Select Mode:", 
+    ["📊 Overview", "🖼️ Detailed Plots", "📈 Indices"],
+    key='selected_tab',
+    on_change=_on_tab_change
+)
+
+# Guidance 파일명 설정
+GUIDANCE_FILENAMES = ["GUIDANCE.md"]
 
 def render_guidance():
-    # app.py와 같은 디렉터리에서 파일 찾기
+    st.header("Guidance")
     base_dir = os.path.dirname(__file__) if "__file__" in globals() else os.getcwd()
     found = False
     for fname in GUIDANCE_FILENAMES:
@@ -30,41 +48,29 @@ def render_guidance():
         if os.path.exists(fpath):
             with open(fpath, "r", encoding="utf-8") as f:
                 md = f.read()
-            # 우측 메인 영역에 마크다운 렌더
-            st.header("Guidance")
             st.markdown(md, unsafe_allow_html=True)
             found = True
             break
-
     if not found:
-        st.header("Guidance")
-        st.info(
-            "GUIDANCE.md 파일을 찾을 수 없습니다. "
-            "앱과 동일 경로에 'GUIDANCE.md'를 배치해 주시거나, GUIDANCE_FILENAMES 목록을 수정하세요."
-        )
+        st.warning("GUIDANCE.md 파일이 앱 폴더에 없습니다. Guidance 파일을 업로드하거나 파일명을 확인해 주세요.")
 
-if page == "guidance":
+# 만약 guidance 모드라면 우측 메인에 guidance만 표시하고 중단
+if st.session_state.get('page', '') == "guidance":
     render_guidance()
     st.stop()
-# Guidance page ends here
 
 # ──────────────────────────────────────────────
-# Sidebar instructions
-import os, sys
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
-
+# Sidebar instructions (나머지 기존 사이드바 옵션들)
 st.sidebar.markdown("Use the options below to customize plots")
 
-# ✅ project root
-# default is './' in Streamlit Cloud
+# 프로젝트 루트 설정
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from fcstverif.config import fcst_start, fcst_end, REGIONS, model
 
-# ✅ GitHub base raw URL
+# GitHub base raw URL
 GITHUB_RAW_BASE: str = "https://raw.githubusercontent.com/gkim-TB/FcstVerif2025/main"
 
 def get_fig_url(model: str, region: str, var: str, filename:str) -> str:
@@ -76,11 +82,6 @@ def get_yyyymm_for_plot(plot_type:str, selected_yyyymm:str) -> str:
         dt += relativedelta(months=1)
     return dt.strftime("%Y%m")
 
-
-#st.set_page_config(layout="wide")
-#st.title("Seasonal Forecast Verification Dashboard")
-
-# ✅ Mapping for file names per plot type
 PLOT_FILENAME_MAP: Dict[str, List[str]] = {
     "ACC_byInit":    ["acc_init_{var}_{region}_{yyyymm}.png"],
     "RMSE_byInit":   ["rmse_init_{var}_{region}_{yyyymm}.png"],
@@ -89,15 +90,7 @@ PLOT_FILENAME_MAP: Dict[str, List[str]] = {
     "Bias_byTarget": ["{var}_pattern_compare_{region}_{yyyymm}.png"],
     "RPSS_byInit":   ["rpss_map_{var}_{region}_{yyyymm}.png"],
     "ROC_byInit":    ["roc_curve_by_lead_{var}_{region}_{yyyymm}.png"],
-    #"init_heatmap":   [f"det_heatmap_init_{{var}}_{{region}}_{{year_only}}.png"], <- default
-    #"cate_heatmap":   ["det_ter_score_{var}_{region}_{year}.png"] <- default
 }
-# IDX_FILENAME_MAP={
-#      "ENSO_index" :   ["ENSO_plum_{yyyymm}.png"],
-#      "IOD_index" :    ["IOD_plum_{yyyymm}.png"],
-#      "ENSO_hovmoller": ['hovmoller_nino34_{yyyymm}.png'],
-#      "IOD_hovmoller": ['hovmoller_iod_{yyyymm}.png'],
-# }
 
 def get_image_urls(
         plot_type:str, var:str, region:str, 
@@ -111,26 +104,22 @@ def get_image_urls(
         urls.append((fname, url))
     return urls
 
-
-# tab selection radio button
-tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots", "📈 Indices"])
-
+# 탭별 사이드바 옵션 및 메인 컨텐츠용 변수
 fcst_start_year = fcst_start//100
 fcst_end_year = fcst_end//100
 
-# 탭 선택에 따라 사이드바 옵션 바꾸기
+# 각 탭에서 선택지 표시
 if tab_selection == "📊 Overview":
     var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','z500','sst'])
     region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
-
     selected_year = st.sidebar.selectbox("Select Year:", list(range(fcst_start_year, fcst_end_year + 1)))
+
 elif tab_selection == "📈 Indices":
     st.sidebar.markdown("Select options for Indices")
     selected_year_int = st.sidebar.selectbox("Forecast Year:", list(range(fcst_start_year, fcst_end_year + 1)))
     selected_month_int = st.sidebar.selectbox("Forecast Month:", list(range(1,13)))
     selected_yyyymm = f"{selected_year_int}{selected_month_int:02d}"
-    #plot_types=list(IDX_FILENAME_MAP.keys())
-    
+
 elif tab_selection == "🖼️ Detailed Plots":  # Detailed
     var = st.sidebar.selectbox("Select variables:", ['t2m','prcp','z500','sst'])
     region = st.sidebar.selectbox("Select region:", list(REGIONS.keys()))
@@ -140,7 +129,7 @@ elif tab_selection == "🖼️ Detailed Plots":  # Detailed
     plot_types = list(PLOT_FILENAME_MAP.keys())
     selected_plots = st.sidebar.multiselect("Select Plot:", plot_types, default=plot_types)
 
-
+# footer / contact
 st.sidebar.markdown("---")
 st.sidebar.markdown(
     """
@@ -153,19 +142,10 @@ st.sidebar.markdown(
     """, unsafe_allow_html=True
 )
 
-# # ───────────────────────────────────────────────────────────────
-# # ---- Defaults for type checker (will be overwritten in each tab) ----
-# var: str = None
-# region: str = list(REGIONS.keys())[0]
-# selected_year: int = fcst_start // 100
-# selected_month_int: int = 1
-# selected_yyyymm: str = f"{selected_year}{selected_month_int:02d}"
-# selected_plots: List[str] = list(PLOT_FILENAME_MAP.keys())
-# # ───────────────────────────────────────────────────────────────
-
+# ───────────────────────────────────────────────────────────────
+# 메인 컨텐츠: 현재 선택된 탭(tab_selection)에 따라 렌더
 if tab_selection == "📊 Overview":
     st.header("📊 Key Metrics Overview")
-
     st.image(get_fig_url(model, region, var,
         f"targetSeries_byInit_{var}_{region}_traj_{fcst_start_year}_{fcst_end_year}.png"),
         caption="Trajectory by Init (with lead-1 ACC)", use_container_width=True)
@@ -173,8 +153,7 @@ if tab_selection == "📊 Overview":
         f"targetSeries_byInit_{var}_{region}_skill_{fcst_start_year}_{fcst_end_year}.png"),
         caption="ACC skill by Init", use_container_width=True)
 
-    cols = st.columns(2) # type: ignore[reportUnknownArgumentType]
-
+    cols = st.columns(2)
     with cols[0]:
         st.image(get_fig_url(model, region, var, 
             f"det_heatmap_init_{var}_{region}_{selected_year}.png"),
@@ -183,8 +162,8 @@ if tab_selection == "📊 Overview":
         st.image(get_fig_url(model, region, var,
             f"det_ter_score_{var}_{region}_{selected_year}.png"),
             caption=f"Deterministic Tercile Score ({selected_year})")
-        
-elif tab_selection == "🖼️ Detailed Plots":  # Detailed Plots
+
+elif tab_selection == "🖼️ Detailed Plots":
     st.header("🖼️ Detailed Plots")
     cols = st.columns(2)
     i = 0
@@ -192,17 +171,15 @@ elif tab_selection == "🖼️ Detailed Plots":  # Detailed Plots
         yyyymm_to_use = get_yyyymm_for_plot(plot_type, selected_yyyymm)
         for fname, url in get_image_urls(plot_type, var, region, yyyymm=yyyymm_to_use):
             with cols[i % 2]:
-                #st.subheader(f"{plot_type} – {fname}")
                 st.image(url, caption=fname, use_container_width=True)
             i += 1
 
-else:
+else:  # "📈 Indices"
     st.header("📈 Indices")
     st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/ENSO_index_timeseries_all_init.png",
         caption="Trajectory ENSO by Init", use_container_width=True)
     st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/IOD_index_timeseries_all_init.png",
         caption="Trajectory IOD index by Init", use_container_width=True)
-
 
     cols = st.columns(2)
     with cols[0]:
@@ -214,14 +191,4 @@ else:
         st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/IOD_plum_{selected_yyyymm}.png",
             caption=f"IOD plums initialized ({selected_yyyymm})", use_container_width=True)
         st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/hovmoller_iod_{selected_yyyymm}.png",
-            caption="Hovmöller IOD", use_container_width=True)  
-        
-    # st.markdown("""
-    # <div style='text-align: center; padding-top: 100px;'>
-    #     <h1 style='font-size: 60px; color: #8A2BE2; font-weight: bold;'>
-    #         ✨ Bibbidi-Bobbidi-Boo ✨
-    #     </h1>
-    #     <p style='font-size: 20px; color: #555;'>This page is under magical development...</p>
-    # </div>
-    # """, unsafe_allow_html=True)
-
+            caption="Hovmöller IOD", use_container_width=True)
