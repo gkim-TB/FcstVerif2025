@@ -6,8 +6,8 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 # Sidebar / page state 초기화
-if 'page' not in st.session_state:
-    st.session_state['page'] = ""          # "" 또는 "guidance"
+# if 'page' not in st.session_state:
+#     st.session_state['page'] = ""          # "" 또는 "guidance"
 if 'selected_tab' not in st.session_state:
     st.session_state['selected_tab'] = "📊 Overview"
 
@@ -24,8 +24,14 @@ st.set_page_config(layout="wide", initial_sidebar_state='expanded')
 st.sidebar.title("Seasonal Forecast Verification Dashboard")
 
 # 사이드바: Guidance 버튼 (메인 화면만 전환, 사이드바는 유지)
-st.sidebar.button("📘 Guidance", key="guidance_menu_button", on_click=_show_guidance)
+# st.sidebar.button("📘 Guidance", key="guidance_menu_button", on_click=_show_guidance)
 
+# 렌더링된 Markdown 보기 (권장)
+GUIDANCE_BLOB_URL = "https://github.com/gkim-TB/FcstVerif2025/blob/main/dashboard/GUIDANCE.md"
+st.sidebar.markdown(
+    f'<a href="{GUIDANCE_BLOB_URL}" target="_blank" rel="noopener noreferrer">📘 Guidance (Open in new tab)</a>',
+    unsafe_allow_html=True
+)
 st.sidebar.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
 
 # 사이드바: 탭 라디오 (on_change 콜백으로 guidance 해제)
