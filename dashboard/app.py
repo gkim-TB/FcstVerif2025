@@ -192,3 +192,35 @@ if tab_selection == "📊 Overview":
             caption=f"Deterministic Skill Score ({selected_year})", use_container_width=True)
     with cols[1]:
         st.image(get_fig_url(model, region, var,
+            f"det_ter_score_{var}_{region}_{selected_year}.png"),
+            caption=f"Deterministic Tercile Score ({selected_year})")
+
+elif tab_selection == "🖼️ Detailed Plots":
+    st.header("🖼️ Detailed Plots")
+    cols = st.columns(2)
+    i = 0
+    for plot_type in selected_plots:
+        yyyymm_to_use = get_yyyymm_for_plot(plot_type, selected_yyyymm)
+        for fname, url in get_image_urls(plot_type, var, region, yyyymm=yyyymm_to_use):
+            with cols[i % 2]:
+                st.image(url, caption=fname, use_container_width=True)
+            i += 1
+
+else:  # "📈 Indices"
+    st.header("📈 Indices")
+    st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/ENSO_index_timeseries_all_init.png",
+        caption="Trajectory ENSO by Init", use_container_width=True)
+    st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/IOD_index_timeseries_all_init.png",
+        caption="Trajectory IOD index by Init", use_container_width=True)
+
+    cols = st.columns(2)
+    with cols[0]:
+        st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/ENSO_plum_{selected_yyyymm}.png",
+            caption=f"ENSO plums initialized ({selected_yyyymm})", use_container_width=True)
+        st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/hovmoller_nino34_{selected_yyyymm}.png",
+            caption="Hovmöller Nino3.4", use_container_width=True)
+    with cols[1]:
+        st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/IOD_plum_{selected_yyyymm}.png",
+            caption=f"IOD plums initialized ({selected_yyyymm})", use_container_width=True)
+        st.image(f"{GITHUB_RAW_BASE}/FIG/{model}/IDX/hovmoller_iod_{selected_yyyymm}.png",
+            caption="Hovmöller IOD", use_container_width=True)
