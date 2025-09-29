@@ -1,13 +1,60 @@
 from typing import Dict, List, Tuple, Optional
 import streamlit as st
-st.set_page_config(layout="wide", initial_sidebar_state='expanded')
-st.sidebar.title("Seasonal Forecast Verification Dashboard")
-st.header("🔍 Guidance")
-st.sidebar.markdown("Use the options below to customize plots")
 
 import os, sys
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+
+# Sidebar configuration
+st.set_page_config(layout="wide", initial_sidebar_state='expanded')
+st.sidebar.title("Seasonal Forecast Verification Dashboard")
+
+# Guidance page link
+GUIDANCE_FILENAMES = ["GUIDANCE.md"]
+st.sidebar.markdown(
+    '<div style="margin-top:6px;">'
+    '<a href="?page=guidance" style="text-decoration:none; font-weight:600;">📘 Guidance page</a>'
+    '</div>',
+    unsafe_allow_html=True,
+)
+
+params = st.experimental_get_query_params()
+page = params.get("page", [""])[0]
+
+def render_guidance():
+    # app.py와 같은 디렉터리에서 파일 찾기
+    base_dir = os.path.dirname(__file__) if "__file__" in globals() else os.getcwd()
+    found = False
+    for fname in GUIDANCE_FILENAMES:
+        fpath = os.path.join(base_dir, fname)
+        if os.path.exists(fpath):
+            with open(fpath, "r", encoding="utf-8") as f:
+                md = f.read()
+            # 우측 메인 영역에 마크다운 렌더
+            st.header("Guidance")
+            st.markdown(md, unsafe_allow_html=True)
+            found = True
+            break
+
+    if not found:
+        st.header("Guidance")
+        st.info(
+            "GUIDANCE.md 파일을 찾을 수 없습니다. "
+            "앱과 동일 경로에 'GUIDANCE.md'를 배치해 주시거나, GUIDANCE_FILENAMES 목록을 수정하세요."
+        )
+
+if page == "guidance":
+    render_guidance()
+    st.stop()
+# Guidance page ends here
+
+# ──────────────────────────────────────────────
+# Sidebar instructions
+import os, sys
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
+st.sidebar.markdown("Use the options below to customize plots")
 
 # ✅ project root
 # default is './' in Streamlit Cloud
@@ -29,12 +76,7 @@ def get_yyyymm_for_plot(plot_type:str, selected_yyyymm:str) -> str:
         dt += relativedelta(months=1)
     return dt.strftime("%Y%m")
 
-# --- help.md : markdown file ( same directory  as app.py) ---
-PAGE_MD_FILENAME = "help.md"
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-PAGE_MD_PATH = os.path.join(PROJECT_ROOT, PAGE_MD_FILENAME)
 
-# ──────────────────────────────────────────────
 #st.set_page_config(layout="wide")
 #st.title("Seasonal Forecast Verification Dashboard")
 
@@ -69,9 +111,6 @@ def get_image_urls(
         urls.append((fname, url))
     return urls
 
-# ───────────────────────────────────────────────────────────────
-
-# ───────────────────────────────────────────────────────────────
 
 # tab selection radio button
 tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots", "📈 Indices"])
