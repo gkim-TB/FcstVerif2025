@@ -2,6 +2,7 @@ from typing import Dict, List, Tuple, Optional
 import streamlit as st
 st.set_page_config(layout="wide", initial_sidebar_state='expanded')
 st.sidebar.title("Seasonal Forecast Verification Dashboard")
+st.header("Guidance")
 st.sidebar.markdown("Use the options below to customize plots")
 
 import os, sys
@@ -27,6 +28,11 @@ def get_yyyymm_for_plot(plot_type:str, selected_yyyymm:str) -> str:
     if "byTarget" in plot_type:
         dt += relativedelta(months=1)
     return dt.strftime("%Y%m")
+
+# --- help.md : markdown file ( same directory  as app.py) ---
+PAGE_MD_FILENAME = "help.md"
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+PAGE_MD_PATH = os.path.join(PROJECT_ROOT, PAGE_MD_FILENAME)
 
 # ──────────────────────────────────────────────
 #st.set_page_config(layout="wide")
@@ -65,6 +71,8 @@ def get_image_urls(
 
 # ───────────────────────────────────────────────────────────────
 
+# ───────────────────────────────────────────────────────────────
+
 # tab selection radio button
 tab_selection = st.sidebar.radio("Select Mode:", ["📊 Overview", "🖼️ Detailed Plots", "📈 Indices"])
 
@@ -92,6 +100,7 @@ elif tab_selection == "🖼️ Detailed Plots":  # Detailed
     selected_yyyymm = f"{selected_year_int}{selected_month_int:02d}"
     plot_types = list(PLOT_FILENAME_MAP.keys())
     selected_plots = st.sidebar.multiselect("Select Plot:", plot_types, default=plot_types)
+
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(

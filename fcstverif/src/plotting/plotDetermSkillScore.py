@@ -335,7 +335,7 @@ def plot_trajectory_w_acc_by_initialized_line(
         "t2m":[-1.5, 2.5],
         "prcp":[-1, 1.5],
         "sst":[-0.5,2],
-        "z500": [-50.0, 50.0],
+        "z500": [-60.0, 60.0],
     }
 }
     
