@@ -70,9 +70,9 @@ else:
 # -------------------------
 GUIDANCE_FILENAMES = ["GUIDANCE.md"]
 def render_guidance():
-    st.header("Guidance")
-    # 메인에서도 닫기 버튼 제공
-    st.button("← Close Guidance", key="close_guidance_main", on_click=_close_guidance)
+    # st.header("Guidance")
+    # # 메인에서도 닫기 버튼 제공
+    # st.button("← Close Guidance", key="close_guidance_main", on_click=_close_guidance)
 
     base_dir = os.path.dirname(__file__) if "__file__" in globals() else os.getcwd()
     found = False
@@ -87,10 +87,10 @@ def render_guidance():
     if not found:
         st.warning("GUIDANCE.md 파일이 앱 폴더에 없습니다. Guidance 파일을 업로드하거나 파일명을 확인해 주세요.")
 
-# # 만약 guidance 모드면 우측 메인에 guidance만 표시하고 종료
-# if st.session_state.get('page', '') == "guidance":
-#     render_guidance()
-#     st.stop()
+# 만약 guidance 모드면 우측 메인에 guidance만 표시하고 종료
+if st.session_state.get('page', '') == "guidance":
+    render_guidance()
+    st.stop()
 
 # ──────────────────────────────────────────────
 # 일반 모드 (Guidance 닫힌 상태) — 기존 컨텐츠 렌더
