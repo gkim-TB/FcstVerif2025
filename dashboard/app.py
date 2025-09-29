@@ -17,9 +17,9 @@ st.sidebar.markdown(
     '</div>',
     unsafe_allow_html=True,
 )
+st.sidebar.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
 
-params = st.experimental_get_query_params()
-page = params.get("page", [""])[0]
+page = st.query_params.get("page", [""])[0]
 
 def render_guidance():
     # app.py와 같은 디렉터리에서 파일 찾기
