@@ -34,11 +34,11 @@ st.sidebar.button("📘 Guidance", key="guidance_menu_button", on_click=_open_gu
 
 # 만약 guidance 모드이면 라디오/옵션들을 숨기고 닫기 버튼만 표시
 if st.session_state.get('page', '') == "guidance":
-    st.sidebar.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
+    #st.sidebar.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
     st.sidebar.button("← Close Guidance", key="close_guidance_sidebar", on_click=_close_guidance)
     # 안내문(선택)
     st.sidebar.markdown(
-        "<div style='font-size:12px; color:#666; margin-top:6px;'>Guidance 열림 — Close Guidance로 돌아가세요.</div>",
+        "<div style='font-size:12px; color:#666; margin-top:6px;'> Go back by clicking \"Close Guidance\"</div>",
         unsafe_allow_html=True
     )
 
@@ -87,10 +87,10 @@ def render_guidance():
     if not found:
         st.warning("GUIDANCE.md 파일이 앱 폴더에 없습니다. Guidance 파일을 업로드하거나 파일명을 확인해 주세요.")
 
-# 만약 guidance 모드면 우측 메인에 guidance만 표시하고 종료
-if st.session_state.get('page', '') == "guidance":
-    render_guidance()
-    st.stop()
+# # 만약 guidance 모드면 우측 메인에 guidance만 표시하고 종료
+# if st.session_state.get('page', '') == "guidance":
+#     render_guidance()
+#     st.stop()
 
 # ──────────────────────────────────────────────
 # 일반 모드 (Guidance 닫힌 상태) — 기존 컨텐츠 렌더
