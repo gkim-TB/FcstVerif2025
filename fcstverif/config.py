@@ -47,16 +47,16 @@ REGION_OVERRIDE_BY_VAR = {
 # --- plot list ---
 enabled_plots = [
     # -- detailed plots
-    "init_line",       # Timeseries of deterministic skill score by lead, every initialized month
-    "target_month",    # Timeseries of deterministic skill score by lead, every target month
-    "target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
-    "rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
-    "roc_curve",        # (Probabilistic skill score) ROC curve with AUC, every initialized month
+    #"init_line",       # Timeseries of deterministic skill score by lead, every initialized month
+    #"target_month",    # Timeseries of deterministic skill score by lead, every target month
+    #"target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
+    #"rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
+    #"roc_curve",        # (Probabilistic skill score) ROC curve with AUC, every initialized month
     # -- overview plots
     "target_line",      # Timeseries of all forecast initialization (ACC)
     "traj_line",        # Trajectory lines of all forecast initialization
-    "init_heatmap",    # Deterministic skill score heatmap
-    "cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
+    #"init_heatmap",    # Deterministic skill score heatmap
+    #"cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
     # -- analytics plots
     #"skill_relation",   # Skill relation plot
     #"skill_relation_v2",
