@@ -76,7 +76,10 @@ def plot_skill_initialized_month(
     if score == 'acc':
         ax.set_ylim(bottom=-1.0,top=1.0)
     elif score == 'rmse':
-        ax.set_ylim(0.0,6.0)
+        if var != 'z500':
+            ax.set_ylim(0.0,6.0)
+        else:
+            ax.set_ylim(10,100) # for z500
     ax.set_xticks(lead_full)
     #plt.xlim(0.9,6.1)
     ax.legend()
@@ -266,7 +269,10 @@ def plot_skill_target_month(var: str, target_year: int, region_name: str, score:
             if score == 'acc':
                 ax.set_ylim(-1.0,1.0) # if score ACC
             elif score == 'rmse':
-                ax.set_ylim(0.0,6.0)
+                if var != 'z500':
+                    ax.set_ylim(0.0,6.0)
+                else:
+                    ax.set_ylim(10,100)
             ax.set_title(f'{score.upper()} by Lead Time\n(Target Month: {target_date.strftime("%Y-%m")}, Region: {region_name}, Var: {var})')
             ax.set_xticks([1, 2, 3, 4, 5, 6])
             ax.grid(True, linestyle='--', color='lightgrey')
@@ -288,6 +294,18 @@ def plot_trajectory_w_acc_by_initialized_line(
     전체 예측기간에 대해 초기화월별 시계열 또는 스킬라인을 그리는 함수
     - mode='skill' : 단독 스킬 스코어 (e.g. ACC, RMSE)
     - mode='trajectory' : anomaly 시계열 + lead1 ACC bar
+
+    paramter:
+        var (str): 변수명 (e.g. 't2m', 'sst', 'prcp', 'z500')
+        region (str): 영역명 (e.g. 'GL', 'EA')
+        fig_dir (str): 그림 저장 디렉토리
+        data_dir (str): 예측 스코어(ACC) 데이터 디렉토리
+        mode (str): 모드 ('skill' 또는 'trajectory')
+    returns:
+        None
+    output:
+        그림 파일을 지정된 디렉토리에 저장
+
     """
     from fcstverif.config import (
         fcst_start, fcst_end, REGIONS, fyears,
@@ -310,12 +328,14 @@ def plot_trajectory_w_acc_by_initialized_line(
         "t2m": [-0.2, 1.4],
         "sst": [-0.1, 0.8],
         "prcp": [-0.1, 0.1],
+        "z500": [-50.0, 50.0],
     },
     "EA": {
         "default": [-0.8, 2.0],
         "t2m":[-1.5, 2.5],
         "prcp":[-1, 1.5],
         "sst":[-0.5,2],
+        "z500": [-100.0, 100.0],
     }
 }
     
@@ -371,12 +391,15 @@ def plot_trajectory_w_acc_by_initialized_line(
     for yyyymm in yyyymm_list:
         fpath = os.path.join(model_out_dir, "anomaly", f"ensMem_{var}_anom_{yyyymm}.nc")
         acc_path = os.path.join(data_dir, f"ensScore_det_{var}_{yyyymm}.nc")
+        logger.debug(f'acc_path for {yyyymm} = {acc_path}')
 
         color = month_colors[pd.to_datetime(yyyymm, format="%Y%m").month]
 
         # 1️⃣ trajectory 모드일 때만 예측 anomaly 데이터 읽기
         if mode == "trajectory":
+            logger.debug('MODE = Trajectory')
             if not os.path.exists(fpath):
+                logger.debug(f'file not found {fpath}')
                 continue
             try:
                 with xr.open_dataset(fpath) as ds:
@@ -399,25 +422,28 @@ def plot_trajectory_w_acc_by_initialized_line(
                 continue
 
         # 2️⃣ acc 파일은 공통적으로 읽기
+        logger.debug(os.path.exists(acc_path))
         if os.path.exists(acc_path):
+            logger.debug('check acc file exist')
             try:
                 with xr.open_dataset(acc_path) as acc_ds:
+                    logger.debug(acc_ds)
                     # skill 모드: 전체 acc 라인 그리기
                     if mode == "skill":
                         acc_vals = acc_ds["acc_mean"].values
                         lead_vals = acc_ds["lead"].values
                         init_date = pd.to_datetime(yyyymm, format="%Y%m")
                         target_dates = [init_date + pd.DateOffset(months=int(l)) for l in lead_vals]
-                
-                        ax1.plot(target_dates, acc_vals, '-o', color=color)
+
+                        ax1.plot(target_dates, acc_vals, '-o', color=color, lw=1.5,)
                     # trajectory 모드 : lead-1 acc만 
-                    elif mode == "trajectory":   
+                    elif mode == "trajectory":
                         acc_val = acc_ds["acc_mean"].values[0]
                         acc_dict[yyyymm] = acc_val
                         logger.debug(f"[DEBUG] ACC value for target({target_dates[0].strftime('%Y%m')}): {np.round(acc_val,2)}")      
             except Exception:
                 acc_dict[yyyymm] = np.nan
-    print(acc_dict)
+    logger.debug(f'ACC_dictionary for trajectory = {acc_dict}')
 
     # 🎯 bar plot (trajectory 전용)
     if mode == "trajectory" and ax2 is not None:
@@ -472,6 +498,7 @@ def plot_trajectory_w_acc_by_initialized_line(
     os.makedirs(fig_dir, exist_ok=True)
     fname = f"targetSeries_byInit_{var}_{region}_{'traj' if mode=='trajectory' else 'skill'}_{fcst_start//100}_{fcst_end//100}.png"
     plt.savefig(os.path.join(fig_dir, fname), dpi=300)
+    logger.info(f"Saved figure: {fname}")
     plt.close()
 
 
@@ -488,6 +515,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
     't2m':   {'clevels': np.arange(-5,5.1,0.5), 'blevels': np.arange(-5, 5.1, 0.5), 'cmap': 'RdBu_r'},
     'prcp':  {'clevels': np.arange(-5,5.1,0.5), 'blevels': np.arange(-5,5.1,0.5), 'cmap': 'BrBG'},
     'mslp':  {'clevels': np.arange(-50,51,5), 'blevels': np.arange(-20,21,2), 'cmap': 'coolwarm'},
+    'z500':  {'clevels': np.arange(-100,101,10), 'blevels': np.arange(-100,101,10), 'cmap': 'coolwarm'},
     'sst':   {'clevels': np.arange(-5,5.1,0.5), 'blevels': np.arange(-5, 5.1, 0.5), 'cmap': 'RdBu_r'},
 }
     settings = plot_settings.get(var, {

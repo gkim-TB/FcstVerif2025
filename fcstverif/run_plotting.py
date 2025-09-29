@@ -65,7 +65,7 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
                 var=var,
                 region=region_name,
                 fig_dir=fig_dir,
-                data_dir=score_dir,
+                data_dir=data_dir,
                 mode="trajectory"  # ✨ mode 지정
             )
         ],
