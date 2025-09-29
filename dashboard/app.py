@@ -2,7 +2,7 @@ from typing import Dict, List, Tuple, Optional
 import streamlit as st
 st.set_page_config(layout="wide", initial_sidebar_state='expanded')
 st.sidebar.title("Seasonal Forecast Verification Dashboard")
-st.header("Guidance")
+st.header("🔍 Guidance")
 st.sidebar.markdown("Use the options below to customize plots")
 
 import os, sys
