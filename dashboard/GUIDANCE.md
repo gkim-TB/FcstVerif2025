@@ -66,12 +66,26 @@ conda install -c conda-forge xarray dask[complete] xskillscore climpred xesmf cf
 This section documents the mathematical formulas used by the verification system and points to where each metric is implemented in the analysis code.
 
 ### Notation
-- \(f(\mathbf{x},t)\) : forecast field (ensemble mean or a single member) at location \(\mathbf{x}\) and time \(t\).  
-- \(o(\mathbf{x},t)\) : observation field at \(\mathbf{x},t\).  
-- Spatial/domain average over \(D\) is \(\langle \cdot \rangle_D\).  
-- Ensemble members \(m=1,\dots,N\). Ensemble mean: \(\bar f = \frac{1}{N}\sum_{m=1}^N f_m\).  
-- Small constant \(\varepsilon=10^{-12}\) used for numerical stability.
+- $f(\mathbf{x}, t)$ : forecast field (ensemble member or ensemble mean) at spatial location $\mathbf{x}$ and time $t$.  
+  _ASCII fallback:_ `f(x,t)`
 
+- $o(\mathbf{x}, t)$ : observation field at location $\mathbf{x}$ and time $t$.  
+  _ASCII fallback:_ `o(x,t)`
+
+- Spatial/domain average over domain $D$ is denoted $\langle \cdot \rangle_D$.  
+  _ASCII fallback:_ `< ... >_D`
+
+- Ensemble members are indexed $m=1,\dots,N$, and the ensemble mean is
+  $$
+  \bar f(\mathbf{x},t) \;=\; \frac{1}{N}\sum_{m=1}^N f_m(\mathbf{x},t).
+  $$
+  _ASCII fallback:_ `f_bar(x,t) = (1/N) * sum_{m=1..N} f_m(x,t)`
+
+- Time series (indices) use discrete time $t=1,\dots,T$ where needed.  
+  _ASCII fallback:_ `t = 1..T`
+
+- Small constant for numerical stability: $\varepsilon = 10^{-12}$.  
+  _ASCII fallback:_ `eps = 1e-12`
 ---
 
 ### 1) Anomaly Correlation Coefficient (ACC)
