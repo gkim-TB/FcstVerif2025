@@ -66,11 +66,11 @@ conda install -c conda-forge xarray dask[complete] xskillscore climpred xesmf cf
 This section documents the mathematical formulas used by the verification system and points to where each metric is implemented in the analysis code.
 
 ### Notation
-- $f(\mathbf{x}, t)$ : forecast field (ensemble member or ensemble mean) at spatial location $\mathbf{x}$ and time $t$.  
-  _ASCII fallback:_ `f(x,t)`
+- $f(\mathbf{x},\mathbf{y}, t)$ : forecast field (ensemble member or ensemble mean) at spatial location $\mathbf{x}$(longitude), $\mathbf{y}$(latitude), and time $t$.  
+  _ASCII fallback:_ `f(x,y,t)`
 
-- $o(\mathbf{x}, t)$ : observation field at location $\mathbf{x}$ and time $t$.  
-  _ASCII fallback:_ `o(x,t)`
+- $o(\mathbf{x}, \mathbf{y}, t)$ : observation field at location $\mathbf{x}$(longitude), $\mathbf{y}$(latitude), and time $t$.  
+  _ASCII fallback:_ `o(x,y,t)`
 
 - Spatial/domain average over domain $D$ is denoted $\langle \cdot \rangle_D$.  
   _ASCII fallback:_ `< ... >_D`
