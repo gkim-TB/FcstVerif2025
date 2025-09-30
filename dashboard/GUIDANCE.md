@@ -77,16 +77,13 @@ This section documents the mathematical formulas used by the verification system
 
 - Ensemble members are indexed $m=1,\dots,N$, and the ensemble mean is
   $$
-  \bar f(\mathbf{x},t) \;=\; \frac{1}{N}\sum_{m=1}^N f_m(\mathbf{x},t).
+  \bar f(\mathbf{x},\mathbf{y},t) \;=\; \frac{1}{N}\sum_{m=1}^N f_m(\mathbf{x},\mathbf{y},t).
   $$
   _ASCII fallback:_ `f_bar(x,t) = (1/N) * sum_{m=1..N} f_m(x,t)`
 
 - Time series (indices) use discrete time $t=1,\dots,T$ where needed.  
   _ASCII fallback:_ `t = 1..T`
 
-- Small constant for numerical stability: $\varepsilon = 10^{-12}$.  
-  _ASCII fallback:_ `eps = 1e-12`
----
 
 ### 1) Anomaly Correlation Coefficient (ACC)
 
