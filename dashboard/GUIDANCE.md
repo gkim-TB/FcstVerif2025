@@ -1,3 +1,10 @@
+# Guidance — Real-time Seasonal Forecast Verification System
+
+## 💡 Project Overview
+
+This project develops an **automated verification system** to systematically evaluate the **real-time** forecast performance of seasonal prediction systems.  
+The system aims to ingest operational forecast streams, run standardized verification workflows, and deliver interactive visualization and summary reports.
+
 ---
 
 ## Background
