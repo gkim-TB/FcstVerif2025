@@ -1,9 +1,6 @@
 # 📘 Guidance 
 # Real-time Seasonal Forecast Verification System
 
-
-##  Project Overview
-
 This project develops an **automated verification system** to systematically evaluate the **real-time** forecast performance of seasonal prediction systems.  
 The system aims to ingest operational forecast streams, run standardized verification workflows, and deliver interactive visualization and summary reports.
 
@@ -114,87 +111,124 @@ RMSE = sqrt( < (f - o)^2 >_D )
 
 ### 3) Index (time-series) correlation and RMSE
 
-For scalar indices \(f_t\) and \(o_t\) over times \(t=1\ldots T\):
+- **Pearson correlation (index ACC)** — for scalar index series $f_t$ and $o_t$ over $t=1,\dots,T$:
 
-**Pearson correlation (index ACC):**
-$$
-\mathrm{ACC_{index}} = \frac{\sum_{t}(f_t-\bar f)(o_t-\bar o)}
-{\sqrt{\sum_{t}(f_t-\bar f)^2}\sqrt{\sum_{t}(o_t-\bar o)^2} }.
-$$
+  Inline LaTeX:
+  $$
+  \mathrm{ACC_{index}} \;=\; \frac{\sum_{t=1}^T (f_t-\bar f)(o_t-\bar o)}
+  {\sqrt{\sum_{t=1}^T (f_t-\bar f)^2}\;\sqrt{\sum_{t=1}^T (o_t-\bar o)^2}}.
+  $$
 
-**Index RMSE:**
-$$
-\mathrm{RMSE_{index}} = \sqrt{\frac{1}{T}\sum_{t}(f_t - o_t)^2 }.
-$$
+  ASCII fallback:  
+  `ACC_index = sum_t (f_t - f_bar)(o_t - o_bar) / ( sqrt(sum_t (f_t - f_bar)^2) * sqrt(sum_t (o_t - o_bar)^2) )`
+
+- **Index RMSE**:
+
+  Inline LaTeX:
+  $$
+  \mathrm{RMSE_{index}} \;=\; \sqrt{\frac{1}{T}\sum_{t=1}^T (f_t - o_t)^2 }.
+  $$
+
+  ASCII fallback:  
+  `RMSE_index = sqrt( (1/T) * sum_t (f_t - o_t)^2 )`
+
 
 ---
 
 ### 4) Tercile categorization & ensemble probability
 
-- **Tercile thresholds**: either empirical quantiles (33%, 67%) from climatology or fixed fraction of std (e.g., \(\pm0.43\sigma\)) depending on variable.
+- **Tercile thresholds**: use empirical quantiles (33%, 67%) from climatology or fixed fraction of standard deviation (e.g., $\pm 0.43\sigma$) depending on variable.
 
-- **Ensemble probability for category \(k\):**
-$$
-p_k(\mathbf{x},t) \;=\; \frac{1}{N}\sum_{m=1}^{N} \mathbf{1}\{ f_m(\mathbf{x},t)\in \text{category }k\},
-$$
-where \(\mathbf{1}\{\cdot\}\) is the indicator function.
+  ASCII fallback:  
+  `thresholds = { lower = 33rd percentile, upper = 67th percentile }  OR  { -0.43*sigma, +0.43*sigma }`
 
-**ASCII:**  
-p_k = (1/N) * sum_{m=1..N} 1{ f_m in category k }
+- **Ensemble probability for category $k$** (ensemble members $m=1..N$):
+
+  Inline LaTeX:
+  $$
+  p_k(\mathbf{x},t) \;=\; \frac{1}{N}\sum_{m=1}^{N} \mathbf{1}\{ f_m(\mathbf{x},t)\in \text{category }k\},
+  $$
+
+  ASCII fallback:  
+  `p_k(x,t) = (1/N) * sum_{m=1..N} 1{ f_m(x,t) in category k }`
+
 
 ---
 
 ### 5) Ranked Probability Score (RPS) & Ranked Probability Skill Score (RPSS)
 
-- Let cumulative forecast probabilities be \(F_j = \sum_{k=1}^{j} p_k\) for \(j=1,\dots,K\).  
-- Let cumulative observed vector \(O_j\) be the cumulative one-hot (0 or 1).
+- Define cumulative forecast probabilities $F_j = \sum_{k=1}^{j} p_k$ for $j=1,\dots,K$, and cumulative observed vector $O_j$ (0/1 cumulative).
 
-**RPS (single case / gridpoint):**
-$$
-\mathrm{RPS} = \sum_{j=1}^{K} (F_j - O_j)^2.
-$$
+- **RPS (per case / gridpoint)**:
 
-**RPSS (relative to reference RPS\(_{\mathrm{ref}}\), e.g., climatology):**
-$$
-\mathrm{RPSS} = 1 - \frac{\mathrm{RPS}}{\mathrm{RPS}_{\mathrm{ref}}}.
-$$
+  Inline LaTeX:
+  $$
+  \mathrm{RPS} \;=\; \sum_{j=1}^{K} \bigl(F_j - O_j\bigr)^2.
+  $$
 
-**ASCII:**  
-RPS = sum_{j=1..K} (F_j - O_j)^2  
-RPSS = 1 - RPS / RPS_ref
+  ASCII fallback:  
+  `RPS = sum_{j=1..K} ( F_j - O_j )^2`
+
+- **RPSS (relative to reference RPS_ref, e.g., climatology)**:
+
+  Inline LaTeX:
+  $$
+  \mathrm{RPSS} \;=\; 1 \;-\; \frac{\mathrm{RPS}}{\mathrm{RPS}_{\mathrm{ref}}}.
+  $$
+
+  ASCII fallback:  
+  `RPSS = 1 - RPS / RPS_ref`
+
 
 ---
 
 ### 6) ROC / AUC (per category vs rest)
 
-For category \(k\), treat \(p_k\) as classifier score and the binary observation \(y_k = 1\) if observed category is \(k\), else 0. Compute TPR and FPR across thresholds and integrate to get AUC.
+- For each category $k$, define binary observation $y^{(k)} = 1$ if observed category is $k$, else $0$. Use forecast probability $p_k$ as score.
 
-**Notes (implementation):** use ranked thresholds on \(p_k\) or library routines (scikit-learn `roc_auc_score`) after flattening over samples.
+- Compute TPR (true positive rate) and FPR (false positive rate) across decision thresholds $\tau$ and integrate the ROC curve to obtain AUC:
+
+  Inline (conceptual):
+  $$
+  \mathrm{AUC}_k \;=\; \int_0^1 \mathrm{TPR}_k(\mathrm{FPR})\, d(\mathrm{FPR}).
+  $$
+
+  ASCII fallback:  
+  `AUC_k = area under ROC curve computed by varying threshold on p_k and plotting TPR vs FPR`
+
+- **Implementation note:** flatten samples over time/space as configured, or compute per-region/time-window then aggregate. Use library routine (e.g., `sklearn.metrics.roc_auc_score`) where available.
+
 
 ---
 
 ### 7) Contingency-table metrics (accuracy, Heidke Skill Score)
 
-Let contingency matrix \(C\) be \(K\times K\) with \(C_{ij}\) = count(obs = i, fcst = j). Total samples \(T=\sum_{i,j} C_{ij}\). Correct hits \(H=\sum_i C_{ii}\).
+- Build contingency matrix $C$ of size $K\times K$ where $C_{ij}$ = count(obs = i, fcst = j). Total samples $T=\sum_{i,j} C_{ij}$.
 
-- **Accuracy (categorical hit rate):**
-$$
-\text{Accuracy} = \frac{H}{T}.
-$$
+- **Accuracy (categorical hit rate)**:
+  
+  Inline LaTeX:
+  $$
+  \text{Accuracy} \;=\; \frac{\sum_{i=1}^K C_{ii}}{T}.
+  $$
 
-- **Heidke Skill Score (HSS):**
-First compute expected correct by chance
-$$
-E = \sum_{i=1}^K \frac{\left(\sum_j C_{ij}\right)\left(\sum_j C_{ji}\right)}{T},
-$$
-then
-$$
-\mathrm{HSS} = \frac{H - E}{T - E}.
-$$
+  ASCII fallback:  
+  `Accuracy = H / T   where H = sum_i C_{ii}`
 
-**ASCII:**  
-Accuracy = H / T  
-E = sum_i (row_i_sum * col_i_sum) / T  
-HSS = (H - E) / (T - E)
+- **Heidke Skill Score (HSS)**:
+  
+  Expected correct by chance:
+  $$
+  E \;=\; \sum_{i=1}^K \frac{\left(\sum_{j=1}^K C_{ij}\right)\left(\sum_{j=1}^K C_{ji}\right)}{T}.
+  $$
+
+  HSS:
+  $$
+  \mathrm{HSS} \;=\; \frac{\sum_{i=1}^K C_{ii} - E}{T - E}.
+  $$
+
+  ASCII fallback:  
+  `E = sum_i ( row_sum_i * col_sum_i ) / T`  
+  `HSS = (H - E) / (T - E)`
 
 ---
