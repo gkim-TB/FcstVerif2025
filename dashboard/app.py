@@ -68,30 +68,112 @@ else:
 # -------------------------
 # GUIDANCE 렌더 함수 (메인)
 # -------------------------
+# GUIDANCE_FILENAMES = ["GUIDANCE.md"]
+# def render_guidance():
+#     # st.header("Guidance")
+#     # # 메인에서도 닫기 버튼 제공
+#     # st.button("← Close Guidance", key="close_guidance_main", on_click=_close_guidance)
+
+#     base_dir = os.path.dirname(__file__) if "__file__" in globals() else os.getcwd()
+#     found = False
+#     for fname in GUIDANCE_FILENAMES:
+#         fpath = os.path.join(base_dir, fname)
+#         if os.path.exists(fpath):
+#             with open(fpath, "r", encoding="utf-8") as f:
+#                 md = f.read()
+#             st.markdown(md, unsafe_allow_html=True)
+#             found = True
+#             break
+#     if not found:
+#         st.warning("GUIDANCE.md 파일이 앱 폴더에 없습니다. Guidance 파일을 업로드하거나 파일명을 확인해 주세요.")
+
+# # 만약 guidance 모드면 우측 메인에 guidance만 표시하고 종료
+# if st.session_state.get('page', '') == "guidance":
+#     render_guidance()
+#     st.stop()
+import re
+from pathlib import Path
+
 GUIDANCE_FILENAMES = ["GUIDANCE.md"]
-def render_guidance():
-    # st.header("Guidance")
-    # # 메인에서도 닫기 버튼 제공
-    # st.button("← Close Guidance", key="close_guidance_main", on_click=_close_guidance)
 
-    base_dir = os.path.dirname(__file__) if "__file__" in globals() else os.getcwd()
-    found = False
-    for fname in GUIDANCE_FILENAMES:
-        fpath = os.path.join(base_dir, fname)
-        if os.path.exists(fpath):
-            with open(fpath, "r", encoding="utf-8") as f:
-                md = f.read()
-            st.markdown(md, unsafe_allow_html=True)
-            found = True
+def load_and_split_guidance(path: str):
+    """
+    Return tuple (overview_md, verification_md).
+    Splits at the first occurrence of a header starting with '## Verification metrics'
+    (case-insensitive). If not found, split roughly in half as fallback.
+    """
+    text = Path(path).read_text(encoding="utf-8")
+    # try to find the canonical split header (case-insensitive)
+    split_pat = re.compile(r"(^##\s*Verification metrics\b)", flags=re.IGNORECASE | re.MULTILINE)
+    m = split_pat.search(text)
+    if m:
+        idx = m.start()
+        overview = text[:idx].strip()
+        verification = text[idx:].strip()
+        return overview, verification
+
+    # fallback: split roughly in two (preserve readability)
+    mid = len(text) // 2
+    # try to split at nearest heading before mid
+    heading_before_mid = list(re.finditer(r"(^##\s+.+$)", text, flags=re.MULTILINE))
+    split_idx = None
+    for h in heading_before_mid:
+        if h.start() > mid:
             break
-    if not found:
+        split_idx = h.start()
+    if split_idx:
+        return text[:split_idx].strip(), text[split_idx:].strip()
+    # final fallback
+    return text[:mid].strip(), text[mid:].strip()
+
+def render_guidance():
+    """
+    New guidance renderer:
+    - shows top bar with right-aligned selectbox to choose tab
+      (Overview / Verification matrix)
+    - renders the selected chunk (Markdown) full-width
+    """
+    base_dir = os.path.dirname(__file__) if "__file__" in globals() else os.getcwd()
+
+    # find the guidance file
+    fpath = None
+    for fname in GUIDANCE_FILENAMES:
+        cand = os.path.join(base_dir, fname)
+        if os.path.exists(cand):
+            fpath = cand
+            break
+
+    if not fpath:
         st.warning("GUIDANCE.md 파일이 앱 폴더에 없습니다. Guidance 파일을 업로드하거나 파일명을 확인해 주세요.")
+        return
 
-# 만약 guidance 모드면 우측 메인에 guidance만 표시하고 종료
-if st.session_state.get('page', '') == "guidance":
-    render_guidance()
-    st.stop()
+    overview_md, verification_md = load_and_split_guidance(fpath)
 
+    # top bar: title left, small right-aligned tab selectbox
+    colL, colR = st.columns([8, 2])
+    with colL:
+        st.markdown("## Guidance")
+    # keep selection persistent in session_state
+    if 'guidance_tab' not in st.session_state:
+        st.session_state['guidance_tab'] = "📊 Overview"
+    with colR:
+        # compact selectbox without label; options must match what's checked below
+        st.session_state['guidance_tab'] = st.selectbox(
+            "", options=["📊 Overview", "🔬 Verification matrix"], index=0 if st.session_state['guidance_tab']=="📊 Overview" else 1
+        )
+
+    st.markdown("---")
+
+    # render selected content (allow raw HTML for styling if needed)
+    if st.session_state['guidance_tab'] == "📊 Overview":
+        st.markdown(overview_md, unsafe_allow_html=True)
+    else:
+        st.markdown(verification_md, unsafe_allow_html=True)
+
+    # small footer / helper
+    with st.expander("File info", expanded=False):
+        st.write(f"Loaded: `{os.path.basename(fpath)}`")
+        st.write("If math (LaTeX) does not render, Streamlit typically supports `$...$` / `$$...$$`.")
 # ──────────────────────────────────────────────
 # 일반 모드 (Guidance 닫힌 상태) — 기존 컨텐츠 렌더
 # ──────────────────────────────────────────────
