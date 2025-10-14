@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 # ================ USER SETTINGS =================
-RUN_MODE = "manual" # "manual" or "auto"
+RUN_MODE = "auto" # "manual" or "auto"
 
 # --- 모델 ---
 model = "GS6"
@@ -27,8 +27,8 @@ clim_end   = 2020
 """ list all variables in case manually select in command line"""
 #VARIABLES = ["sst"]
 #VARIABLES = ["t2m"]
-VARIABLES = ["z500"]
-#VARIABLES = ["z500", "t2m", "prcp", "sst"]
+#VARIABLES = ["z500"]
+VARIABLES = ["z500", "t2m", "prcp", "sst"]
 #VARIABLES = ["t", "z"]
 
 # --- 검증 영역 정의 ---

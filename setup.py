@@ -15,7 +15,10 @@ setup(
         'scikit-learn',
         'xskillscore',
         'streamlit>=1.35.0',
-        'Pillow'
+        'Pillow',
+        'pygrib',
+        'cartopy',
+        'netcdf4','h5netcdf'
     ],
 )
 
