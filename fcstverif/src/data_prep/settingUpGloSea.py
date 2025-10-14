@@ -218,7 +218,7 @@ def convert_monthly_forecast_from_mem(
 
         else:
             logger.info(f"VAR is in surface level")
-            fpath = f"{data_dir}/{rename_var}/{file_prefix}{rename_var}_{date_tag}_mem.grb2.grb2"
+            fpath = f"{data_dir}/{rename_var}/{file_prefix}{rename_var}_{date_tag}_mem.grb2"
             if not os.path.isfile(fpath):
                 logger.warning(f"[MEM] 파일 없음: {fpath}")
         
