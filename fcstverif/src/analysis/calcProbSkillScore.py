@@ -66,10 +66,10 @@ def compute_roc_auc_all_categories(var, fcst_prob, obs_ohe, init_time, region_na
     categories = fcst_prob.category.values.tolist()
 
     # 지역 클리핑
-    fcst_sub = clip_to_region(fcst_prob, region_name)
-    obs_sub  = clip_to_region(obs_ohe, region_name)
-    print(fcst_sub)
-    print(obs_sub)
+    fcst_sub = clip_to_region(fcst_prob, region_name, var)
+    obs_sub  = clip_to_region(obs_ohe, region_name, var)
+    #print(fcst_sub)
+    #print(obs_sub)
 
     n_lead = fcst_sub.sizes['time']
     n_cat = len(categories)

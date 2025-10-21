@@ -5,7 +5,7 @@ import os
 import logging
 
 from fcstverif.config import (
-    VARIABLES, REGIONS, model, year_start, year_end, 
+    VARIABLES, REGIONS, model, verify_start, verify_end, fcst_start, fcst_end, 
     model_out_dir, sst_out_dir, output_fig_dir, verification_out_dir
 )
 from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
@@ -56,7 +56,7 @@ def main():
     logger = init_logger(level=log_level)
 
     var = args.var
-    yyyymm_list = generate_yyyymm_list(year_start, year_end)
+    yyyymm_list = generate_yyyymm_list(fcst_start, fcst_end)
     fig_dir = os.path.join(output_fig_dir, 'IDX')
     os.makedirs(fig_dir, exist_ok=True)
 

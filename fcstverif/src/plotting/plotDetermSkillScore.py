@@ -373,11 +373,11 @@ def plot_trajectory_w_acc_by_initialized_line(
     # ▶ trajectory 모드: 관측 불러오기
     if mode == "trajectory":
         obs = load_obs_data(var, years=fyears, obs_dir=era5_out_dir, suffix="anom", var_suffix=var)
-        obs_region = clip_to_region(obs, region)
+        obs_region = clip_to_region(obs, region, var)
         if var == 'sst':
             mask = get_combined_mask(model_name=model, obs_name="OISST")
             if mask is not None:
-                obs_region = obs_region.where(clip_to_region(mask, region))
+                obs_region = obs_region.where(clip_to_region(mask, region, var))
             else:
                 logger.warning(f"[WARN] No mask found")
 
@@ -405,9 +405,10 @@ def plot_trajectory_w_acc_by_initialized_line(
                 with xr.open_dataset(fpath) as ds:
                     da = ds[var].mean("ens", skipna=True).squeeze()
                     da = da.assign_coords(time=("lead", ds["time"].values)).swap_dims({"lead": "time"})
-                    da_region = clip_to_region(da, region)
+                    da_region = clip_to_region(da, region, var)
+                    print(da_region)
                     if mask is not None:
-                        da_region = da_region.where(clip_to_region(mask, region))
+                        da_region = da_region.where(clip_to_region(mask, region, var))
                     fanom = da_region.mean(dim=["lat", "lon"], skipna=True).load()
                     
                     lead_vals = fanom["lead"].values
@@ -511,6 +512,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
         get_region_extent,
         get_combined_mask
     )
+    
     plot_settings = {
     't2m':   {'clevels': np.arange(-5,5.1,0.5), 'blevels': np.arange(-5, 5.1, 0.5), 'cmap': 'RdBu_r'},
     'prcp':  {'clevels': np.arange(-5,5.1,0.5), 'blevels': np.arange(-5,5.1,0.5), 'cmap': 'BrBG'},
@@ -693,7 +695,7 @@ def _compute_sst_hovmoller_data(yyyymm, region_box):
 
     # ── Forecast: ens-mean → region clip → lat-mean → time 보장
     fcst_mean = ds_fcst["sst"].mean(dim="ens", skipna=True).squeeze() # drop dim=init by squeezing
-    fcst_reg  = clip_to_region(fcst_mean, region_box)              # 경도체계/래핑/정렬 포함
+    fcst_reg  = clip_to_region(fcst_mean, region_box, var)              # 경도체계/래핑/정렬 포함
     fcst_latm = fcst_reg.mean(dim="lat", skipna=True).astype(float)
 
     # lead→time(또는 time 그대로 유지)
@@ -713,7 +715,7 @@ def _compute_sst_hovmoller_data(yyyymm, region_box):
         logger.info("[SKIP] no OBS files for forecast time window.")
         ds_fcst.close(); return None, None, None, None
 
-    obs_reg = clip_to_region(obs_all, region_box)
+    obs_reg = clip_to_region(obs_all, region_box, var)
     obs     = obs_reg.mean(dim="lat", skipna=True).astype(float)
 
     # ── common_time(월 교집합) 계산 (보간 없음)

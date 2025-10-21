@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 # ================ USER SETTINGS =================
-RUN_MODE = "auto" # "manual" or "auto"
+RUN_MODE = "auto" #"manual" or "auto"
 
 # --- 모델 ---
 model = "GS6"
@@ -47,21 +47,21 @@ REGION_OVERRIDE_BY_VAR = {
 # --- plot list ---
 enabled_plots = [
     # -- detailed plots
-    #"init_line",       # Timeseries of deterministic skill score by lead, every initialized month
-    #"target_month",    # Timeseries of deterministic skill score by lead, every target month
-    #"target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
-    #"rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
-    #"roc_curve",        # (Probabilistic skill score) ROC curve with AUC, every initialized month
+    "init_line",       # Timeseries of deterministic skill score by lead, every initialized month
+    "target_month",    # Timeseries of deterministic skill score by lead, every target month
+    "target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
+    "rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
+    "roc_curve",        # (Probabilistic skill score) ROC curve with AUC, every initialized month
     # -- overview plots
     "target_line",      # Timeseries of all forecast initialization (ACC)
     "traj_line",        # Trajectory lines of all forecast initialization
     #"init_heatmap",    # Deterministic skill score heatmap
     #"cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
     # -- analytics plots
-    #"skill_relation",   # Skill relation plot
-    #"skill_relation_v2",
-    "nino34_hovmoller", # works only for "sst"
-    "iod_hovmoller", # works only for "sst"
+    #"skill_relation",   # Skill relation plot ( not used )
+    #"skill_relation_v2", # (not used)
+    #"nino34_hovmoller", # works only for "sst"
+    #"iod_hovmoller", # works only for "sst"
     ]
 
 
@@ -127,8 +127,8 @@ OBS_MASKS = {
     "OISST": f"{base_dir}/MASK/oisst_mask_to_{model}.nc"
 }
 
-# Define ENSO and IOD regions
-# region box: (latS, latN, lonL, lonR)
-ENSO_BOX = (-5, 5, 190, 240)  # Niño 3.4 영역
-IOD_WEST_BOX = (-10, 10, 50, 70)
-IOD_EAST_BOX = (-10, 0, 90, 110)
+# Define ENSO and IOD regions in list format
+# region BOX = [lonL, lonR, latS, latN]
+ENSO_BOX = [190, 240, -5, 5]  # Niño 3.4 영역
+IOD_WEST_BOX = [50, 70, -10, 10]
+IOD_EAST_BOX = [90, 110, -10, 0]

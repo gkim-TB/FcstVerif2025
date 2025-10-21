@@ -127,13 +127,13 @@ def convert_single_hindcast_file(
 
     #rename_var = GSvar2rename.get(var, var)
     rename_var, level = _resolve_gs_rename(var)
-    print(f"convert to GS6 var ===> VAR= {rename_var}, LEVEL= {level}")
+    logger.info(f"convert to GS6 var ===> VAR= {rename_var}, LEVEL= {level}")
     
     date_tag = pd.to_datetime(init_date_str).strftime('%Y%m%d')
     stat_part = "" if stat_type is None else f"{stat_type}_"
 
     if level is not None:
-        logger.info(f"VAR is in pressure level")
+        logger.debug(f"VAR is in pressure level")
         # hindcast data path [ modify if needed ]
         fpath = f"{data_dir}/{rename_var}/{file_prefix}{stat_part}{rename_var}{level}_{date_tag}.grb2"
         if not os.path.isfile(fpath):
@@ -143,7 +143,7 @@ def convert_single_hindcast_file(
         grbs = pygrib.open(fpath)
         msgs = grbs.select(name=var2grib_name[rename_var], level=level)
     else:
-        logger.info(f"VAR is in surface level")
+        logger.debug(f"VAR is in surface level")
         fpath = f"{data_dir}/{rename_var}/{file_prefix}{stat_part}{rename_var}_{date_tag}.grb2"
         if not os.path.isfile(fpath):
             logger.warning(f"[HIND] {stat_type} 파일 없음: {fpath}")
@@ -152,7 +152,7 @@ def convert_single_hindcast_file(
         msgs = grbs.select(name=var2grib_name[rename_var])
 
     grbs.close()
-    logger.info(msgs)
+    logger.debug(msgs)
 
     init_date = pd.to_datetime(init_date_str).replace(day=1)
     ds_out = _grib_messages_to_dataset(msgs, init_date, var, stat_type)
@@ -168,8 +168,9 @@ def convert_single_hindcast_file(
 
 def convert_monthly_hindcast(forecast_start, forecast_end, var, init_rule, data_dir, file_prefix, out_dir):
     '''
-    convert the specified initialized date to monthly initialization
-    e.g. if initialized date is 2022-01-01 --> 2022-01
+    Convert hindcast climatology, gaus, qntl, sigma files
+    KMA post processed data (climatology is ready-made) is used. => No need to read all hindcast data year-by=year
+    Initialized date in hindcast file name is already matched with forecast file name 
     '''
     init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)
     stat_list = []
@@ -188,6 +189,16 @@ def convert_monthly_hindcast(forecast_start, forecast_end, var, init_rule, data_
             convert_single_hindcast_file(
                 date_str, var, stat_type, data_dir, file_prefix, out_dir)
 
+def generate_target_grid(data:xr.DataArray):
+    '''
+    data: xarray Dataset containing 'lat' and 'lon' variables
+    Save lat/lon grid to a NetCDF file for later use in reanalysis interpolation
+
+    '''
+    grid_ds = xr.Dataset({"lat": data["lat"], "lon": data["lon"]})
+    grid_ds.to_netcdf(f"{model_out_dir}/target_grid.nc")
+    logger.info(f"[SAVED] Target grid → {model_out_dir}/target_grid.nc")
+    
 def convert_monthly_forecast_from_mem(
         forecast_start : str,
         forecast_end : str,
@@ -202,7 +213,8 @@ def convert_monthly_forecast_from_mem(
     rename_var, level = _resolve_gs_rename(var)
     init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)
 
-    for d in init_dates:
+    for c, d in enumerate(init_dates):
+
         date_tag   = d.strftime('%Y%m%d')
 
         # forecast data path 
@@ -225,14 +237,6 @@ def convert_monthly_forecast_from_mem(
             grbs = pygrib.open(fpath)
             msgs = grbs.select(name=var2grib_name[rename_var])
 
-        # fpath = os.path.join(data_dir, rename_var,
-        #                      f"{file_prefix}{rename_var}_{date_tag}_mem.grb2")
-        # if not os.path.isfile(fpath):
-        #     logger.warning(f"[MEM] 파일 없음: {fpath}")
-        #     continue
-
-        # grbs = pygrib.open(fpath)
-        # msgs = grbs.select(name=var2grib_name[rename_var])
         grbs.close()
 
         if len(msgs) % 6 != 0:
@@ -247,7 +251,10 @@ def convert_monthly_forecast_from_mem(
             ens_ds.append(_grib_messages_to_dataset(chunk, init_date, var))
 
         ds_ens = xr.concat(ens_ds, dim='ens').set_coords('time')
-        
+
+        if c == 0: # for the first time, save target grid
+            generate_target_grid(ds_ens)
+
         # ▶ GS6 강수량 / 지위 단위 변환
         for vname in ds_ens.data_vars:
             if vname.startswith(var):

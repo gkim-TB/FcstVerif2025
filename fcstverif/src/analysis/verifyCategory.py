@@ -89,8 +89,8 @@ def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_name):
             fcst_cate = ds_fcst[f"{var}_fcst_det"].sel(lead=lead)
 
             # 지역 제한
-            obs_cate = clip_to_region(obs_cate, region_name)#, var)
-            fcst_cate = clip_to_region(fcst_cate, region_name)#, var)
+            obs_cate = clip_to_region(obs_cate, region_name, var)
+            fcst_cate = clip_to_region(fcst_cate, region_name, var)
 
             obs_idx = obs_cate.values.flatten()
             fcst_idx = fcst_cate.values.flatten()

@@ -52,7 +52,7 @@ conda create -n fcstverif python=3.10 -y
 conda activate fcstverif
 
 # install core packages
-conda install -c conda-forge xarray dask[complete] xskillscore climpred xesmf cfgrib pygrib matplotlib cartopy streamlit pandas numpy scikit-learn Pillow streamlit
+conda install -c conda-forge xarray dask[complete] xskillscore climpred xesmf cfgrib pygrib matplotlib cartopy pandas numpy scikit-learn Pillow streamlit
 ```
 
 ---

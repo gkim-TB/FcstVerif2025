@@ -58,14 +58,25 @@ def compute_era5_clim_and_anom(
     """
     os.makedirs(era5_out_dir, exist_ok=True)
     
-    # === target grid ===
+    # === target grid to regrid OBS ===
     logger.info(f"Checking target grid .....")
-    with xr.open_dataset(f'{root_dir}/target_grid.nc') as target:
-        target_lat, target_lon = target.lat, target.lon
-        print(len(target_lat), len(target_lon))
-    if len(target_lat) == 0 or len(target_lon) == 0:
-        logger.error("Target grid dimensions are invalid.")
-        return
+    # check if target grid exists; if not, create it
+    target_grid_path = f"{model_out_dir}/target_grid.nc"
+    if not os.path.isfile(target_grid_path):
+        logger.info("[INFO] Target grid not found. Creating target grid ...")
+        getGloSeagrid.create_target_grid(
+            nc_file=f"{model_out_dir}/hindcast/ensMem_sst_anom_{fyears[0]}.nc",
+            output_path=target_grid_path
+        )
+    else:
+        logger.info("[INFO] Target grid found.")
+
+        with xr.open_dataset(target_grid_path) as target:
+            target_lat, target_lon = target.lat, target.lon
+            print(len(target_lat), len(target_lon))
+        if len(target_lat) == 0 or len(target_lon) == 0:
+            logger.error("Target grid dimensions are invalid.")
+            return
 
     base, lvl = parse_var_level(var)
     rename_var = ERAvar2rename.get(base, base)

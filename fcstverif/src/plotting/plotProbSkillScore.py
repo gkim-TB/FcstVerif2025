@@ -106,7 +106,7 @@ def plot_roc_by_lead_per_init(var, yyyymm, region_name, data_dir, fig_dir):
     """
     import pandas as pd
     import matplotlib.pyplot as plt
-    import seaborn as sns
+    #import seaborn as sns
 
     roc_csv = os.path.join(data_dir, f"roc_{var}_{region_name}_{yyyymm}.csv")
     auc_file = os.path.join(data_dir, f"auc_{var}_{region_name}_{yyyymm}.nc")

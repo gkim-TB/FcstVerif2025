@@ -109,27 +109,27 @@ def get_region_extent(region_name: str, var: str):
         return REGION_OVERRIDE_BY_VAR[var][region_name]
     return REGIONS[region_name]  
 
-# def clip_to_region(da, region, var: str):
-#     """
-#     da: DataArray
-#     region: region_box(tuple) or region_name(str)
-#     var: variable
-#     """
-#     if isinstance(region, str):
-#             region_box = get_region_extent(region, var)
-#     else:
-#         region_box = region
-#     lon_min, lon_max, lat_min, lat_max = region_box
-#     return da.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+def clip_to_region(obj, region, var:str):
+    """
+    obj: xr.DataArray or xr.Dataset
+    region_name: key into REGIONS giving (lonL_raw, lonR_raw, latS, latN)
+    var : variable name
 
-def clip_to_region(obj, region_name):
+    동작:
+     - region이 (0,360) 또는 (-180,180)일 때: 경도 전체 사용(=경도 슬라이스 건너뜀), 위도만 자름
+     - 그 외: 경도 체계(0-360 vs -180-180)에 상관없이 안전하게 슬라이스(래핑 포함)
     """
-    obj(xr.DataArray or xr.Dataset)을 region_box=(latS, latN, lonL, lonR)로 잘라서 반환.
-    - 경도 체계 자동 감지(0~360 / -180~180)
-    - 날짜변경선 래핑 자동 처리(lonL > lonR인 경우)
-    - lon 정렬 보장
-    """
-    lonL_raw, lonR_raw, latS, latN = REGIONS[region_name]
+
+    if isinstance(region, str):
+        region_box = get_region_extent(region, var)
+    elif isinstance(region, (list, tuple, np.ndarray)):
+        if len(region) != 4:
+            raise ValueError("region must be 4-element sequence [lonL, lonR, latS, latN]")
+        region_box = region
+    else:
+        raise TypeError("region must be either a region name (str) or a 4-element sequence")
+
+    lonL_raw, lonR_raw, latS, latN = region_box
 
     # 좌표 이름 추론
     lon_name = "lon"  if "lon"  in obj.coords else ("longitude" if "longitude" in obj.coords else None)
@@ -141,6 +141,11 @@ def clip_to_region(obj, region_name):
     lon_vals = obj[lon_name].values
     use_0360 = (np.nanmin(lon_vals) >= 0.0) and (np.nanmax(lon_vals) <= 360.0)
 
+    # 전체 경도 사용 조건
+    if (np.isclose(lonL_raw, 0.0) and np.isclose(lonR_raw, 360.0)) or \
+       (np.isclose(lonL_raw, -180.0) and np.isclose(lonR_raw, 180.0)):
+        clipped = obj.sel({lat_name: slice(latS, latN)})
+        return clipped.sortby(lon_name)
     # region 경도를 데이터셋 체계로 변환
     def to_ds_lon(x):
         return (x % 360.0) if use_0360 else (( (x + 180.0) % 360.0 ) - 180.0)
@@ -161,6 +166,7 @@ def clip_to_region(obj, region_name):
 
     # 경도 정렬 보장
     clipped = clipped.sortby(lon_name)
+    print(clipped)
     return clipped
 
 def convert_prcp_to_mm_per_day(da: xr.DataArray, source: str, stat_type: Optional[str] = None):
@@ -200,6 +206,15 @@ def convert_geopotential_to_m(da, source, ):
         raise ValueError(f"Unknown geopotential source: {source}")
 
 def get_combined_mask(model_name, obs_name):
+    '''
+    land-sea mask combination logic for sst variable:
+    1) model & obs mask 모두 존재: 교집합(masked area 확대)
+    2) obs mask만 존재: obs mask 사용
+    3) model mask만 존재: model mask 사용
+    4) mask 없음: None 반환
+    5) mask 파일이 없으면 warning 로그 출력 후 무시
+    6) 반환된 mask는 DataArray(boolean) 형태
+    '''
     model_mask = None
     obs_mask = None
 

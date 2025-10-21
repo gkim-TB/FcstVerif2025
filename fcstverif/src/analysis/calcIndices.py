@@ -21,7 +21,8 @@ logger = init_logger()
 
 def calculate_enso_index(sst, mask=None):
     """Calculate ENSO index based on SST anomalies in a specific region."""
-    latS, latN, lonL, lonR = ENSO_BOX  # (lat_min, lat_max, lon_min, lon_max)
+    # from config.py region BOX = [lonL, lonR, latS, latN]
+    lonL, lonR, latS, latN = ENSO_BOX 
     sst_region = sst.sel(lat=slice(latS, latN), lon=slice(lonL, lonR))
     
     if mask is not None:
@@ -37,8 +38,10 @@ def calculate_enso_index(sst, mask=None):
 
 def calculate_iod_index(sst, mask=None):
     """Calculate IOD index based on SST anomalies in two regions."""
-    w_latS, w_latN, w_lonL, w_lonR = IOD_WEST_BOX
-    e_latS, e_latN, e_lonL, e_lonR = IOD_EAST_BOX
+    w_lonL, w_lonR, w_latS, w_latN = IOD_WEST_BOX
+    e_lonL, e_lonR, e_latS, e_latN = IOD_EAST_BOX
+    print(IOD_EAST_BOX)
+    print(IOD_WEST_BOX)
 
     sst_west = sst.sel(lat=slice(w_latS, w_latN), lon=slice(w_lonL, w_lonR))
     sst_east = sst.sel(lat=slice(e_latS, e_latN), lon=slice(e_lonL, e_lonR))

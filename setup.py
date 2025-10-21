@@ -18,7 +18,8 @@ setup(
         'Pillow',
         'pygrib',
         'cartopy',
-        'netcdf4','h5netcdf'
+        'netcdf4','h5netcdf',
+        'cmaps',
     ],
 )
 

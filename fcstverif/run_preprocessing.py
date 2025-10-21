@@ -65,6 +65,8 @@ def run_model_preprocessing(var):
     )
 
 def run_obs_preprocessing(var):
+    logger.info(f"[INFO] === OBS : {var} ===")
+    # process obs data
     if var == 'sst':
         missing_years = [
             year for year in range(fcst_start, fcst_end + 1)

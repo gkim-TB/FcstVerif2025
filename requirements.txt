@@ -7,3 +7,7 @@ xskillscore
 pandas
 Pillow
 pygrib
+cartopy
+netcdf4
+h5netcdf
+cmaps
