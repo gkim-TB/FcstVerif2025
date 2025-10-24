@@ -10,19 +10,17 @@ import os
 
 from fcstverif.config import fyears, ENSO_BOX, IOD_WEST_BOX, IOD_EAST_BOX
 from fcstverif.src.utils.general_utils import get_combined_mask, load_obs_data
-from fcstverif.src.utils.logging_utils import init_logger
-logger = init_logger()
 
-# # Define ENSO and IOD regions
-# # region box: (latS, latN, lonL, lonR)
-# ENSO_BOX = (-5, 5, 190, 240)  # Niño 3.4 영역
-# IOD_WEST_BOX = (-10, 10, 50, 70)
-# IOD_EAST_BOX = (-10, 0, 90, 110)
+import logging
+logger = logging.getLogger("fcstverif")
+
 
 def calculate_enso_index(sst, mask=None):
     """Calculate ENSO index based on SST anomalies in a specific region."""
     # from config.py region BOX = [lonL, lonR, latS, latN]
     lonL, lonR, latS, latN = ENSO_BOX 
+    logger.debug(f"check ENSO_BOX : {ENSO_BOX}")
+
     sst_region = sst.sel(lat=slice(latS, latN), lon=slice(lonL, lonR))
     
     if mask is not None:
@@ -40,8 +38,8 @@ def calculate_iod_index(sst, mask=None):
     """Calculate IOD index based on SST anomalies in two regions."""
     w_lonL, w_lonR, w_latS, w_latN = IOD_WEST_BOX
     e_lonL, e_lonR, e_latS, e_latN = IOD_EAST_BOX
-    print(IOD_EAST_BOX)
-    print(IOD_WEST_BOX)
+    logger.debug(f"check IOD_EAST_BOX : {IOD_EAST_BOX}")
+    logger.debug(f"check IOD_WEST_BOX : {IOD_WEST_BOX}")
 
     sst_west = sst.sel(lat=slice(w_latS, w_latN), lon=slice(w_lonL, w_lonR))
     sst_east = sst.sel(lat=slice(e_latS, e_latN), lon=slice(e_lonL, e_lonR))
@@ -149,7 +147,8 @@ def plot_index_timeseries_all_init(mode, obs_index, fcst_index_dict, fig_dir):
     ax.plot(obs_index.time, obs_index.values, 'k-', label='OBS', linewidth=2)
 
     # 초기화월별 예측값 플롯
-    cmap = plt.colormaps['tab20']
+    #cmap = plt.colormaps['tab20']
+    cmap = plt.get_cmap('tab20')
     month_colors = {m: cmap((m - 1) % 12) for m in range(1, 13)}
 
     for i, (yyyymm, fcst_da) in enumerate(sorted(fcst_index_dict.items())):
@@ -220,6 +219,10 @@ def calculate_index(var, yyyymm_list, model, fcst_dir, obs_dir, idx_dir, fig_dir
     ----------------------------------------------------------------------------------------------
 
     '''
+    
+    logger.info(f"[INFO] Calculating {mode} index for variable: {var}")
+    
+    # 관측 데이터 로드
     try:
         obs_data = load_obs_data(
             var, fyears, obs_dir, 
@@ -261,67 +264,67 @@ def calculate_index(var, yyyymm_list, model, fcst_dir, obs_dir, idx_dir, fig_dir
                 logger.warning(f"[WARN] Missing fcst file for {yyyymm}")
                 continue
 
-            ds_fcst = xr.open_dataset(fcst_file)
-            fcst_time = ds_fcst['time']
-            fcst_da = ds_fcst['sst'].squeeze()  # (lead, lat, lon)
-            fcst_da = fcst_da.assign_coords(time=("lead", fcst_time.values)).swap_dims({"lead": "time"})
-            
-            
-            # Calculate ENSO and IOD indices
-            if mode in ['ENSO', 'ALL']:
-                enso_index_fcst = calculate_enso_index(fcst_da, mask=mask)
-                fcst_dict[yyyymm] = enso_index_fcst
-
-                # Save indices
-                fcst_nc_path = os.path.join(idx_dir, f"fcst_ENSO_index_{yyyymm}.nc")
-                enso_index_fcst.to_netcdf(fcst_nc_path)
-                logger.info(f"[INFO] Forecast ENSO index saved: {fcst_nc_path}")
-
-                # common time to verif
-                common_times = [t for t in fcst_time.values if t in obs_data.time.values]
-                if len(common_times) == 0:
-                    logger.warning(f"[SKIP] {yyyymm}: No common time between forecast and obs")
-                    continue
-
-                obs_enso_sel = enso_index_obs.sel(time=common_times)
+            with xr.open_dataset(fcst_file) as ds_fcst:
+                fcst_time = ds_fcst['time']
+                fcst_da = ds_fcst['sst'].squeeze()  # (lead, lat, lon)
+                fcst_da = fcst_da.assign_coords(time=("lead", fcst_time.values)).swap_dims({"lead": "time"})
                 
-                # Plot plum
-                plot_index_plum_by_init(enso_index_fcst, obs_enso_sel, 'ENSO', yyyymm, fig_dir)
                 
-                # Skill
-                acc, rmse = calc_index_skill(enso_index_fcst, obs_enso_sel)
-                score_rows.append({
-                    "yyyymm": yyyymm,
-                    "ACC_ENSO": acc,
-                    "RMSE_ENSO": rmse,
-                    })
+                # Calculate ENSO and IOD indices
+                if mode in ['ENSO', 'ALL']:
+                    enso_index_fcst = calculate_enso_index(fcst_da, mask=mask)
+                    fcst_dict[yyyymm] = enso_index_fcst
+
+                    # Save indices
+                    fcst_nc_path = os.path.join(idx_dir, f"fcst_ENSO_index_{yyyymm}.nc")
+                    enso_index_fcst.to_netcdf(fcst_nc_path)
+                    logger.info(f"[INFO] Forecast ENSO index saved: {fcst_nc_path}")
+
+                    # common time to verif
+                    common_times = [t for t in fcst_time.values if t in obs_data.time.values]
+                    if len(common_times) == 0:
+                        logger.warning(f"[SKIP] {yyyymm}: No common time between forecast and obs")
+                        continue
+
+                    obs_enso_sel = enso_index_obs.sel(time=common_times)
+                    
+                    # Plot plum
+                    plot_index_plum_by_init(enso_index_fcst, obs_enso_sel, 'ENSO', yyyymm, fig_dir)
+                    
+                    # Skill
+                    acc, rmse = calc_index_skill(enso_index_fcst, obs_enso_sel)
+                    score_rows.append({
+                        "yyyymm": yyyymm,
+                        "ACC_ENSO": acc,
+                        "RMSE_ENSO": rmse,
+                        })
+                    
                 
-            
-            elif mode in ['IOD', 'ALL']:
-                iod_index_fcst = calculate_iod_index(fcst_da, mask=mask)
-                fcst_dict[yyyymm] = iod_index_fcst
+                elif mode in ['IOD', 'ALL']:
+                    iod_index_fcst = calculate_iod_index(fcst_da, mask=mask)
+                    fcst_dict[yyyymm] = iod_index_fcst
 
-                # Save indices
-                fcst_nc_path = os.path.join(idx_dir, f"fcst_IOD_index_{yyyymm}.nc")
-                iod_index_fcst.to_netcdf(fcst_nc_path)
-                logger.info(f"[INFO] Forecast IOD index saved: {fcst_nc_path}")
-            
-                common_times = [t for t in fcst_time.values if t in obs_data.time.values]
-                if len(common_times) == 0:
-                    logger.warning(f"[SKIP] {yyyymm}: No common time between forecast and obs")
-                    continue
+                    # Save indices
+                    fcst_nc_path = os.path.join(idx_dir, f"fcst_IOD_index_{yyyymm}.nc")
+                    iod_index_fcst.to_netcdf(fcst_nc_path)
+                    logger.info(f"[INFO] Forecast IOD index saved: {fcst_nc_path}")
+                
+                    common_times = [t for t in fcst_time.values if t in obs_data.time.values]
+                    if len(common_times) == 0:
+                        logger.warning(f"[SKIP] {yyyymm}: No common time between forecast and obs")
+                        continue
 
-                obs_iod_sel = iod_index_obs.sel(time=common_times)
+                    obs_iod_sel = iod_index_obs.sel(time=common_times)
 
-                plot_index_plum_by_init(iod_index_fcst, obs_iod_sel, 'IOD', yyyymm, fig_dir)
+                    plot_index_plum_by_init(iod_index_fcst, obs_iod_sel, 'IOD', yyyymm, fig_dir)
 
-                acc, rmse = calc_index_skill(iod_index_fcst, obs_iod_sel)
-                score_rows.append({
-                    "yyyymm": yyyymm,
-                    "ACC_ENSO": acc,
-                    "RMSE_ENSO": rmse,
-                    })
-                                           
+                    acc, rmse = calc_index_skill(iod_index_fcst, obs_iod_sel)
+                    score_rows.append({
+                        "yyyymm": yyyymm,
+                        "ACC_IOD": acc,
+                        "RMSE_IOD": rmse,
+                        })
+                                            
 
     # time series all init
     if mode == "ENSO":
@@ -339,7 +342,3 @@ def calculate_index(var, yyyymm_list, model, fcst_dir, obs_dir, idx_dir, fig_dir
         logger.info(f"[INFO] Index skill summary saved: {score_file}")
     else:
         logger.warning("[WARN] No index skill scores computed.")
-
-
-# if __name__ == "__main__":
-#     calculate_indices(years=fyears)

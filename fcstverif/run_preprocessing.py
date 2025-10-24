@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#fcstverif/run_preprocessing.py
+
 import argparse
 import os
 import logging
@@ -6,11 +7,13 @@ import logging
 from fcstverif.config import (
     VARIABLES, model, fcst_start, fcst_end, fyears, clim_start, clim_end,
     model_raw_dir, model_out_dir, sst_out_dir, era5_base_dir, era5_out_dir,
+    log_path
 )
 from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
 from fcstverif.src.data_prep import settingUpGloSea, settingUpOISST, settingUpERA5
-from fcstverif.src.utils.logging_utils import init_logger
 
+from fcstverif.src.utils.logging_utils import init_logger, get_logger
+logger = logging.getLogger("fcstverif")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Preprocessing for single var")
@@ -19,7 +22,8 @@ def parse_args():
     parser.add_argument("--run_mode", default=None, choices=["auto", "manual"], help="Execution mode (auto/manual)")
     return parser.parse_args()
 
-def run_model_preprocessing(var):
+def run_model_preprocessing(var, run_mode="auto", init_rule=None):
+    
     if model != 'GS6':
         logger.warning("MODEL NOT SUPPORTED")
         return
@@ -65,6 +69,7 @@ def run_model_preprocessing(var):
     )
 
 def run_obs_preprocessing(var):
+    
     logger.info(f"[INFO] === OBS : {var} ===")
     # process obs data
     if var == 'sst':
@@ -89,12 +94,15 @@ def run_obs_preprocessing(var):
 
 def main():
     args = parse_args()
+    var = args.var
     run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
     log_level = logging.DEBUG if args.debug else logging.INFO
-    global logger
-    logger = init_logger(level=log_level)
-    var = args.var
 
+    init_logger(logfile=log_path, level=log_level)
+    global logger
+    logger = get_logger()
+
+    logger.info(f"🔧 Starting preprocessing: var={var}")
     if run_mode == "auto":
         run_model_preprocessing(var)
         run_obs_preprocessing(var)

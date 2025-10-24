@@ -2,10 +2,11 @@ import xarray as xr
 import numpy as np
 import os
 import pandas as pd
-from config import fyears, REGIONS
-from src.utils.general_utils import load_obs_data, clip_to_region, get_combined_mask
-from src.utils.logging_utils import init_logger
-logger = init_logger()
+from fcstverif.config import fyears, REGIONS
+from fcstverif.src.utils.general_utils import load_obs_data, clip_to_region, get_combined_mask
+
+import logging
+from fcstverif.src.utils.logging_utils import init_logger, get_logger
 
 def _clip_inputs(var: str, region: str, fcst: xr.DataArray, obs: xr.DataArray) -> tuple:
     """
@@ -101,7 +102,9 @@ def compute_deterministic_scores(
     region_name : str
         Name of spatial region to evaluate (must match REGIONS)
     """
-
+    logger = logging.getLogger("fcstverif")
+    logger.info(f"Calculating deterministic skill scores for var={var}, region={region_name}")
+    
     # directory to save results
     # -> /OUT/{region_name}/{var}/ensScore_det_{var}_{yyyymm}.nc
     os.makedirs(out_dir, exist_ok=True)
@@ -135,62 +138,62 @@ def compute_deterministic_scores(
                 continue
 
             logger.info(f"[ENS FCST] Processing : {fcst_file}")
-            ds_fcst = xr.open_dataset(fcst_file)
-            fcst_time = ds_fcst['time'] # (lead,) datetime64
-            fcst_da = ds_fcst[var].squeeze("init", drop=True) # (ens, init, lead, lat, lon) -> (ens, lead, lat, lon)
-            fcst_da = fcst_da.assign_coords(time=('lead', fcst_time.values)).swap_dims({'lead': 'time'})  # → (ens, time, lat, lon)
+            with xr.open_dataset(fcst_file) as ds_fcst:
+                fcst_time = ds_fcst['time'] # (lead,) datetime64
+                fcst_da = ds_fcst[var].squeeze("init", drop=True) # (ens, init, lead, lat, lon) -> (ens, lead, lat, lon)
+                fcst_da = fcst_da.assign_coords(time=('lead', fcst_time.values)).swap_dims({'lead': 'time'})  # → (ens, time, lat, lon)
 
-            # Subsetting common time
-            common_times = [t for t in fcst_time.values if t in obs_data.time.values]
-            missing_times = [t for t in fcst_time.values if t not in obs_data.time.values]   
-            if missing_times:
-                logger.warning(
-                    f"[OBS] Missing observation times for : {[str(pd.to_datetime(t).date()) for t in missing_times]}"
-                            )
+                # Subsetting common time
+                common_times = [t for t in fcst_time.values if t in obs_data.time.values]
+                missing_times = [t for t in fcst_time.values if t not in obs_data.time.values]   
+                if missing_times:
+                    logger.warning(
+                        f"[OBS] Missing observation times for : {[str(pd.to_datetime(t).date()) for t in missing_times]}"
+                                )
 
-            fcst_da = fcst_da.sel(time=common_times)#.reset_coords(drop=True)
-            obs_sub = obs_data.sel(time=common_times)#.reset_coords(drop=True)
-            #print(fcst_da.time)
-            #print(obs_sub.time)
-            
-            if len(common_times) == 0:
-                logger.warning(f"[SKIP] {yyyymm}: No data => skipping calculation")
-                continue
+                fcst_da = fcst_da.sel(time=common_times)#.reset_coords(drop=True)
+                obs_sub = obs_data.sel(time=common_times)#.reset_coords(drop=True)
+                #print(fcst_da.time)
+                #print(obs_sub.time)
                 
-            if mask is not None:
-                fcst_da = fcst_da.where(mask)
-                obs_sub = obs_sub.where(mask)
+                if len(common_times) == 0:
+                    logger.warning(f"[SKIP] {yyyymm}: No data => skipping calculation")
+                    continue
+                    
+                if mask is not None:
+                    fcst_da = fcst_da.where(mask)
+                    obs_sub = obs_sub.where(mask)
+                    
+                # Calculate skill score
+                #logger.info("Calculating skill scores: ACC, RMSE, ...")
+                acc  = calc_acc_vec(var, region_name, fcst_da, obs_sub)       # (ens, time)
+                rmse = calc_rmse_vec(var, region_name, fcst_da, obs_sub)     # (ens, time)
+
+                # calculate skill score for ensemble mean
+                acc_mean = calc_acc_vec(var, region_name, fcst_da.mean("ens"), obs_sub)  # (ens, time)
+                rmse_mean = calc_rmse_vec(var, region_name, fcst_da.mean("ens"), obs_sub) 
                 
-            # Calculate skill score
-            #logger.info("Calculating skill scores: ACC, RMSE, ...")
-            acc  = calc_acc_vec(var, region_name, fcst_da, obs_sub)       # (ens, time)
-            rmse = calc_rmse_vec(var, region_name, fcst_da, obs_sub)     # (ens, time)
+                
+                # Results Dataset -> save scores
+                ds_out = xr.Dataset({
+                    "acc": acc,
+                    "rmse": rmse,
+                    "acc_mean": acc_mean,
+                    "rmse_mean": rmse_mean,
+                }, coords={"time": ("time", fcst_time.values),
+                        "lead": ("lead", ds_fcst['lead'].values),
+                        "ens": acc.ens
+                        }
+                )
 
-            # calculate skill score for ensemble mean
-            acc_mean = calc_acc_vec(var, region_name, fcst_da.mean("ens"), obs_sub)  # (ens, time)
-            rmse_mean = calc_rmse_vec(var, region_name, fcst_da.mean("ens"), obs_sub) 
-            
-            
-            # Results Dataset -> save scores
-            ds_out = xr.Dataset({
-                "acc": acc,
-                "rmse": rmse,
-                "acc_mean": acc_mean,
-                "rmse_mean": rmse_mean,
-            }, coords={"time": ("time", fcst_time.values),
-                       "lead": ("lead", ds_fcst['lead'].values),
-                       "ens": acc.ens
-                       }
-            )
+                # remove unnecessary variables
+                if "month" in ds_out:
+                    ds_out = ds_out.drop_vars("month")
 
-            # remove unnecessary variables
-            if "month" in ds_out:
-                ds_out = ds_out.drop_vars("month")
-
-            #lead_vals = fcst_da['lead'].values
-            #ds_out = ds_out.assign_coords(lead=('lead', lead_vals))
+                #lead_vals = fcst_da['lead'].values
+                #ds_out = ds_out.assign_coords(lead=('lead', lead_vals))
 
             # save output file
-            scoure_out_file = os.path.join(out_dir, f"ensScore_det_{var}_{yyyymm}.nc")
-            ds_out.to_netcdf(scoure_out_file)
-            logger.info(f"[SAVE] Ensemble skill score (ACC, RMSE) saved to => {scoure_out_file}")
+            source_out_file = os.path.join(out_dir, f"ensScore_det_{var}_{yyyymm}.nc")
+            ds_out.to_netcdf(source_out_file)
+            logger.info(f"[SAVE] Ensemble skill score (ACC, RMSE) saved to => {source_out_file}")

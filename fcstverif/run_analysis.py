@@ -1,20 +1,23 @@
-#!/usr/bin/env python
+# fcstverif/run_analysis.py
+
 import argparse
 import os
+
 import logging
+from fcstverif.src.utils.logging_utils import init_logger, get_logger
+logger = logging.getLogger("fcstverif")
 
 from fcstverif.config import (
     VARIABLES, REGIONS, verify_start, verify_end,
-    model, model_out_dir, sst_out_dir, era5_out_dir, verification_out_dir
+    model, model_out_dir, sst_out_dir, era5_out_dir, verification_out_dir,
+    log_path
 )
 from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
+
 from fcstverif.src.analysis.calcDetermSkillScore import compute_deterministic_scores
 from fcstverif.src.analysis.calcProbSkillScore import compute_probabilistic_scores
 from fcstverif.src.analysis.verifyCategory import run_cate_verification_loop
 from fcstverif.src.utils.general_utils import generate_yyyymm_list, get_combined_mask
-from fcstverif.src.utils.logging_utils import init_logger
-
-logger = init_logger()
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Analysis pipeline for single var/region")
@@ -25,6 +28,7 @@ def parse_args():
     return parser.parse_args()
 
 def run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, mask):
+
     logger.info("📌 Step 1: Deterministic Skill Scores")
 
     out_score_dir = f"{verification_out_dir}/SCORE/{region_name}/{var}"
@@ -53,6 +57,7 @@ def run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, mask):
             discover=False     )
 
 def run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, mask):
+
     logger.info("📌 Step 2: Probabilistic Skill Scores")
 
     compute_probabilistic_scores(
@@ -72,8 +77,9 @@ def main():
     run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
     log_level = logging.DEBUG if args.debug else logging.INFO
 
+    init_logger(logfile=log_path, level=log_level)
     global logger
-    logger = init_logger(level=log_level)
+    logger = get_logger()
 
     logger.info(f"🔍 Starting analysis: var={var}, region={region_name}")
     yyyymm_list = generate_yyyymm_list(verify_start, verify_end)

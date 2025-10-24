@@ -6,11 +6,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patches as patches
-from config import *  # verify_start/verify_end, fyears 등
-from src.utils.logging_utils import init_logger
+from fcstverif.config import *  # verify_start/verify_end, fyears 등
 
-logger = init_logger()
-
+import logging
+logger = logging.getLogger("fcstverif")
 
 def _load_cate_rollup(data_dir: str, var: str, region_name: str) -> pd.DataFrame:
     """
@@ -196,3 +195,4 @@ def plot_det_cate_heatmap(   # <<< CHANGED: signature 통일 (연도별 1장)
     save_fname = os.path.join(fig_dir, f"det_ter_score_{var}_{region_name}_{target_year}.png")  # <<< CHANGED
     fig.savefig(save_fname, dpi=300, bbox_inches="tight")
     logger.info(f"[SAVE] Category Score Heatmap: {save_fname}")
+    plt.close(fig)

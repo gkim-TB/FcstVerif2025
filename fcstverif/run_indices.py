@@ -2,16 +2,19 @@
 
 import argparse
 import os
-import logging
 
 from fcstverif.config import (
     VARIABLES, REGIONS, model, verify_start, verify_end, fcst_start, fcst_end, 
-    model_out_dir, sst_out_dir, output_fig_dir, verification_out_dir
+    model_out_dir, sst_out_dir, output_fig_dir, verification_out_dir,
+    log_path
 )
 from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
 from fcstverif.src.analysis.calcIndices import calculate_index
 from fcstverif.src.utils.general_utils import generate_yyyymm_list
-from fcstverif.src.utils.logging_utils import init_logger
+
+import logging
+from fcstverif.src.utils.logging_utils import init_logger, get_logger
+logger = logging.getLogger("fcstverif")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="ENSO/IOD Index Calculation")
@@ -50,12 +53,14 @@ def run_index_analysis(var, yyyymm_list, fig_dir):
 
 def main():
     args = parse_args()
+    var = args.var
     run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
     log_level = logging.DEBUG if args.debug else logging.INFO
+    
+    init_logger(logfile=log_path, level=log_level)
     global logger
-    logger = init_logger(level=log_level)
-
-    var = args.var
+    logger = get_logger()
+   
     yyyymm_list = generate_yyyymm_list(fcst_start, fcst_end)
     fig_dir = os.path.join(output_fig_dir, 'IDX')
     os.makedirs(fig_dir, exist_ok=True)

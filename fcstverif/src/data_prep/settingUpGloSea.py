@@ -10,9 +10,10 @@ from fcstverif.src.utils.general_utils import (
     generate_yyyymm_list,
     convert_prcp_to_mm_per_day, 
     convert_geopotential_to_m, 
-    parse_var_level
+    parse_var_level,
+    generate_target_grid
 )
-#from fcstverif.src.utils.logging_utils import init_logger
+
 logger = logging.getLogger("fcstverif")
 
 def _resolve_gs_rename(var: str):
@@ -27,7 +28,17 @@ def _resolve_gs_rename(var: str):
     return GSvar2rename.get(var, var), None
 
 def _get_init_mondays(start: str, end: str, rule: str = 'last') -> list[pd.Timestamp]:
-    weekly = pd.date_range(start, end, freq='W-MON')
+    from pandas.tseries.offsets import MonthEnd
+    
+    # normalize to Timestamp
+    s = pd.to_datetime(start)
+    e = pd.to_datetime(end)
+
+    # If end is the 1st of a month (common when callers pass YYYYMM + '01'),
+    # extend to that month's last day so the month's Mondays are included.
+    if e.day == 1:
+        e = e + MonthEnd(0)
+    weekly = pd.date_range(s, e, freq='W-MON')
 
     def _rule_last(grps):
         return sorted({d.replace(day=1): d for d in grps}.values())
@@ -128,7 +139,9 @@ def convert_single_hindcast_file(
     #rename_var = GSvar2rename.get(var, var)
     rename_var, level = _resolve_gs_rename(var)
     logger.info(f"convert to GS6 var ===> VAR= {rename_var}, LEVEL= {level}")
-    
+
+    os.makedirs(out_dir, exist_ok=True)
+
     date_tag = pd.to_datetime(init_date_str).strftime('%Y%m%d')
     stat_part = "" if stat_type is None else f"{stat_type}_"
 
@@ -147,6 +160,7 @@ def convert_single_hindcast_file(
         fpath = f"{data_dir}/{rename_var}/{file_prefix}{stat_part}{rename_var}_{date_tag}.grb2"
         if not os.path.isfile(fpath):
             logger.warning(f"[HIND] {stat_type} 파일 없음: {fpath}")
+            return
         
         grbs = pygrib.open(fpath)
         msgs = grbs.select(name=var2grib_name[rename_var])
@@ -189,16 +203,7 @@ def convert_monthly_hindcast(forecast_start, forecast_end, var, init_rule, data_
             convert_single_hindcast_file(
                 date_str, var, stat_type, data_dir, file_prefix, out_dir)
 
-def generate_target_grid(data:xr.DataArray):
-    '''
-    data: xarray Dataset containing 'lat' and 'lon' variables
-    Save lat/lon grid to a NetCDF file for later use in reanalysis interpolation
 
-    '''
-    grid_ds = xr.Dataset({"lat": data["lat"], "lon": data["lon"]})
-    grid_ds.to_netcdf(f"{model_out_dir}/target_grid.nc")
-    logger.info(f"[SAVED] Target grid → {model_out_dir}/target_grid.nc")
-    
 def convert_monthly_forecast_from_mem(
         forecast_start : str,
         forecast_end : str,
@@ -212,6 +217,8 @@ def convert_monthly_forecast_from_mem(
     #rename_var   = GSvar2rename.get(var, var)
     rename_var, level = _resolve_gs_rename(var)
     init_dates = _get_init_mondays(forecast_start, forecast_end, init_rule)
+
+    os.makedirs(out_dir, exist_ok=True)
 
     for c, d in enumerate(init_dates):
 

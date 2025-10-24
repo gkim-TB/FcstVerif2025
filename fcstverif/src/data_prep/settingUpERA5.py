@@ -3,12 +3,14 @@ import xarray as xr
 import pandas as pd
 import logging
 
-from config import *
-from src.utils.general_utils import (
+from fcstverif.config import *
+from fcstverif.src.utils.general_utils import (
     parse_var_level,
     convert_prcp_to_mm_per_day, 
     convert_geopotential_to_m,
+    generate_target_grid
 )
+
 logger = logging.getLogger("fcstverif")
 
 def rename_dims_coords(da: xr.DataArray) -> xr.DataArray:
@@ -64,16 +66,15 @@ def compute_era5_clim_and_anom(
     target_grid_path = f"{model_out_dir}/target_grid.nc"
     if not os.path.isfile(target_grid_path):
         logger.info("[INFO] Target grid not found. Creating target grid ...")
-        getGloSeagrid.create_target_grid(
-            nc_file=f"{model_out_dir}/hindcast/ensMem_sst_anom_{fyears[0]}.nc",
-            output_path=target_grid_path
+        generate_target_grid(
+            nc_file=f"{model_out_dir}/hindcast/ensMem_{var}_anom_{fyears[0]}.nc",
         )
     else:
         logger.info("[INFO] Target grid found.")
 
         with xr.open_dataset(target_grid_path) as target:
             target_lat, target_lon = target.lat, target.lon
-            print(len(target_lat), len(target_lon))
+            #print(len(target_lat), len(target_lon))
         if len(target_lat) == 0 or len(target_lon) == 0:
             logger.error("Target grid dimensions are invalid.")
             return
@@ -84,7 +85,7 @@ def compute_era5_clim_and_anom(
         var_dir = os.path.join(era5_base_dir, "pressure", base) 
     else:
         var_dir = os.path.join(era5_base_dir, 'surface', rename_var)  
-    print(rename_var)
+    #print(rename_var)
     # subfolder = get_subfolder_for_var(rename_var)  # 'surface' or 'pressure'
     
     # === read raw data include rename === 
@@ -165,7 +166,7 @@ def compute_era5_clim_and_anom(
         ds_tercile = da_tercile.to_dataset(name=var)
         ds_tercile.attrs['description'] = f"ERA5 {var} tercile (33%,67%) {clim_start}-{clim_end}"
         ds_tercile[var].attrs['units'] = da_proc.attrs.get('units', '')
-        print(ds_tercile[var])
+        #print(ds_tercile[var])
         
         tercile_file = os.path.join(era5_out_dir, f"{var}_tercile_{clim_start}_{clim_end}.nc")
         ds_tercile.to_netcdf(tercile_file)

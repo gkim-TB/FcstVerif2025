@@ -5,10 +5,12 @@ import xarray as xr
 import pandas as pd
 import calendar
 import numpy as np
-from config import *
-from src.utils.logging_utils import init_logger
 from typing import Optional
-logger = init_logger()
+
+#from fcstverif.config import *
+import logging
+from fcstverif.src.utils.logging_utils import init_logger, get_logger
+logger = logging.getLogger("fcstverif")
 
 def parse_var_level(v: str):
     import re
@@ -47,6 +49,8 @@ def generate_yyyymm_list(verify_start, verify_end):
         if not (1 <= mm <= 12):
             raise ValueError("Month must be in 1..12.")
         return s
+
+    from fcstverif.config import verify_start, verify_end
 
     s = norm_yyyymm(verify_start)
     e = norm_yyyymm(verify_end)
@@ -104,6 +108,8 @@ def get_region_extent(region_name: str, var: str):
     """
     Return region extent with optional variable-specific override
     """
+    from fcstverif.config import REGIONS, REGION_OVERRIDE_BY_VAR
+
     if var in REGION_OVERRIDE_BY_VAR and region_name in REGION_OVERRIDE_BY_VAR[var]:
         logger.debug("GL extent changed for sst")
         return REGION_OVERRIDE_BY_VAR[var][region_name]
@@ -166,7 +172,7 @@ def clip_to_region(obj, region, var:str):
 
     # 경도 정렬 보장
     clipped = clipped.sortby(lon_name)
-    print(clipped)
+    logger.debug(f"Check dataArray over selected region: {clipped}")
     return clipped
 
 def convert_prcp_to_mm_per_day(da: xr.DataArray, source: str, stat_type: Optional[str] = None):
@@ -215,9 +221,12 @@ def get_combined_mask(model_name, obs_name):
     5) mask 파일이 없으면 warning 로그 출력 후 무시
     6) 반환된 mask는 DataArray(boolean) 형태
     '''
+    from fcstverif.config import MODEL_MASKS, OBS_MASKS
+
     model_mask = None
     obs_mask = None
-
+    logger.info(f"Loading masks for sst: model={model_name}, obs={obs_name}")
+    
     if model_name in MODEL_MASKS:
         try:
             model_mask = xr.open_dataarray(MODEL_MASKS[model_name])
@@ -242,3 +251,31 @@ def get_combined_mask(model_name, obs_name):
     else:
         logger.error("No mask found. Proceeding without masking.")
         return None
+
+def generate_target_grid(
+    data:xr.DataArray=None,
+    nc_file:Optional[str]=None
+    ):
+    """
+    Generate and save a target grid netCDF (lat, lon).
+    Accepts either:
+      - data : xarray.Dataset or xarray.DataArray containing lat/lon coords
+      - nc_file : path to a netCDF to open and extract lat/lon
+      - lat, lon : numpy arrays or xarray.DataArray directly
+    Save lat/lon grid to a NetCDF file for later use in reanalysis interpolation
+    """
+    from fcstverif.config import model_out_dir
+    if data is None:
+        if nc_file is None:
+            raise ValueError("Either data or nc_file must be provided.")
+        if not os.path.isfile(nc_file):
+            logger.error(f"Input netCDF file not found: {nc_file}")
+            return
+        with xr.open_dataset(nc_file) as ds:
+            data = ds
+
+    grid_ds = xr.Dataset({"lat": data["lat"], "lon": data["lon"]})
+    output_path =f"{model_out_dir}/target_grid.nc"
+    grid_ds.to_netcdf(output_path)
+    logger.info(f"[SAVED] Target grid → {model_out_dir}/target_grid.nc")
+    

@@ -2,9 +2,12 @@
 
 import numpy as np
 import os
+from datetime import datetime
+ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
 # ================ USER SETTINGS =================
 RUN_MODE = "auto" #"manual" or "auto"
+log_path = f"/mnt/d/2025FcstVerif/logs/run_{ts}.log"
 
 # --- 모델 ---
 model = "GS6"
@@ -55,13 +58,13 @@ enabled_plots = [
     # -- overview plots
     "target_line",      # Timeseries of all forecast initialization (ACC)
     "traj_line",        # Trajectory lines of all forecast initialization
-    #"init_heatmap",    # Deterministic skill score heatmap
-    #"cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
+    "init_heatmap",    # Deterministic skill score heatmap
+    "cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
     # -- analytics plots
-    #"skill_relation",   # Skill relation plot ( not used )
-    #"skill_relation_v2", # (not used)
-    #"nino34_hovmoller", # works only for "sst"
-    #"iod_hovmoller", # works only for "sst"
+    ######"skill_relation",   # Skill relation plot ( not used )
+    ######"skill_relation_v2", # (not used)
+    "nino34_hovmoller", # works only for "sst"
+    "iod_hovmoller", # works only for "sst"
     ]
 
 
@@ -71,7 +74,7 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 base_dir: str = f"{root_dir}/fcstverif/"
 
 model_raw_dir: str = f"{root_dir}/{model}_KMApost_raw/"
-model_out_dir: str = f"{root_dir}/{model}_KMApost_monthly"
+model_out_dir: str = f"{root_dir}/MODEL_OUT/{model}"
 
 era5_base_dir: str = f"{root_dir}/ERA5_monthly_{model}grid" # regridded to GSgrid
 #era5_base_dir = f"/home/gkim/DATA/ERA5/Monthly" # ERA5 raw

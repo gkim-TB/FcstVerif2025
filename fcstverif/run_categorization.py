@@ -1,17 +1,25 @@
-import argparse
-from config import *
-from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
-import logging 
+# fcstverif/run_categorization.py
 
-from src.analysis.categorizeTercile import (
+import argparse
+
+import logging 
+from fcstverif.src.utils.logging_utils import init_logger, get_logger
+logger = logging.getLogger("fcstverif")
+
+from fcstverif.config import (
+    VARIABLES, model, verify_start, verify_end, fcst_start, fcst_end, 
+    era5_out_dir, model_out_dir, verification_out_dir, fyears,
+    log_path
+)
+from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
+
+from fcstverif.src.analysis.categorizeTercile import (
     categorize_obs_tercile, 
     categorize_fcst_tercile_det,
     categorize_fcst_tercile_prob
 )
-from src.utils.general_utils import generate_yyyymm_list
-from src.utils.logging_utils import init_logger
+from fcstverif.src.utils.general_utils import generate_yyyymm_list
 
-logger = init_logger()
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Global Tercile Categorization for Obs/Fcst")
@@ -22,11 +30,18 @@ def parse_args():
 
 def categorize_observation(var):
     logger.info("🔹 [1/2] Categorizing observed tercile...")
-    categorize_obs_tercile(var=var, years=fyears, obs_dir=era5_out_dir)
+
+    try:
+        categorize_obs_tercile(var=var, years=fyears, obs_dir=era5_out_dir)
+    except Exception as e:
+        logger.exception(f"Failed OBS categorization for var={var}: {e}")
 
 def categorize_forecast(var, yyyymm_list):
     logger.info("🔹 [2/2] Categorizing forecast tercile...")
+
     for yyyymm in yyyymm_list:
+        logger.info(f"📁 Processing {yyyymm}")
+
         if var in ['t2m', 'prcp']:
             logger.info(f"📁 {yyyymm} → Deterministic categorization")
             categorize_fcst_tercile_det(
@@ -49,13 +64,16 @@ def categorize_forecast(var, yyyymm_list):
         )
 
 def main():
+
     args = parse_args()
+    var = args.var
     run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
     log_level = logging.DEBUG if args.debug else logging.INFO
-    global logger
-    logger = init_logger(level=log_level)
 
-    var = args.var
+    init_logger(logfile=log_path, level=log_level)
+    global logger
+    logger = get_logger()
+
     yyyymm_list = generate_yyyymm_list(fcst_start, fcst_end)
 
     if run_mode == "auto":

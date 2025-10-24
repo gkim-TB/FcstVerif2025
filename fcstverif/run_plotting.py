@@ -2,14 +2,18 @@
 
 import argparse
 import os
-import logging
 
 from fcstverif.config import (
     VARIABLES, REGIONS, verify_start, verify_end, fyears, 
-    score_dir, idx_dir, sst_out_dir, tercile_dir, output_fig_dir, enabled_plots
+    score_dir, idx_dir, sst_out_dir, tercile_dir, output_fig_dir, enabled_plots,
+    log_path
 )
 from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
-from fcstverif.src.utils.logging_utils import init_logger
+
+import logging
+from fcstverif.src.utils.logging_utils import init_logger, get_logger
+logger = logging.getLogger("fcstverif")
+
 from fcstverif.src.utils.general_utils import generate_yyyymm_list
 
 # plotting 함수 import
@@ -163,8 +167,10 @@ def main():
     args = parse_args()
     run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
     log_level = logging.DEBUG if args.debug else logging.INFO
+
+    init_logger(logfile=log_path, level=log_level)
     global logger
-    logger = init_logger(level=log_level)
+    logger = get_logger()
 
     var = args.var
     region_name = args.region

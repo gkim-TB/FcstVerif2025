@@ -5,10 +5,11 @@ import glob  # <<< CHANGED
 import numpy as np
 import xarray as xr
 import pandas as pd
-from config import *
-from src.utils.general_utils import load_obs_data, clip_to_region
-from src.utils.logging_utils import init_logger
-logger = init_logger()
+from fcstverif.config import *
+from fcstverif.src.utils.general_utils import load_obs_data, clip_to_region
+
+import logging
+logger = logging.getLogger("fcstverif")
 
 def _obs_years_for_verif():  # 보조 함수 (관측 연장 규칙)
     oyears = fyears.tolist()
@@ -71,54 +72,54 @@ def compute_multicategory_scores(var, yyyymm, obs_dir, fcst_dir, region_name):
         logger.warning(f"[Cate Det VERIFY] Missing file: {fcst_file}")
         return pd.DataFrame(columns=["yyyymm","lead","target","acc","hss"])  # <<< CHANGED
 
-    ds_fcst = xr.open_dataset(fcst_file)
+    with xr.open_dataset(fcst_file) as ds_fcst:
 
-    rows = []  # <<< CHANGED
-    if "lead" in ds_fcst[f"{var}_fcst_det"].dims:
-        for lead in ds_fcst["lead"].values:
-            init_date = pd.to_datetime(f"{yyyymm}01")
-            target_date = init_date + pd.DateOffset(months=int(lead))
-            target_str = target_date.strftime("%Y-%m")
+        rows = []  # <<< CHANGED
+        if "lead" in ds_fcst[f"{var}_fcst_det"].dims:
+            for lead in ds_fcst["lead"].values:
+                init_date = pd.to_datetime(f"{yyyymm}01")
+                target_date = init_date + pd.DateOffset(months=int(lead))
+                target_str = target_date.strftime("%Y-%m")
 
-            try:
-                obs_cate = obs_data.sel(time=target_str)
-            except KeyError:
-                logger.warning(f"[VERIFY] No OBS for {target_str}")
-                continue
+                try:
+                    obs_cate = obs_data.sel(time=target_str)
+                except KeyError:
+                    logger.warning(f"[VERIFY] No OBS for {target_str}")
+                    continue
 
-            fcst_cate = ds_fcst[f"{var}_fcst_det"].sel(lead=lead)
+                fcst_cate = ds_fcst[f"{var}_fcst_det"].sel(lead=lead)
 
-            # 지역 제한
-            obs_cate = clip_to_region(obs_cate, region_name, var)
-            fcst_cate = clip_to_region(fcst_cate, region_name, var)
+                # 지역 제한
+                obs_cate = clip_to_region(obs_cate, region_name, var)
+                fcst_cate = clip_to_region(fcst_cate, region_name, var)
 
-            obs_idx = obs_cate.values.flatten()
-            fcst_idx = fcst_cate.values.flatten()
+                obs_idx = obs_cate.values.flatten()
+                fcst_idx = fcst_cate.values.flatten()
 
-            valid_mask = (~np.isnan(obs_idx)) & (~np.isnan(fcst_idx))
-            obs_idx = obs_idx[valid_mask].astype(int)
-            fcst_idx = fcst_idx[valid_mask].astype(int)
+                valid_mask = (~np.isnan(obs_idx)) & (~np.isnan(fcst_idx))
+                obs_idx = obs_idx[valid_mask].astype(int)
+                fcst_idx = fcst_idx[valid_mask].astype(int)
 
-            table = np.zeros((3, 3), dtype=int)
-            for o, f in zip(obs_idx, fcst_idx):
-                table[o, f] += 1
+                table = np.zeros((3, 3), dtype=int)
+                for o, f in zip(obs_idx, fcst_idx):
+                    table[o, f] += 1
 
-            total = table.sum()
-            hits = np.trace(table)
-            acc = hits / total if total else np.nan
+                total = table.sum()
+                hits = np.trace(table)
+                acc = hits / total if total else np.nan
 
-            row_sum = table.sum(axis=1)
-            col_sum = table.sum(axis=0)
-            expected = np.outer(row_sum, col_sum) / total if total else np.zeros_like(table)
-            hss = (hits - expected.trace()) / (total - expected.trace()) if total else np.nan
+                row_sum = table.sum(axis=1)
+                col_sum = table.sum(axis=0)
+                expected = np.outer(row_sum, col_sum) / total if total else np.zeros_like(table)
+                hss = (hits - expected.trace()) / (total - expected.trace()) if total else np.nan
 
-            rows.append({  # <<< CHANGED
-                'yyyymm': yyyymm,
-                'lead': int(lead),
-                'target': target_str,
-                'acc': acc,
-                'hss': hss,
-            })
+                rows.append({  # <<< CHANGED
+                    'yyyymm': yyyymm,
+                    'lead': int(lead),
+                    'target': target_str,
+                    'acc': acc,
+                    'hss': hss,
+                })
 
     return pd.DataFrame(rows)  # <<< CHANGED
 

@@ -8,11 +8,11 @@ import xskillscore as xs
 from sklearn.metrics import roc_curve, roc_auc_score
 from sklearn.calibration import calibration_curve
 
-from config import *
-from src.utils.logging_utils import init_logger
-from src.utils.general_utils import load_obs_data, clip_to_region
+from fcstverif.config import *
+from fcstverif.src.utils.general_utils import load_obs_data, clip_to_region
 
-logger = init_logger()
+import logging
+logger = logging.getLogger("fcstverif")
 
 def compute_rps_manual(fcst_prob, obs_ohe):
     """
@@ -107,7 +107,7 @@ def compute_roc_auc_all_categories(var, fcst_prob, obs_ohe, init_time, region_na
                     })
 
             except Exception as e:
-                print(f"[ROC WARN] Skipped lead={lead_val} cat={cat} due to error: {e}")
+                logger.warning(f"[ROC WARN] Skipped lead={lead_val} cat={cat} due to error: {e}")
                 continue
 
     # AUC 저장 (NetCDF)
@@ -133,7 +133,9 @@ def compute_probabilistic_scores(
         region_name: str,
         mask=None
         ):
-    
+
+    logger.info(f"Calculating probabilistic skill scores for var={var}, region={region_name}")
+
     os.makedirs(out_dir, exist_ok=True)
     # region_out_dir = os.path.join(out_dir, region_name, var)
     # os.makedirs(region_out_dir, exist_ok=True)
@@ -164,68 +166,68 @@ def compute_probabilistic_scores(
             logger.warning(f"[PROB] Missing forecast prob file: {prob_file}")
             continue
 
-        ds_prob = xr.open_dataset(prob_file)
-        init_time = ds_prob['init'].values[0]
+        with xr.open_dataset(prob_file) as ds_prob:
+            init_time = ds_prob['init'].values[0]
 
-        fcst_time = ds_prob['time']
-        fcst_prob_full = ds_prob[f"{var}_fcst_prob"].squeeze("init", drop=True)
-        fcst_prob_full = fcst_prob_full.assign_coords(time=("lead", fcst_time.values)).swap_dims({"lead": "time"})
-        fcst_prob_full = fcst_prob_full.transpose("time", "lat", "lon", "category")
+            fcst_time = ds_prob['time']
+            fcst_prob_full = ds_prob[f"{var}_fcst_prob"].squeeze("init", drop=True)
+            fcst_prob_full = fcst_prob_full.assign_coords(time=("lead", fcst_time.values)).swap_dims({"lead": "time"})
+            fcst_prob_full = fcst_prob_full.transpose("time", "lat", "lon", "category")
 
-        common_times = [t for t in fcst_time.values if t in obs_ohe_all.time.values]
-        if len(common_times) == 0:
-            logger.warning(f"[SKIP] {yyyymm}: No common time between forecast and obs")
-            continue
-        
-        fcst_prob = fcst_prob_full.sel(time=common_times).reset_coords(drop=True)
-        obs_ohe = obs_ohe_all.sel(time=common_times).reset_coords(drop=True)
-        if mask is not None:
-            fcst_prob = fcst_prob.where(mask.astype(bool))
-            obs_ohe = obs_ohe.where(mask.astype(bool))
-        #print(mask.dtype)          # float인지 bool인지? [bool]
-        #print(mask.values.min(), mask.values.max())
-        #print(np.unique(mask.values))
-        #exit()
-
-        # 1 RPSS
-        # calculated only once for Global
-        if region_name == 'GL':
-            rpss = compute_rpss_manual(fcst_prob, obs_ohe, 'GL', var)
-            rpss = rpss.expand_dims(dim={"init": 1})
-            rpss = rpss.assign_coords(init=("init", [init_time]))
+            common_times = [t for t in fcst_time.values if t in obs_ohe_all.time.values]
+            if len(common_times) == 0:
+                logger.warning(f"[SKIP] {yyyymm}: No common time between forecast and obs")
+                continue
+            
+            fcst_prob = fcst_prob_full.sel(time=common_times).reset_coords(drop=True)
+            obs_ohe = obs_ohe_all.sel(time=common_times).reset_coords(drop=True)
             if mask is not None:
-                rpss = rpss.where(mask)
-            if var == 'sst' and region_name == 'GL':
-                rpss = rpss.where((rpss.lat >= -60) & (rpss.lat <= 60))
+                fcst_prob = fcst_prob.where(mask.astype(bool))
+                obs_ohe = obs_ohe.where(mask.astype(bool))
+            #print(mask.dtype)          # float인지 bool인지? [bool]
+            #print(mask.values.min(), mask.values.max())
+            #print(np.unique(mask.values))
+            #exit()
 
-            ds_out = xr.Dataset({
-                f"{var}_rpss": rpss,
-            })
-            out_path_rpss = os.path.join(out_dir, f"rpss_{var}_GL_{yyyymm}.nc")
-            ds_out.to_netcdf(out_path_rpss)
-            logger.info(f"[RPSS] save RPSS map {yyyymm} : {out_path_rpss}")
-            del ds_out
-        else:
-            logger.info(f"[RPSS] Skipped RPSS computation for region={region_name}")
-        
-        # 2 ROC + AUC
-        auc_da, all_roc_records = compute_roc_auc_all_categories(
-            var=var,  
-            fcst_prob=fcst_prob,
-            obs_ohe=obs_ohe,
-            init_time=init_time,
-            region_name=region_name
-        )
+            # 1 RPSS
+            # calculated only once for Global
+            if region_name == 'GL':
+                rpss = compute_rpss_manual(fcst_prob, obs_ohe, 'GL', var)
+                rpss = rpss.expand_dims(dim={"init": 1})
+                rpss = rpss.assign_coords(init=("init", [init_time]))
+                if mask is not None:
+                    rpss = rpss.where(mask)
+                if var == 'sst' and region_name == 'GL':
+                    rpss = rpss.where((rpss.lat >= -60) & (rpss.lat <= 60))
 
-        ds_auc = xr.Dataset({f"{var}_auc": auc_da})
-        out_auc_path = os.path.join(out_dir, f"auc_{var}_{region_name}_{yyyymm}.nc")
-        ds_auc.to_netcdf(out_auc_path)
-        print(f"[SAVED] AUC to {out_auc_path}")
+                ds_out = xr.Dataset({
+                    f"{var}_rpss": rpss,
+                })
+                out_path_rpss = os.path.join(out_dir, f"rpss_{var}_GL_{yyyymm}.nc")
+                ds_out.to_netcdf(out_path_rpss)
+                logger.info(f"[RPSS] save RPSS map {yyyymm} : {out_path_rpss}")
+                del ds_out
+            else:
+                logger.info(f"[RPSS] Skipped RPSS computation for region={region_name}")
+            
+            # 2 ROC + AUC
+            auc_da, all_roc_records = compute_roc_auc_all_categories(
+                var=var,  
+                fcst_prob=fcst_prob,
+                obs_ohe=obs_ohe,
+                init_time=init_time,
+                region_name=region_name
+            )
 
-        # ROC 저장 (CSV)
-        df_roc = pd.DataFrame(all_roc_records)
-        out_csv_path = os.path.join(out_dir, f"roc_{var}_{region_name}_{yyyymm}.csv")
-        df_roc.to_csv(out_csv_path, index=False)
-        print(f"[SAVED] ROC to {out_csv_path}")
+            ds_auc = xr.Dataset({f"{var}_auc": auc_da})
+            out_auc_path = os.path.join(out_dir, f"auc_{var}_{region_name}_{yyyymm}.nc")
+            ds_auc.to_netcdf(out_auc_path)
+            logger.info(f"[SAVED] AUC to {out_auc_path}")
 
-        logger.info(f"[INFO] AUC and ROC files saved for {yyyymm}")
+            # ROC 저장 (CSV)
+            df_roc = pd.DataFrame(all_roc_records)
+            out_csv_path = os.path.join(out_dir, f"roc_{var}_{region_name}_{yyyymm}.csv")
+            df_roc.to_csv(out_csv_path, index=False)
+            logger.info(f"[SAVED] ROC to {out_csv_path}")
+
+            logger.info(f"[INFO] AUC and ROC files saved for {yyyymm}")

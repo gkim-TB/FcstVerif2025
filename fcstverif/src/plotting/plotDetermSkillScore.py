@@ -19,8 +19,9 @@ from fcstverif.src.utils.general_utils import (
     ensure_time_from_lead,
     clip_to_region,
 )
-from fcstverif.src.utils.logging_utils import init_logger
-logger = init_logger()
+
+import logging
+logger = logging.getLogger("fcstverif")
 
 def no_data_panel(ax_fcst, ax_bias):
     for ax in [ax_fcst, ax_bias]:
@@ -49,48 +50,48 @@ def plot_skill_initialized_month(
         logger.info(f"[WARN] {file_path} 없음.")
         return
     
-    ds = xr.open_dataset(file_path)
-    lead_full = np.arange(1,7)
-    lead_valid = ds['lead'].values
+    with xr.open_dataset(file_path) as ds:
+        lead_full = np.arange(1,7)
+        lead_valid = ds['lead'].values
 
-    fig, ax = plt.subplots(figsize=(5,4), constrained_layout=True)
+        fig, ax = plt.subplots(figsize=(5,4), constrained_layout=True)
 
-    # Dash lines for each ensemble member (grey)
-    if score in ds.data_vars:
-        for e in ds['ens'].values:
-            y_vals = [ds[score].sel(ens=e).sel(time=t).item() if t in ds['time'].values else np.nan
+        # Dash lines for each ensemble member (grey)
+        if score in ds.data_vars:
+            for e in ds['ens'].values:
+                y_vals = [ds[score].sel(ens=e).sel(time=t).item() if t in ds['time'].values else np.nan
+                            for t in ds['time'].values]
+                ax.plot(lead_valid, y_vals, '--', color='gray', alpha=0.4, linewidth=0.8)
+
+        # Solid line for ensemble mean (blue)
+        mean_score_name = f"{score}_mean"
+        if mean_score_name in ds.data_vars:
+            y_vals = [ds[mean_score_name].sel(time=t).item() if t in ds['time'].values else np.nan
                         for t in ds['time'].values]
-            ax.plot(lead_valid, y_vals, '--', color='gray', alpha=0.4, linewidth=0.8)
+            ax.plot(lead_valid, y_vals, '-o', color='royalblue', label='Ensemble Mean')
 
-    # Solid line for ensemble mean (blue)
-    mean_score_name = f"{score}_mean"
-    if mean_score_name in ds.data_vars:
-        y_vals = [ds[mean_score_name].sel(time=t).item() if t in ds['time'].values else np.nan
-                    for t in ds['time'].values]
-        ax.plot(lead_valid, y_vals, '-o', color='royalblue', label='Ensemble Mean')
+        ax.set_xlabel('Lead Time (month)')
+        ax.set_ylabel(score.upper())
+        ax.set_title(f'{score.upper()} by Lead Time\n(Initialized: {yyyymm}, Region: {region_name}, Var: {var})')
+        ax.grid(True, linestyle='--', color='lightgrey')
+        if score == 'acc':
+            ax.set_ylim(bottom=-1.0,top=1.0)
+        elif score == 'rmse':
+            if var != 'z500':
+                ax.set_ylim(0.0,6.0)
+            else:
+                ax.set_ylim(10,100) # for z500
+        ax.set_xticks(lead_full)
+        #plt.xlim(0.9,6.1)
+        ax.legend()
 
-    ax.set_xlabel('Lead Time (month)')
-    ax.set_ylabel(score.upper())
-    ax.set_title(f'{score.upper()} by Lead Time\n(Initialized: {yyyymm}, Region: {region_name}, Var: {var})')
-    ax.grid(True, linestyle='--', color='lightgrey')
-    if score == 'acc':
-        ax.set_ylim(bottom=-1.0,top=1.0)
-    elif score == 'rmse':
-        if var != 'z500':
-            ax.set_ylim(0.0,6.0)
-        else:
-            ax.set_ylim(10,100) # for z500
-    ax.set_xticks(lead_full)
-    #plt.xlim(0.9,6.1)
-    ax.legend()
+        save_fname = os.path.join(fig_dir, f"{score}_init_{var}_{region_name}_{yyyymm}.png")
+        plt.savefig(save_fname, dpi=300 )#, bbox_inches='tight')
+        #plt.show()
+        plt.close()
 
-    save_fname = os.path.join(fig_dir, f"{score}_init_{var}_{region_name}_{yyyymm}.png")
-    plt.savefig(save_fname, dpi=300 )#, bbox_inches='tight')
-    #plt.show()
-    plt.close()
-
-    logger.info(f"[INFO] Saved: {save_fname}")
-    ds.close()
+        logger.info(f"[INFO] Saved: {save_fname}")
+        ds.close()
 
 def plot_det_skill_heatmap(
         var: str, target_year: int, region_name: str, data_dir: str, fig_dir: str, 
@@ -138,16 +139,15 @@ def plot_det_skill_heatmap(
             logger.info(f"[WARN] No file exist: {file_path}")
             continue
 
-        ds = xr.open_dataset(file_path)
-
-        for j, lead in enumerate(leads):
-            try:
-                time_idx = list(ds['lead'].values).index(lead)
-                grid1[i, j] = ds[f"{score1}_mean"].isel(time=time_idx).item()
-                grid2[i, j] = ds[f"{score2}_mean"].isel(time=time_idx).item()
-            except Exception:
-                logger.info(f"[WARN] No data for {yyyymm} Lead={lead}")
-                continue
+        with xr.open_dataset(file_path) as ds:
+            for j, lead in enumerate(leads):
+                try:
+                    time_idx = list(ds['lead'].values).index(lead)
+                    grid1[i, j] = ds[f"{score1}_mean"].isel(time=time_idx).item()
+                    grid2[i, j] = ds[f"{score2}_mean"].isel(time=time_idx).item()
+                except Exception:
+                    logger.info(f"[WARN] No data for {yyyymm} Lead={lead}")
+                    continue
 
     # plot
     fig, ax = plt.subplots(figsize=(5, len(y_labels) * 0.5))
@@ -205,6 +205,7 @@ def plot_det_skill_heatmap(
     save_fname = os.path.join(fig_dir, f"det_heatmap_init_{var}_{region_name}_{target_year}.png")
     fig.savefig(save_fname, dpi=300, bbox_inches='tight')
     logger.info(f"[INFO] Saved Dual-Score Heatmap: {save_fname}")
+    plt.close(fig)
 
 def plot_skill_target_month(var: str, target_year: int, region_name: str, score: str, data_dir: str, fig_dir: str):
     target_months = range(1, 13)
@@ -226,28 +227,27 @@ def plot_skill_target_month(var: str, target_year: int, region_name: str, score:
                 logger.info(f"[WARN] No file: {file_path}")
                 continue
 
-            ds = xr.open_dataset(file_path)
+            with xr.open_dataset(file_path) as ds:
+                try:
+                    time_idx = ds['lead'].values.tolist().index(lead)
 
-            try:
-                time_idx = ds['lead'].values.tolist().index(lead)
+                    # 💡 멤버 점선 추가
+                    if score in ds.data_vars:
+                        for e in ds['ens'].values:
+                            if e not in member_score_dict:
+                                member_score_dict[e] = []
+                            member_score_dict[e].append(ds[score].isel(ens=e, time=time_idx).item())
 
-                 # 💡 멤버 점선 추가
-                if score in ds.data_vars:
-                    for e in ds['ens'].values:
-                        if e not in member_score_dict:
-                            member_score_dict[e] = []
-                        member_score_dict[e].append(ds[score].isel(ens=e, time=time_idx).item())
-
-                # 💡 평균 실선 추가
-                if f"{score}_mean" in ds.data_vars:
-                    mean_score_list.append(ds[f"{score}_mean"].isel(time=time_idx).item())
-                    lead_list.append(lead)
-                    init_month_labels.append(init_yyyymm)
+                    # 💡 평균 실선 추가
+                    if f"{score}_mean" in ds.data_vars:
+                        mean_score_list.append(ds[f"{score}_mean"].isel(time=time_idx).item())
+                        lead_list.append(lead)
+                        init_month_labels.append(init_yyyymm)
 
 
-            except KeyError:
-                logger.info(f"[WARN] No lead={lead} in {file_path}")
-                continue
+                except KeyError:
+                    logger.info(f"[WARN] No lead={lead} in {file_path}")
+                    continue
 
         if mean_score_list:
             fig, ax = plt.subplots(figsize=(5,4), constrained_layout=True)
@@ -281,7 +281,7 @@ def plot_skill_target_month(var: str, target_year: int, region_name: str, score:
             #plt.tight_layout()
             save_fname = os.path.join(fig_dir, f"{score}_target_{var}_{region_name}_{target_date.strftime('%Y%m')}.png")
             plt.savefig(save_fname, dpi=300)#, bbox_inches='tight')
-            plt.close()
+            plt.close(fig)
 
             logger.info(f"[INFO] Saved: {save_fname}")
         else:
@@ -406,7 +406,7 @@ def plot_trajectory_w_acc_by_initialized_line(
                     da = ds[var].mean("ens", skipna=True).squeeze()
                     da = da.assign_coords(time=("lead", ds["time"].values)).swap_dims({"lead": "time"})
                     da_region = clip_to_region(da, region, var)
-                    print(da_region)
+                    logger.debug(f"[clipped region] : {da_region}")
                     if mask is not None:
                         da_region = da_region.where(clip_to_region(mask, region, var))
                     fanom = da_region.mean(dim=["lat", "lon"], skipna=True).load()
@@ -419,7 +419,7 @@ def plot_trajectory_w_acc_by_initialized_line(
                              lw=1.5, alpha=0.9, color=color, label=yyyymm)
                     # fcst_dict[yyyymm] = fanom
             except Exception as e:
-                print(f"[WARN] {yyyymm} forecast read error: {e}")
+                logger.warning(f"[WARN] {yyyymm} forecast read error: {e}")
                 continue
 
         # 2️⃣ acc 파일은 공통적으로 읽기
@@ -558,14 +558,14 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
         else:
             obs_file = os.path.join(era5_out_dir, f"{var}_anom_{target_year}.nc")
         if not os.path.isfile(obs_file):
-            print(f"[WARN] Missing OBS file: {obs_file}")
+            logger.warning(f"[WARN] Missing OBS file: {obs_file}")
             continue
 
         ds_obs = xr.open_dataset(obs_file)
         try:
             obs = ds_obs[var].sel(time=target_date)
         except KeyError:
-            print(f"[WARN] No OBS for {target_date}")
+            logger.warning(f"[WARN] No OBS for {target_date}")
             continue
         # print(ds_obs.lon) 0...360
 

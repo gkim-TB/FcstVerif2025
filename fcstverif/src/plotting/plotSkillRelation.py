@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap
 from matplotlib.gridspec import GridSpec
 
+import logging
+logger = logging.getLogger("fcstverif")
+
 def _pick_qual_colors(n):
     """리드 개수 n에 맞춰 qualitative 팔레트에서 색상 리스트 반환."""
     if n <= 10:
@@ -24,10 +27,10 @@ def plot_scatter_enso_with_var(
 
     # check file existance
     if not os.path.isfile(enso_file):
-        print(f"[WARN] ENSO index file not found: {enso_file}. Skip {yyyymm}.")
+        logger.warning(f"[WARN] ENSO index file not found: {enso_file}. Skip {yyyymm}.")
         return
     if not os.path.isfile(score_file):
-        print(f"[WARN] Score file not found: {score_file}. Skip {yyyymm}.")
+        logger.warning(f"[WARN] Score file not found: {score_file}. Skip {yyyymm}.")
         return
 
     with xr.open_dataset(enso_file) as ds_enso, xr.open_dataset(score_file) as ds_score:
@@ -95,7 +98,7 @@ def plot_scatter_enso_with_var(
         figname = os.path.join(fig_dir, f"{mode}_{var}_scatter_{yyyymm}.png")
         plt.savefig(figname, dpi=300)
         plt.close(fig)
-        print(f"[OK] saved: {figname}")
+        logger.info(f"[OK] saved: {figname}")
 
 def plot_scatter_by_lead(var, yyyymm_list, fcst_score_dir, idx_dir, fig_dir, mode):
     # lead별로 acc, sst 저장용 리스트
@@ -106,7 +109,7 @@ def plot_scatter_by_lead(var, yyyymm_list, fcst_score_dir, idx_dir, fig_dir, mod
         enso_file  = f"{idx_dir}/fcst_{mode}_index_{yyyymm}.nc"
         score_file = f"{fcst_score_dir}/ensScore_det_{var}_{yyyymm}.nc"
         if not (os.path.isfile(enso_file) and os.path.isfile(score_file)):
-            print(f"[SKIP] missing file(s) for {yyyymm}")
+            logger.info(f"[SKIP] missing file(s) for {yyyymm}")
             continue
 
         ds_enso  = xr.open_dataset(enso_file)
@@ -142,4 +145,4 @@ def plot_scatter_by_lead(var, yyyymm_list, fcst_score_dir, idx_dir, fig_dir, mod
         plt.tight_layout()
         plt.savefig(figname, dpi=300)
         plt.close()
-        print(f"[OK] saved: {figname}")
+        logger.info(f"[OK] saved: {figname}")
