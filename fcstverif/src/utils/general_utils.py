@@ -69,6 +69,18 @@ def load_obs_data(var, years, obs_dir, suffix='anom', var_suffix=None):
         fpath = os.path.join(obs_dir, f"{var}_{suffix}_{y}.nc")
         if os.path.isfile(fpath):
             ds = xr.open_dataset(fpath)
+            # --- Defensive: drop known problematic coords/vars that prevent concat ---
+            # Many ERA5/OISST files sometimes include 'expver' or other scalar coords.
+            # Remove them if present (errors='ignore' keeps this safe).
+            for bad in ("expver",):
+                if bad in ds.coords or bad in ds.data_vars:
+                    try:
+                        ds = ds.drop_vars(bad, errors="ignore")
+                        logger.debug(f"[LOAD_OBS] dropped coord/var '{bad}' from {os.path.basename(fpath)}")
+                    except Exception as e:
+                        logger.warning(f"[LOAD_OBS] failed to drop '{bad}' from {fpath}: {e}")
+
+
             data_list.append(ds)
     if not data_list:
         raise FileNotFoundError(f"[OBS] No {suffix} files found for var={var}, years={years}")

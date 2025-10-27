@@ -14,6 +14,7 @@ pip install -e .
 
 ## 사용 방법
 1. fcstverif/config.py 환경설정 변경
-2. python fcstverif/run_all.py 실행
+2. python -m fcstverif.run_all 로 실행
+    (옵션) --var t2m --region GL --run_mode auto
 
 

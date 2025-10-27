@@ -19,7 +19,7 @@ fcst_end = 202412
 # --- forecast to verify : initialized months---
 verify_start = 202201
 #verify_end = 202412
-verify_end = fcst_end
+verify_end = 202506
 fyears = np.arange(verify_start // 100, verify_end // 100 + 1)
 
 # == obs hindcast period

@@ -35,6 +35,9 @@ def rename_dims_coords(da: xr.DataArray) -> xr.DataArray:
     if 'pressure_level' in da.dims or 'pressure_level' in da.coords:
         rename_dict['pressure_level'] = 'level'
 
+    if 'valid_time' in da.dims or 'valid_time' in da.coords:
+        rename_dict['valid_time'] = 'time'
+
     if rename_dict:
         da = da.rename(rename_dict)
 
@@ -201,7 +204,7 @@ def compute_era5_clim_and_anom(
 
             with xr.open_dataset(fcpath) as ds_f:
                 da_f = ds_f[rename_var]
-                da_f = rename_dims_coords(da_f) 
+                da_f = rename_dims_coords(da_f)
 
                 # slice pressure level if needed
                 if lvl is not None:

@@ -5,7 +5,7 @@ import os
 import logging
 
 from fcstverif.config import (
-    VARIABLES, model, fcst_start, fcst_end, fyears, clim_start, clim_end,
+    VARIABLES, model, fcst_start, fcst_end, verify_start, verify_end, fyears, clim_start, clim_end,
     model_raw_dir, model_out_dir, sst_out_dir, era5_base_dir, era5_out_dir,
     log_path
 )
@@ -87,8 +87,8 @@ def run_obs_preprocessing(var):
             var=var,
             clim_start=clim_start,
             clim_end=clim_end,
-            anom_start=fcst_start,
-            anom_end=fcst_end,
+            anom_start=verify_start, #fcst_start,
+            anom_end=verify_end, #fcst_end,
             era5_out_dir=era5_out_dir
         )
 
