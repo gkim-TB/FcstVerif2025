@@ -3,7 +3,7 @@ import numpy as np
 import os
 import pandas as pd
 from fcstverif.config import fyears, REGIONS
-from fcstverif.src.utils.general_utils import load_obs_data, clip_to_region, get_combined_mask
+from fcstverif.src.utils.general_utils import load_obs_data, clip_to_region, get_combined_mask, match_common_times_by_month
 
 import logging
 from fcstverif.src.utils.logging_utils import init_logger, get_logger
@@ -143,20 +143,33 @@ def compute_deterministic_scores(
                 fcst_da = ds_fcst[var].squeeze("init", drop=True) # (ens, init, lead, lat, lon) -> (ens, lead, lat, lon)
                 fcst_da = fcst_da.assign_coords(time=('lead', fcst_time.values)).swap_dims({'lead': 'time'})  # → (ens, time, lat, lon)
 
-                # Subsetting common time
-                common_times = [t for t in fcst_time.values if t in obs_data.time.values]
-                missing_times = [t for t in fcst_time.values if t not in obs_data.time.values]   
-                if missing_times:
-                    logger.warning(
-                        f"[OBS] Missing observation times for : {[str(pd.to_datetime(t).date()) for t in missing_times]}"
-                                )
+                # Subsetting common time points between forecast and observation
+                fc_idx, ob_idx, common_time = match_common_times_by_month(fcst_time, obs_data.time.values)
+                missing_times = [pd.to_datetime(t) for i,t in enumerate(fcst_time) if i not in fc_idx]
 
-                fcst_da = fcst_da.sel(time=common_times)#.reset_coords(drop=True)
-                obs_sub = obs_data.sel(time=common_times)#.reset_coords(drop=True)
+                if len(missing_times):
+                    logger.warning(f"[OBS] Missing observation months for : {[str(pd.to_datetime(t).date()) for t in missing_times]}")
+
+                if common_time.size == 0:
+                    logger.warning(f"[SKIP] {yyyymm}: No data => skipping calculation")
+                    continue
+
+                # select by index then reassign normalized month-start timestamps for both arrays
+                fcst_da = fcst_da.isel(time=fc_idx).assign_coords(time=("time", common_time))
+                obs_sub  = obs_data.isel(time=ob_idx).assign_coords(time=("time", common_time))
+                # common_times = [t for t in fcst_time.values if t in obs_data.time.values]
+                # missing_times = [t for t in fcst_time.values if t not in obs_data.time.values]   
+                # if missing_times:
+                #     logger.warning(
+                #         f"[OBS] Missing observation times for : {[str(pd.to_datetime(t).date()) for t in missing_times]}"
+                #                 )
+
+                # fcst_da = fcst_da.sel(time=common_times)#.reset_coords(drop=True)
+                # obs_sub = obs_data.sel(time=common_times)#.reset_coords(drop=True)
                 #print(fcst_da.time)
                 #print(obs_sub.time)
                 
-                if len(common_times) == 0:
+                if len(common_time) == 0:
                     logger.warning(f"[SKIP] {yyyymm}: No data => skipping calculation")
                     continue
                     

@@ -308,7 +308,7 @@ def plot_trajectory_w_acc_by_initialized_line(
 
     """
     from fcstverif.config import (
-        fcst_start, fcst_end, REGIONS, fyears,
+        fcst_start, fcst_end, verify_start, verify_end, REGIONS, fyears,
         era5_out_dir, model_out_dir, model
     )
     from fcstverif.src.utils.general_utils import (
@@ -364,7 +364,7 @@ def plot_trajectory_w_acc_by_initialized_line(
     month_colors = {m: cmap((m - 1) % 12) for m in range(1, 13)}
 
     # 📥 초기화월 목록
-    yyyymm_list = generate_yyyymm_list(fcst_start, fcst_end)
+    yyyymm_list = generate_yyyymm_list(verify_start, verify_end)
 
     # 📊 그림 준비
     fig, ax1 = plt.subplots(figsize=(14, 6))#, constrained_layout=True)
@@ -544,6 +544,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
         else:
             figsize = (16, 9)
             centerLon = 0
+            fs = None
 
         proj = ccrs.PlateCarree(central_longitude=centerLon)
         nrows, ncols = 3, 6

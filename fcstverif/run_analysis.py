@@ -52,7 +52,7 @@ def run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, mask):
             fcst_dir=f"{verification_out_dir}/CATE/DET",
             out_dir=out_score_dir,
             # 필요 시 True (이미 만들어 둔 **shard(월별 CSV)**가 있어도 강제로 다시 계산·덮어쓰기)
-            recompute=False,   
+            recompute=True,   
             # 필요 시 True (가용한 모든 월을 항상 계산)
             discover=False     )
 
@@ -82,7 +82,7 @@ def main():
     logger = get_logger()
 
     logger.info(f"🔍 Starting analysis: var={var}, region={region_name}")
-    yyyymm_list = generate_yyyymm_list(verify_start, verify_end)
+    yyyymm_list = generate_yyyymm_list(verify_start, verify_end) # list of initialized months to verify
 
     obs_name = "OISST" if var == "sst" else "ERA5"
     obs_dir = sst_out_dir if var == "sst" else era5_out_dir

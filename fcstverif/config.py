@@ -6,48 +6,72 @@ from datetime import datetime
 ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
 # ================ USER SETTINGS =================
+# --- 실행 모드 ---
 RUN_MODE = "auto" #"manual" or "auto"
 log_path = f"/mnt/d/2025FcstVerif/logs/run_{ts}.log"
+# --- 재계산 옵션 ---
+recompute = True # 필요 시 True (이미 만들어 둔 **shard(월별 CSV)**가 있어도 강제로 다시 계산·덮어쓰기)
+discover = False # 필요 시 True (가용한 모든 월을 항상 계산)
 
 # --- 모델 ---
 model = "GS6"
+model_leadtime = 6 # in months
 
-# === 전체 fcst 데이터 기간
+# === forecast data available period ===
 fcst_start = 202201
 fcst_end = 202412
 
 # --- forecast to verify : initialized months---
-verify_start = 202201
-#verify_end = 202412
-verify_end = 202506
+# verification is done for all months between verify_start and verify_end
+# (but only for initialized months available in the forecast data directory)
+# e.g., if verify_start = 202201 and verify_end = 202212,
+#       verification will be done for all initialized months from Jan 2022 to Dec 2022
+verify_start = fcst_start
+verify_end = 202506 # extend to the last forecast target month of last initialized month
 fyears = np.arange(verify_start // 100, verify_end // 100 + 1)
 
 # == obs hindcast period
 clim_start = 1991
 clim_end   = 2020
 
+#=============== Fixed SETTINGS =================
 # --- List of variables to verify ---
-""" list all variables in case manually select in command line"""
-#VARIABLES = ["sst"]
-#VARIABLES = ["t2m"]
-#VARIABLES = ["z500"]
+# list all variables in case manually select in command line
 VARIABLES = ["z500", "t2m", "prcp", "sst"]
-#VARIABLES = ["t", "z"]
 
-# --- 검증 영역 정의 ---
+# --- Regions to verify ---
 REGIONS = {
     "GL": [0, 360, -90, 90], # default option
     # add addtional regions below
     # [lonL, lonR, latS, latN]
-    "EA": [100, 150, 20, 50]
-}
-REGION_OVERRIDE_BY_VAR = {
-    "sst": {
-        "GL": [0, 360, -60, 60]
-    }
+    "EA": [100, 150, 20, 50],
+    #"TP": [65, 105, 25, 50],
 }
 
-# --- plot list ---
+# --- Directory Path ---
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..")) # working directory
+#root_dir =  "../" #"/home/gkim/2025FcstVerif/"
+base_dir: str = f"{root_dir}/fcstverif/" # base directory for fcstverif (source code + checkpointing files)
+
+model_raw_dir: str = f"{root_dir}/{model}_KMApost_raw/" # raw forecast data directory
+model_out_dir: str = f"{root_dir}/MODEL_OUT/{model}" # regridded forecast data directory
+
+era5_base_dir: str = f"{root_dir}/ERA5_monthly_{model}grid" # raw ERA5 data directory
+#era5_base_dir = f"/home/gkim/DATA/ERA5/Monthly" # ERA5 raw
+era5_out_dir: str  = f"{root_dir}/ERA5_OUT/{model}_grid" # regridded ERA5 data directory
+
+sst_base_dir: str = f"{root_dir}/OISST" # raw OISST data directory
+sst_out_dir: str  = era5_out_dir #f"{sst_base_dir}/{model}_grid/" # regridded OISST data directory
+
+verification_out_dir: str = f"{base_dir}/OUT/{model}" # output directory for verification results
+score_dir: str = f"{verification_out_dir}/SCORE/" # score output directory
+idx_dir: str = f"{verification_out_dir}/IDX/" # index output directory
+tercile_dir: str = f"{verification_out_dir}/CATE/"  # tercile category output directory
+
+output_fig_dir: str = os.path.join(root_dir, "fig", model) # figure output directory
+#output_fig_dir = f"{root_dir}/fig/{model}"
+
+# --- Plot list ---
 enabled_plots = [
     # -- detailed plots
     "init_line",       # Timeseries of deterministic skill score by lead, every initialized month
@@ -68,36 +92,8 @@ enabled_plots = [
     ]
 
 
-# --- 주요 디렉토리 경로 ---
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-#root_dir =  "../" #"/home/gkim/2025FcstVerif/"
-base_dir: str = f"{root_dir}/fcstverif/"
-
-model_raw_dir: str = f"{root_dir}/{model}_KMApost_raw/"
-model_out_dir: str = f"{root_dir}/MODEL_OUT/{model}"
-
-era5_base_dir: str = f"{root_dir}/ERA5_monthly_{model}grid" # regridded to GSgrid
-#era5_base_dir = f"/home/gkim/DATA/ERA5/Monthly" # ERA5 raw
-era5_out_dir: str  = f"{root_dir}/ERA5_OUT/{model}_grid"
-
-sst_base_dir: str = f"{root_dir}/OISST"
-sst_out_dir: str  = era5_out_dir #f"{sst_base_dir}/{model}_grid/"
-
-verification_out_dir: str = f"{base_dir}/OUT/{model}"
-score_dir: str = f"{verification_out_dir}/SCORE/"
-idx_dir: str = f"{verification_out_dir}/IDX/"
-tercile_dir: str = f"{verification_out_dir}/CATE/"
-
-output_fig_dir: str = os.path.join(root_dir, "fig", model)
-#output_fig_dir = f"{root_dir}/fig/{model}"
-
-# --- GRIB/NetCDF 변수명 매핑 ---
-# universial : GS6
-GSvar2rename = {
-    "t2m": "t15m",
-    "sst": "tsfc",
-    "z": "h"
-}
+# --- mapping variable names  ---
+# match data variable names in different data sources to universial names used in this project
 
 # universial : ERA5
 ERAvar2rename = {
@@ -105,6 +101,12 @@ ERAvar2rename = {
     "prcp": "tp",
 }
 
+# universial : GS6
+GSvar2rename = {
+    "t2m": "t15m",
+    "sst": "tsfc",
+    "z": "h"
+}
 
 var2grib_name = {
     "tsfc": "Skin temperature",
@@ -118,7 +120,7 @@ var2grib_name = {
     "v": "V component of wind"
 }
 
-# --- 표층/기압면 변수 구분 ---
+# --- variable groups --- 
 SURFACE_VARS = {"t2m", "prcp", "mslp", "tsfc"}
 PRESSURE_VARS = {"u", "v", "t", "q", "z"}
 
@@ -135,3 +137,12 @@ OBS_MASKS = {
 ENSO_BOX = [190, 240, -5, 5]  # Niño 3.4 영역
 IOD_WEST_BOX = [50, 70, -10, 10]
 IOD_EAST_BOX = [90, 110, -10, 0]
+
+
+# --- variable-specific region override ---
+REGION_OVERRIDE_BY_VAR = {
+    "sst": {
+        "GL": [0, 360, -60, 60] # sst global region
+    }
+}
+# =================================================

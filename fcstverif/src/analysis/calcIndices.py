@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import os
 
 from fcstverif.config import fyears, ENSO_BOX, IOD_WEST_BOX, IOD_EAST_BOX
-from fcstverif.src.utils.general_utils import get_combined_mask, load_obs_data
+from fcstverif.src.utils.general_utils import get_combined_mask, load_obs_data, match_common_times_by_month
 
 import logging
 logger = logging.getLogger("fcstverif")
@@ -281,12 +281,18 @@ def calculate_index(var, yyyymm_list, model, fcst_dir, obs_dir, idx_dir, fig_dir
                     logger.info(f"[INFO] Forecast ENSO index saved: {fcst_nc_path}")
 
                     # common time to verif
-                    common_times = [t for t in fcst_time.values if t in obs_data.time.values]
-                    if len(common_times) == 0:
-                        logger.warning(f"[SKIP] {yyyymm}: No common time between forecast and obs")
+                    fc_times = pd.to_datetime(fcst_time.values)
+                    fc_idx, ob_idx, common_time = match_common_times_by_month(fc_times, obs_data.time.values)
+                    # common_times = [t for t in fcst_time.values if t in obs_data.time.values]
+                    
+                    if len(common_time) == 0:
+                        logger.warning(f"[SKIP] {yyyymm}: No common time between forecast index and obs (month-level).")
                         continue
 
-                    obs_enso_sel = enso_index_obs.sel(time=common_times)
+                    # forecast index was already computed earlier as enso_index_fcst (time dim)
+                    enso_index_fcst = enso_index_fcst.isel(time=fc_idx).assign_coords(time=("time", common_time))
+                    obs_enso_sel = enso_index_obs.isel(time=ob_idx).assign_coords(time=("time", common_time))
+                    # obs_enso_sel = enso_index_obs.sel(time=common_times)
                     
                     # Plot plum
                     plot_index_plum_by_init(enso_index_fcst, obs_enso_sel, 'ENSO', yyyymm, fig_dir)

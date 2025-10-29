@@ -9,7 +9,7 @@ from sklearn.metrics import roc_curve, roc_auc_score
 from sklearn.calibration import calibration_curve
 
 from fcstverif.config import *
-from fcstverif.src.utils.general_utils import load_obs_data, clip_to_region
+from fcstverif.src.utils.general_utils import load_obs_data, clip_to_region, match_common_times_by_month
 
 import logging
 logger = logging.getLogger("fcstverif")
@@ -167,20 +167,33 @@ def compute_probabilistic_scores(
             continue
 
         with xr.open_dataset(prob_file) as ds_prob:
-            init_time = ds_prob['init'].values[0]
+            init_time = ds_prob['init'].values[0] # datetime64 
 
-            fcst_time = ds_prob['time']
-            fcst_prob_full = ds_prob[f"{var}_fcst_prob"].squeeze("init", drop=True)
+            fcst_time = ds_prob['time'] # (lead,) datetime64
+            fcst_prob_full = ds_prob[f"{var}_fcst_prob"].squeeze("init", drop=True) # (lead, lat, lon, category)
             fcst_prob_full = fcst_prob_full.assign_coords(time=("lead", fcst_time.values)).swap_dims({"lead": "time"})
             fcst_prob_full = fcst_prob_full.transpose("time", "lat", "lon", "category")
 
-            common_times = [t for t in fcst_time.values if t in obs_ohe_all.time.values]
-            if len(common_times) == 0:
-                logger.warning(f"[SKIP] {yyyymm}: No common time between forecast and obs")
+            # Subsetting common time points between forecast and observation
+            fc_idx, ob_idx, common_time = match_common_times_by_month(fcst_time, obs_ohe_all.time.values)
+            missing_times = [pd.to_datetime(t) for i,t in enumerate(fcst_time) if i not in fc_idx]
+            if len(missing_times):
+                logger.warning(f"[OBS] Missing observation months for : {[str(pd.to_datetime(t).date()) for t in missing_times]}")
+            if common_time.size == 0:
+                logger.warning(f"[SKIP] {yyyymm}: No data => skipping calculation")
                 continue
+            # select by index then reassign normalized month-start timestamps for both arrays
+            fcst_prob = fcst_prob_full.isel(time=fc_idx).assign_coords(time=("time", common_time)).reset_coords(drop=True)
+            obs_ohe = obs_ohe_all.isel(time=ob_idx).assign_coords(time=("time", common_time)).reset_coords(drop=True)
+            #common_times = [t for t in fcst_time.values if t in obs_ohe_all.time.values]
+            #if len(common_times) == 0:
+            #    logger.warning(f"[SKIP] {yyyymm}: No common time between forecast and obs")
+            #    continue
             
-            fcst_prob = fcst_prob_full.sel(time=common_times).reset_coords(drop=True)
-            obs_ohe = obs_ohe_all.sel(time=common_times).reset_coords(drop=True)
+            #fcst_prob = fcst_prob_full.sel(time=common_times).reset_coords(drop=True)
+            #obs_ohe = obs_ohe_all.sel(time=common_times).reset_coords(drop=True)
+
+
             if mask is not None:
                 fcst_prob = fcst_prob.where(mask.astype(bool))
                 obs_ohe = obs_ohe.where(mask.astype(bool))
@@ -189,7 +202,7 @@ def compute_probabilistic_scores(
             #print(np.unique(mask.values))
             #exit()
 
-            # 1 RPSS
+            # ======= 1 RPSS
             # calculated only once for Global
             if region_name == 'GL':
                 rpss = compute_rpss_manual(fcst_prob, obs_ohe, 'GL', var)
@@ -210,7 +223,8 @@ def compute_probabilistic_scores(
             else:
                 logger.info(f"[RPSS] Skipped RPSS computation for region={region_name}")
             
-            # 2 ROC + AUC
+            # ======= 2 ROC + AUC
+            # calculated for all regions
             auc_da, all_roc_records = compute_roc_auc_all_categories(
                 var=var,  
                 fcst_prob=fcst_prob,
