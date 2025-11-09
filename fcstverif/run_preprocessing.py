@@ -28,8 +28,11 @@ def run_model_preprocessing(var, run_mode="auto", init_rule=None):
         logger.warning("MODEL NOT SUPPORTED")
         return
 
-    init_rule = input("Init‑date rule?  (l)ast  |  (m)id (9–17일 월요일)  [l]: ").strip().lower()
-    init_rule = 'mid' if init_rule == 'm' else 'last'
+    if run_mode == 'auto':
+        init_rule = 'last'
+    else:
+        init_rule = input("Init‑date rule?  (l)ast  |  (m)id (9–17일 월요일)  [l]: ").strip().lower()
+        init_rule = 'mid' if init_rule == 'm' else 'last'
     logger.info(f"[INFO] Init‑date rule = {init_rule}")
 
     logger.info(f"[INFO] === GloSea : {var} ===")
