@@ -233,7 +233,7 @@ def plot_skill_target_month(var: str, target_year: int, region_name: str, score:
 
                     # 💡 멤버 점선 추가
                     if score in ds.data_vars:
-                        for e in ds['ens'].values:
+                        for e in range(ds['ens'].size):
                             if e not in member_score_dict:
                                 member_score_dict[e] = []
                             member_score_dict[e].append(ds[score].isel(ens=e, time=time_idx).item())

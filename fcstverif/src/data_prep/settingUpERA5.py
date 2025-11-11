@@ -210,6 +210,10 @@ def compute_era5_clim_and_anom(
                 if lvl is not None:
                     da_f = da_f.sel(level=lvl)
 
+                # remove expver
+                if "expver" in da_f.dims:
+                    da_f = da_f.sel(expver=1).squeeze(drop=True)
+
             # 2) interpolation to model grid
             da_f_interp = da_f.interp(lat=target_lat, lon=target_lon, kwargs={"fill_value": "extrapolate"})
 

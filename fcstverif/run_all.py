@@ -24,11 +24,7 @@ from fcstverif.src.utils.logging_utils import init_logger, get_logger
     
 #     subprocess.run(cmd, check=True) #, cwd=os.getcwd(), env=dict(os.environ, PYTHONPATH=os.getcwd()))
 def run_script(script_name, var, region=None, debug=False, run_mode=None):
-    """
-    안전한 서브모듈 실행: python -m fcstverif.<module>
-    script_name: "run_preprocessing.py" 또는 "run_preprocessing" 둘 다 허용
-    """
-    base = Path(script_name).stem  # strips .py if present
+    base = Path(script_name).stem
     module_name = f"fcstverif.{base}"
 
     cmd = [sys.executable, "-m", module_name, "--var", var]
@@ -39,20 +35,38 @@ def run_script(script_name, var, region=None, debug=False, run_mode=None):
     if run_mode is not None:
         cmd += ["--run_mode", run_mode]
 
-    repo_root = Path(__file__).resolve().parents[1]  # project root
+    repo_root = Path(__file__).resolve().parents[1]
     env = os.environ.copy()
     env_py = env.get("PYTHONPATH", "")
     if str(repo_root) not in env_py.split(os.pathsep):
         env["PYTHONPATH"] = str(repo_root) + (os.pathsep + env_py if env_py else "")
 
+    # 자식 프로세스가 파일핸들러를 만들지 않도록 표시
+    env["FCSTVERIF_SUBPROCESS"] = "1"
+
     logger = logging.getLogger("fcstverif")
     logger.debug("Running subprocess: %s (cwd=%s)", " ".join(cmd), str(repo_root))
 
+    # 실시간 스트리밍: stdout+stderr -> 부모 로거로 합쳐 기록
+    proc = subprocess.Popen(cmd,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            cwd=str(repo_root),
+                            env=env,
+                            text=True, bufsize=1)
+
     try:
-        subprocess.run(cmd, check=True, cwd=str(repo_root), env=env)
-    except subprocess.CalledProcessError as e:
-        logger.error("Subprocess failed: %s (returncode=%s)", module_name, e.returncode)
-        raise
+        # 한 줄씩 읽어서 부모 logger로 찍음
+        for line in proc.stdout:
+            logger.info(line.rstrip())
+    finally:
+        if proc.stdout:
+            proc.stdout.close()
+    ret = proc.wait()
+    if ret != 0:
+        logger.error("Subprocess %s failed with returncode=%s", module_name, ret)
+        raise subprocess.CalledProcessError(ret, cmd)
+
 
 def parse_args():
     """명령행 인자 파싱. 분기실행을 위해 실행모듈마다 남겨둠"""

@@ -3,31 +3,34 @@ import logging
 import os
 import sys
 from logging.handlers import RotatingFileHandler
+from typing import Optional
 
 ROOT_NAME = "fcstverif"
 
-def init_logger(logfile: str = None,
+def init_logger(logfile: Optional[str]=None,
                 level: int = logging.INFO,
-                rotate: bool = False,
-                max_bytes: int = 20*1024*1024,
-                backup_count: int = 5,
-                add_stream: bool = True):
-    """
-    Call once per process (in main). Returns configured logger.
-    """
-    logger = logging.getLogger(ROOT_NAME)
+                rotate: bool = True,
+                max_bytes: int = 50*1024*1024,
+                backup_count: int = 5) -> logging.Logger:
+    logger = logging.getLogger("fcstverif")
     logger.setLevel(level)
 
-    # Prevent adding handlers multiple times
-    if logger.handlers:
-        # update level if called again
-        logger.setLevel(level)
-        return logger
-
-    formatter = logging.Formatter("[%(levelname)s][%(asctime)s] %(message)s",
-                                  datefmt="%Y-%m-%d %H:%M:%S")
-
     if logfile:
+        logfile = os.path.abspath(logfile)
+
+    # 동일 파일 핸들러가 이미 있으면 재설정하지 않음
+    for h in logger.handlers:
+        if isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) == logfile:
+            return logger
+
+    has_stream = any(isinstance(h, logging.StreamHandler) for h in logger.handlers)
+    fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    formatter = logging.Formatter(fmt)
+
+    # 서브프로세스인 경우 파일 핸들러 생성 건너뛰기
+    is_subproc = os.environ.get("FCSTVERIF_SUBPROCESS") == "1"
+
+    if logfile and not is_subproc:
         os.makedirs(os.path.dirname(logfile), exist_ok=True)
         if rotate:
             fh = RotatingFileHandler(logfile, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8")
@@ -36,12 +39,14 @@ def init_logger(logfile: str = None,
         fh.setFormatter(formatter)
         logger.addHandler(fh)
 
-    if add_stream:
+    # 스트림 핸들러는 항상(최소 하나) 유지
+    if not has_stream:
         sh = logging.StreamHandler(sys.stdout)
         sh.setFormatter(formatter)
         logger.addHandler(sh)
 
     return logger
+
 
 def get_logger(name: str = ROOT_NAME):
     return logging.getLogger(name)

@@ -101,8 +101,8 @@ def main():
     run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
     log_level = logging.DEBUG if args.debug else logging.INFO
 
-    init_logger(logfile=log_path, level=log_level)
-    global logger
+    if not any(isinstance(h, logging.FileHandler) for h in logging.getLogger("fcstverif").handlers):
+        init_logger(logfile=log_path, level=log_level)
     logger = get_logger()
 
     logger.info(f"🔧 Starting preprocessing: var={var}")
