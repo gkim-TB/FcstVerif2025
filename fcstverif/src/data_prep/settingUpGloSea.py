@@ -261,16 +261,11 @@ def convert_monthly_forecast_from_mem(
 
         if c == 0: # for the first time, save target grid
             generate_target_grid(ds_ens)
-
+    
         # ▶ GS6 강수량 / 지위 단위 변환
         for vname in ds_ens.data_vars:
             if vname.startswith(var):
                 ds_ens[vname] = _convert_units(ds_ens[vname], var)
-        # for vname in [v for v in ds_ens.data_vars if v.startswith(var)]:
-        #     if var == 'prcp':
-        #         ds_ens[vname] = convert_prcp_to_mm_per_day(ds_ens[vname], source='GS6')
-        #     elif var in ['z', 'zg', 'geopotential']:
-        #         ds_ens[vname] = convert_geopotential_to_m(ds_ens[vname], source='GS6')
 
         out_nc = os.path.join(out_dir, f"ensMem_{var}_{d:%Y%m}.nc")
         ds_ens.to_netcdf(out_nc)
@@ -316,7 +311,7 @@ def compute_anomaly(
         ds_hind = xr.open_dataset(hind_file)
         ds_fcst = xr.open_dataset(fcst_file)
 
-        # anomaly 계산
+        #anomaly 계산
         ds_anom = ds_fcst - ds_hind
     
         # 예: "fcst - hind(1993~2016 mean)"라는 메타정보 기록

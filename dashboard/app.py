@@ -101,13 +101,17 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from fcstverif.config import fcst_start, fcst_end, REGIONS, model
+from fcstverif.config import root_dir, GITHUB_RAW_BASE, fcst_start, fcst_end, REGIONS, model
 
-# GitHub base raw URL
-GITHUB_RAW_BASE: str = "https://raw.githubusercontent.com/gkim-TB/FcstVerif2025/main"
+# GitHub base raw URL --> moved to config.py
+#GITHUB_RAW_BASE: str = "https://raw.githubusercontent.com/gkim-TB/FcstVerif2025/main"
+#GITHUB_RAW_BASE: str = None
 
 def get_fig_url(model: str, region: str, var: str, filename:str) -> str:
-    return f"{GITHUB_RAW_BASE}/FIG/{model}/{region}/{var}/{filename}"
+    if GITHUB_RAW_BASE is not None:
+        return f"{GITHUB_RAW_BASE}/FIG/{model}/{region}/{var}/{filename}"
+    else:
+        return f"{root_dir}/fig/{model}/{region}/{var}/{filename}"
 
 def get_yyyymm_for_plot(plot_type:str, selected_yyyymm:str) -> str:
     dt = datetime.strptime(selected_yyyymm, "%Y%m")

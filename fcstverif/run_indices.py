@@ -34,7 +34,6 @@ def run_index_analysis(var, yyyymm_list, fig_dir):
         fcst_dir=f"{model_out_dir}/anomaly",
         obs_dir=sst_out_dir,
         idx_dir=f"{verification_out_dir}/IDX/",
-        #score_dir=f"{verification_out_dir}/SCORE/IDX/"
         fig_dir=fig_dir,
         mode='ENSO'
     )
@@ -46,7 +45,6 @@ def run_index_analysis(var, yyyymm_list, fig_dir):
         fcst_dir=f"{model_out_dir}/anomaly",
         obs_dir=sst_out_dir,
         idx_dir=f"{verification_out_dir}/IDX/",
-        #score_dir=f"{verification_out_dir}/SCORE/IDX/"
         fig_dir=fig_dir,
         mode='IOD'
     )
@@ -57,8 +55,8 @@ def main():
     run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
     log_level = logging.DEBUG if args.debug else logging.INFO
     
-    if not any(isinstance(h, logging.FileHandler) for h in logging.getLogger("fcstverif").handlers):
-        init_logger(logfile=log_path, level=log_level)
+    init_logger(logfile=log_path, level=log_level)
+    global logger
     logger = get_logger()
    
     yyyymm_list = generate_yyyymm_list(fcst_start, fcst_end)
