@@ -11,7 +11,7 @@ __pycache__/
 # 로그파일 및 디버깅 출력
 *.log
 LOG/
-fcstverif/trash/
+
 
 # 시각화 출력 및 결과
 #fcstverif/FIG/
@@ -37,4 +37,8 @@ OISST/
 # others
 .dump/
 .devcontainer/
-.fcstverif/src/.backups
+.gitignore
+fcstverif/src/.backups
+/fcstverifv1.0/
+/fcstverifv1.1/
+/fcstverif/trash/
