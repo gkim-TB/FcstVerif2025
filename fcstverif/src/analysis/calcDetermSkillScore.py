@@ -80,7 +80,7 @@ def compute_deterministic_scores(
         obs_dir: str,
         out_dir: str,
         region_name: str,
-        mask=None
+        lsmask=None
         ):
     """
     Compute deterministic skill scores (ACC, RMSE, Bias) using ensMem_*.nc files
@@ -124,11 +124,6 @@ def compute_deterministic_scores(
         logger.warning(str(e))
         return
     
-    if var == "sst":
-        mask = get_combined_mask(model_name, obs_name="OISST")
-    else:
-        mask = None
-
     # main loop for verification
     for yyyymm in yyyymm_list:
             # load forecast ensemble data
@@ -144,9 +139,11 @@ def compute_deterministic_scores(
                 fcst_da = fcst_da.assign_coords(time=('lead', fcst_time.values)).swap_dims({'lead': 'time'})  # → (ens, time, lat, lon)
 
                 # Subsetting common time points between forecast and observation
+                logger.debug("fcst_time type: %s, dtype: %s, sample: %s", type(fcst_time), getattr(fcst_time, "dtype", None), fcst_time.values[:3])
                 fc_idx, ob_idx, common_time = match_common_times_by_month(fcst_time, obs_data.time.values)
-                missing_times = [pd.to_datetime(t) for i,t in enumerate(fcst_time) if i not in fc_idx]
-
+                fc_times = pd.to_datetime(fcst_time.values)
+                missing_times = [pd.to_datetime(t) for i,t in enumerate(fc_times) if i not in fc_idx]
+                logger.debug(f"MISSING MATCH: {missing_times}")
                 if len(missing_times):
                     logger.warning(f"[OBS] Missing observation months for : {[str(pd.to_datetime(t).date()) for t in missing_times]}")
 
@@ -157,25 +154,14 @@ def compute_deterministic_scores(
                 # select by index then reassign normalized month-start timestamps for both arrays
                 fcst_da = fcst_da.isel(time=fc_idx).assign_coords(time=("time", common_time))
                 obs_sub  = obs_data.isel(time=ob_idx).assign_coords(time=("time", common_time))
-                # common_times = [t for t in fcst_time.values if t in obs_data.time.values]
-                # missing_times = [t for t in fcst_time.values if t not in obs_data.time.values]   
-                # if missing_times:
-                #     logger.warning(
-                #         f"[OBS] Missing observation times for : {[str(pd.to_datetime(t).date()) for t in missing_times]}"
-                #                 )
-
-                # fcst_da = fcst_da.sel(time=common_times)#.reset_coords(drop=True)
-                # obs_sub = obs_data.sel(time=common_times)#.reset_coords(drop=True)
-                #print(fcst_da.time)
-                #print(obs_sub.time)
                 
                 if len(common_time) == 0:
                     logger.warning(f"[SKIP] {yyyymm}: No data => skipping calculation")
                     continue
                     
-                if mask is not None:
-                    fcst_da = fcst_da.where(mask)
-                    obs_sub = obs_sub.where(mask)
+                if lsmask is not None:
+                    fcst_da = fcst_da.where(lsmask)
+                    obs_sub = obs_sub.where(lsmask)
                     
                 # Calculate skill score
                 #logger.info("Calculating skill scores: ACC, RMSE, ...")

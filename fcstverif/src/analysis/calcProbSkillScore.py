@@ -85,9 +85,9 @@ def compute_roc_auc_all_categories(var, fcst_prob, obs_ohe, init_time, region_na
                 y_score_raw = fcst_sub.isel(time=t_idx).sel(category=cat).values.flatten()
                 y_true_raw = obs_sub.isel(time=t_idx).sel(category=cat).values.flatten()
 
-                mask = (~np.isnan(y_score_raw)) & (~np.isnan(y_true_raw))
-                y_score = y_score_raw[mask]
-                y_true = y_true_raw[mask].astype(int)
+                score_mask = (~np.isnan(y_score_raw)) & (~np.isnan(y_true_raw))
+                y_score = y_score_raw[score_mask]
+                y_true = y_true_raw[score_mask].astype(int)
                 if len(np.unique(y_true)) < 2:
                     continue
 
@@ -131,7 +131,7 @@ def compute_probabilistic_scores(
         prob_dir: str,
         out_dir: str,
         region_name: str,
-        mask=None
+        lsmask=None
         ):
 
     logger.info(f"Calculating probabilistic skill scores for var={var}, region={region_name}")
@@ -175,8 +175,11 @@ def compute_probabilistic_scores(
             fcst_prob_full = fcst_prob_full.transpose("time", "lat", "lon", "category")
 
             # Subsetting common time points between forecast and observation
+            logger.debug("fcst_time type: %s, dtype: %s, sample: %s", type(fcst_time), getattr(fcst_time, "dtype", None), fcst_time.values[:3])    
             fc_idx, ob_idx, common_time = match_common_times_by_month(fcst_time, obs_ohe_all.time.values)
-            missing_times = [pd.to_datetime(t) for i,t in enumerate(fcst_time) if i not in fc_idx]
+            fc_times = pd.to_datetime(fcst_time.values)
+            missing_times = [pd.to_datetime(t) for i,t in enumerate(fc_times) if i not in fc_idx]
+
             if len(missing_times):
                 logger.warning(f"[OBS] Missing observation months for : {[str(pd.to_datetime(t).date()) for t in missing_times]}")
             if common_time.size == 0:
@@ -194,9 +197,9 @@ def compute_probabilistic_scores(
             #obs_ohe = obs_ohe_all.sel(time=common_times).reset_coords(drop=True)
 
 
-            if mask is not None:
-                fcst_prob = fcst_prob.where(mask.astype(bool))
-                obs_ohe = obs_ohe.where(mask.astype(bool))
+            if lsmask is not None:
+                fcst_prob = fcst_prob.where(lsmask.astype(bool))
+                obs_ohe = obs_ohe.where(lsmask.astype(bool))
             #print(mask.dtype)          # float인지 bool인지? [bool]
             #print(mask.values.min(), mask.values.max())
             #print(np.unique(mask.values))
@@ -208,8 +211,8 @@ def compute_probabilistic_scores(
                 rpss = compute_rpss_manual(fcst_prob, obs_ohe, 'GL', var)
                 rpss = rpss.expand_dims(dim={"init": 1})
                 rpss = rpss.assign_coords(init=("init", [init_time]))
-                if mask is not None:
-                    rpss = rpss.where(mask)
+                if lsmask is not None:
+                    rpss = rpss.where(lsmask)
                 if var == 'sst' and region_name == 'GL':
                     rpss = rpss.where((rpss.lat >= -60) & (rpss.lat <= 60))
 

@@ -223,57 +223,81 @@ def convert_geopotential_to_m(da, source, ):
     else:
         raise ValueError(f"Unknown geopotential source: {source}")
 
-def get_combined_mask(model_name, obs_name):
-    '''
-    land-sea mask combination logic for sst variable:
-    1) model & obs mask 모두 존재: 교집합(masked area 확대)
-    2) obs mask만 존재: obs mask 사용
-    3) model mask만 존재: model mask 사용
-    4) mask 없음: None 반환
-    5) mask 파일이 없으면 warning 로그 출력 후 무시
-    6) 반환된 mask는 DataArray(boolean) 형태
-    '''
-    from fcstverif.config import MODEL_MASKS, OBS_MASKS
+# def get_combined_mask(model_name, obs_name):
+#     '''
+#     land-sea mask combination logic for sst variable:
+#     1) model & obs mask 모두 존재: 교집합(masked area 확대)
+#     2) obs mask만 존재: obs mask 사용
+#     3) model mask만 존재: model mask 사용
+#     4) mask 없음: None 반환
+#     5) mask 파일이 없으면 warning 로그 출력 후 무시
+#     6) 반환된 mask는 DataArray(boolean) 형태
+#     '''
+#     from fcstverif.config import MODEL_MASKS, OBS_MASKS
 
-    model_mask = None
-    obs_mask = None
-    logger.info(f"Loading masks for sst: model={model_name}, obs={obs_name}")
+#     model_mask = None
+#     obs_mask = None
+#     logger.info(f"Loading masks for sst: model={model_name}, obs={obs_name}")
     
-    if model_name in MODEL_MASKS:
-        try:
-            model_mask = xr.open_dataarray(MODEL_MASKS[model_name])
-        except FileNotFoundError:
-            logger.warning(f"Model mask file not found for {model_name}")
+#     if model_name in MODEL_MASKS:
+#         try:
+#             model_mask = xr.open_dataarray(MODEL_MASKS[model_name])
+#         except FileNotFoundError:
+#             logger.warning(f"Model mask file not found for {model_name}")
 
-    if obs_name in OBS_MASKS:
-        try:
-            obs_mask = xr.open_dataarray(OBS_MASKS[obs_name])
-        except FileNotFoundError:
-            logger.warning(f"Obs mask file not found for {obs_name}")
+#     if obs_name in OBS_MASKS:
+#         try:
+#             obs_mask = xr.open_dataarray(OBS_MASKS[obs_name])
+#         except FileNotFoundError:
+#             logger.warning(f"Obs mask file not found for {obs_name}")
 
-    if (model_mask is not None) and (obs_mask is not None):
-        logger.info("Using combined model & obs mask (intersection).")
-        return model_mask & obs_mask
-    elif obs_mask is not None:
-        logger.warning("Only obs mask found. Using it.")
-        return obs_mask
-    elif model_mask is not None:
-        logger.warning("Only model mask found. Using it.")
-        return model_mask
-    else:
-        logger.error("No mask found. Proceeding without masking.")
+#     if (model_mask is not None) and (obs_mask is not None):
+#         logger.info("Using combined model & obs mask (intersection).")
+#         return model_mask & obs_mask
+#     elif obs_mask is not None:
+#         logger.warning("Only obs mask found. Using it.")
+#         return obs_mask
+#     elif model_mask is not None:
+#         logger.warning("Only model mask found. Using it.")
+#         return model_mask
+#     else:
+#         logger.error("No mask found. Proceeding without masking.")
+#         return None
+def get_combined_mask(mask_path: str = None):
+    """ 
+    더 이상 obs/model mask를 구분하지 않습니다.
+    - mask_path: 직접 경로 지정 가능. None이면 config.model_out_dir/MASK/lsmask.nc 를 사용.
+    - 반환값: DataArray (bool) 또는 None (파일이 없을 경우)
+    """
+    from fcstverif.config import model_out_dir
+
+    if mask_path is None:
+        mask_path = os.path.join(model_out_dir, "MASK", "lsmask.nc")
+
+    if not os.path.exists(mask_path):
+        logger.warning(f"get_combined_mask: mask file not found at {mask_path}. Returning None.")
         return None
+
+    try:
+        ds = xr.open_dataset(mask_path)
+    except Exception as e:
+        logger.error(f"get_combined_mask: failed to open {mask_path}: {e}")
+        return None
+
+  
+    mask = ds["lsmask_bool"].astype(bool)
+    return mask
+
 
 def generate_target_grid(
     data:xr.DataArray=None,
     nc_file:Optional[str]=None
-    ):
+):
     """
     Generate and save a target grid netCDF (lat, lon).
     Accepts either:
       - data : xarray.Dataset or xarray.DataArray containing lat/lon coords
       - nc_file : path to a netCDF to open and extract lat/lon
-      - lat, lon : numpy arrays or xarray.DataArray directly
     Save lat/lon grid to a NetCDF file for later use in reanalysis interpolation
     """
     from fcstverif.config import model_out_dir
@@ -291,3 +315,79 @@ def generate_target_grid(
     grid_ds.to_netcdf(output_path)
     logger.info(f"[SAVED] Target grid → {model_out_dir}/target_grid.nc")
     
+def generate_lsmask_grid(
+    data: xr.DataArray=None,
+    nc_file:Optional[str]=None,
+    var_name: str = "sst"
+):
+    """
+    Generate and save a lsmask netCDF from sst variable of <model_name>.
+    Accepts either:
+      - data : xarray.Dataset or xarray.DataArray containing lat/lon coords
+      - nc_file : path to a netCDF to open and extract lat/lon
+
+    Save lsmask to a NetCDF file for later use
+    Minimal LSMASK generator (two outputs):
+      - lsmask_bool : bool (ocean=True, land=False)
+    
+    output path : MODEL_OUT/<model_name>/MASK/lsmask.nc
+    """
+    from fcstverif.config import model_out_dir
+
+    if data is None:
+        if nc_file is None:
+            raise ValueError("Either data or nc_file must be provided.")
+        if not os.path.isfile(nc_file):
+            logger.error(f"Input netCDF file not found: {nc_file}")
+            return
+        with xr.open_dataset(nc_file) as ds:
+            da = ds[var_name] if var_name in ds.data_vars else ds[list(ds.data_vars)[0]]
+            sel = {}
+            for d in ("ens", "init", "lead", "member", "time"):
+                if d in da.dims:
+                    sel[d] = 0
+            if sel:
+                da2d = da.isel(**sel).squeeze(drop=True).load()
+            else:
+                da2d = da.squeeze(drop=True).load()
+
+    else:
+        if isinstance(data, xr.Dataset):
+            try:
+                da = data[var_name]
+            except KeyError:
+                logger.info(f"generate_lsmask_grid: var '{var_name}' not in provided Dataset.")
+        else:
+            da = data
+
+        sel = {}
+        for d in ("ens", "init", "lead", "member", "time"):
+            if d in da.dims:
+                sel[d] = 0
+        if sel:
+            da2d = da.isel(**sel).squeeze(drop=True).load()
+        else:
+            da2d = da.squeeze(drop=True).load()
+
+    logger.debug(da2d)
+
+    # boolean mask: True = ocean (value present), False = land (NaN)
+    mask_bool = (~da2d.isnull()).astype("bool")
+    mask_bool.name = "lsmask_bool"
+    mask_bool.attrs["description"] = "boolean: True=ocean (data present), False=land (NaN in sst)"
+    
+    # remove unnecessary coordinates
+    for c in ("init", "lead", "time", "ens", "member"):
+        if c in mask_bool.coords:
+            mask_bool = mask_bool.reset_coords(c, drop=True)
+    
+    ds_out = xr.Dataset({"lsmask_bool": mask_bool})
+
+    # 저장
+    outdir = os.path.join(model_out_dir, "MASK")
+    os.makedirs(outdir, exist_ok=True)
+    save_path = os.path.join(outdir, f"lsmask.nc")
+
+    ds_out.to_netcdf(save_path)
+    logger.info(f"[SAVED] LSMASK -> {save_path}")
+

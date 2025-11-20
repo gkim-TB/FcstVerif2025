@@ -11,18 +11,6 @@ from fcstverif.config import VARIABLES, REGIONS, log_path
 import logging
 from fcstverif.src.utils.logging_utils import init_logger, get_logger
 
-# def run_script(script_name, var, region=None, debug=False, run_mode=None):
-#     # src/ 디렉토리 내의 스크립트 경로 구성
-#     script_full_path = os.path.join(os.path.dirname(__file__), script_name)
-#     cmd = ["python", script_full_path, "--var", var]
-#     if region:
-#         cmd += ["--region", region]
-#     if debug:
-#         cmd += ["--debug"]
-#     if run_mode is not None:
-#         cmd += ["--run_mode", run_mode]
-    
-#     subprocess.run(cmd, check=True) #, cwd=os.getcwd(), env=dict(os.environ, PYTHONPATH=os.getcwd()))
 def run_script(script_name, var, region=None, debug=False, run_mode=None):
     base = Path(script_name).stem
     module_name = f"fcstverif.{base}"
@@ -41,13 +29,13 @@ def run_script(script_name, var, region=None, debug=False, run_mode=None):
     if str(repo_root) not in env_py.split(os.pathsep):
         env["PYTHONPATH"] = str(repo_root) + (os.pathsep + env_py if env_py else "")
 
-    # 자식 프로세스가 파일핸들러를 만들지 않도록 표시
+    # not to make file handler by sub-process 
     env["FCSTVERIF_SUBPROCESS"] = "1"
 
     logger = logging.getLogger("fcstverif")
     logger.debug("Running subprocess: %s (cwd=%s)", " ".join(cmd), str(repo_root))
 
-    # 실시간 스트리밍: stdout+stderr -> 부모 로거로 합쳐 기록
+    # merge sub-process logger to main process (stdout+stdderr)
     proc = subprocess.Popen(cmd,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT,
@@ -56,7 +44,7 @@ def run_script(script_name, var, region=None, debug=False, run_mode=None):
                             text=True, bufsize=1)
 
     try:
-        # 한 줄씩 읽어서 부모 logger로 찍음
+        # stamp to main logger 
         for line in proc.stdout:
             logger.info(line.rstrip())
     finally:
@@ -69,7 +57,6 @@ def run_script(script_name, var, region=None, debug=False, run_mode=None):
 
 
 def parse_args():
-    """명령행 인자 파싱. 분기실행을 위해 실행모듈마다 남겨둠"""
     p = argparse.ArgumentParser()
     p.add_argument("--var", help="단일 변수 또는 콤마구분 목록. 생략/ALL 이면 config.VARIABLES 사용", default=None)
     p.add_argument("--region", help="단일 지역 또는 콤마구분 목록. 생략/ALL 이면 config.REGIONS 사용", default=None)

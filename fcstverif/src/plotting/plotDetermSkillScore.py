@@ -207,7 +207,7 @@ def plot_det_skill_heatmap(
     logger.info(f"[INFO] Saved Dual-Score Heatmap: {save_fname}")
     plt.close(fig)
 
-def plot_skill_target_month(var: str, target_year: int, region_name: str, score: str, data_dir: str, fig_dir: str):
+def plot_skill_target_line(var: str, target_year: int, region_name: str, score: str, data_dir: str, fig_dir: str):
     target_months = range(1, 13)
 
     for target_month in target_months:
@@ -234,6 +234,7 @@ def plot_skill_target_month(var: str, target_year: int, region_name: str, score:
                     # 💡 멤버 점선 추가
                     if score in ds.data_vars:
                         for e in range(ds['ens'].size):
+                            logger.debug(e)
                             if e not in member_score_dict:
                                 member_score_dict[e] = []
                             member_score_dict[e].append(ds[score].isel(ens=e, time=time_idx).item())
@@ -317,7 +318,6 @@ def plot_trajectory_w_acc_by_initialized_line(
     )
 
     assert mode in ["skill", "trajectory"], f"Invalid mode: {mode}"
-    mask = None
 
     # ✅ region 설정
     if region not in REGIONS:
@@ -375,11 +375,11 @@ def plot_trajectory_w_acc_by_initialized_line(
         obs = load_obs_data(var, years=fyears, obs_dir=era5_out_dir, suffix="anom", var_suffix=var)
         obs_region = clip_to_region(obs, region, var)
         if var == 'sst':
-            mask = get_combined_mask(model_name=model, obs_name="OISST")
-            if mask is not None:
-                obs_region = obs_region.where(clip_to_region(mask, region, var))
+            lsmask = get_combined_mask()
+            if lsmask is not None:
+                obs_region = obs_region.where(clip_to_region(lsmask, region, var))
             else:
-                logger.warning(f"[WARN] No mask found")
+                logger.warning(f"[WARN] No lsmask found")
 
         obs_idx = obs_region.mean(dim=["lat", "lon"], skipna=True).load()
         obs_idx.plot(ax=ax1, color="black", linewidth=2., label="OBS")
@@ -403,15 +403,19 @@ def plot_trajectory_w_acc_by_initialized_line(
                 continue
             try:
                 with xr.open_dataset(fpath) as ds:
+                    logger.debug('read fcst anomaly successfully')
                     da = ds[var].mean("ens", skipna=True).squeeze()
                     da = da.assign_coords(time=("lead", ds["time"].values)).swap_dims({"lead": "time"})
                     da_region = clip_to_region(da, region, var)
                     logger.debug(f"[clipped region] : {da_region}")
-                    if mask is not None:
-                        da_region = da_region.where(clip_to_region(mask, region, var))
+                    if lsmask is not None:
+                        #da_region = da_region.where(clip_to_region(lsmask, region, var))
+                        da_region = da_region.where(lsmask)
+                    logger.debug(da_region)
                     fanom = da_region.mean(dim=["lat", "lon"], skipna=True).load()
-                    
-                    lead_vals = fanom["lead"].values
+                    logger.debug(fanom)
+
+                    lead_vals = da_region["lead"].values
                     init_date = pd.to_datetime(yyyymm, format="%Y%m")
                     target_dates = [init_date + pd.DateOffset(months=int(l)) for l in lead_vals]
                 
@@ -616,11 +620,11 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
             #fcst = ds_fcst[var].sel(time=np.datetime64(target_date)).mean("ens").squeeze()
             if var == 'sst':
                 obs_name = "OISST"
-                mask = get_combined_mask(model_name=model, obs_name=obs_name)
-                if mask is not None:
-                    mask = mask.astype(bool)
+                lsmask = get_combined_mask()
+                # if lsmask is not None:
+                #     lsmask = lsmask.astype(bool)
             
-                    fcst = fcst.where(mask)
+                fcst = fcst.where(lsmask)
             
             if var == 'sst' and region_name == 'GL':
                 fcst = fcst.where((fcst.lat >= -60) & (fcst.lat <= 60))
@@ -675,7 +679,7 @@ def plot_spatial_pattern_fcst_vs_obs(var, target_year, region_name, fig_dir):
         plt.close()
         logger.info(f"[INFO] Saved pattern comparison figure: {save_fname}")
 
-def _compute_sst_hovmoller_data(yyyymm, region_box):
+def _compute_sst_hovmoller_data(var, yyyymm, region_box):
     """
     Return (diff_full, obs_full, fc_times, init_yyyymm)
 
@@ -803,10 +807,10 @@ def _plot_hovmoller_panel(
     return mappable
 
 
-def plot_nino34_hovmoller(yyyymm):
+def plot_nino34_hovmoller(var: str, yyyymm):
     from fcstverif.config import ENSO_BOX, output_fig_dir
 
-    diff, obs, fc_times, init_yyyymm = _compute_sst_hovmoller_data(yyyymm, ENSO_BOX)
+    diff, obs, fc_times, init_yyyymm = _compute_sst_hovmoller_data(var, yyyymm, ENSO_BOX)
     if diff is None:
         return
     if diff.sizes.get("time", 0) <= 1 or diff.sizes.get("lon", 0) < 2:
@@ -827,11 +831,11 @@ def plot_nino34_hovmoller(yyyymm):
     plt.close()
     logger.info(f"[INFO] Saved Nino3.4 Hovmöller → {save_fname}")
 
-def plot_iod_hovmoller(yyyymm):
+def plot_iod_hovmoller(var: str, yyyymm):
     from fcstverif.config import IOD_WEST_BOX, IOD_EAST_BOX, output_fig_dir
 
-    diff_w, obs_w, t_w, init_w = _compute_sst_hovmoller_data(yyyymm, IOD_WEST_BOX)
-    diff_e, obs_e, t_e, init_e = _compute_sst_hovmoller_data(yyyymm, IOD_EAST_BOX)
+    diff_w, obs_w, t_w, init_w = _compute_sst_hovmoller_data(var, yyyymm, IOD_WEST_BOX)
+    diff_e, obs_e, t_e, init_e = _compute_sst_hovmoller_data(var, yyyymm, IOD_EAST_BOX)
     if diff_w is None and diff_e is None:
         return
     init_yyyymm = init_w or init_e

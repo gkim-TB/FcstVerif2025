@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument("--debug", action="store_true", help="Enable debug logging") 
     return parser.parse_args()
 
-def run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, mask):
+def run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, lsmask):
 
     logger.info("📌 Step 1: Deterministic Skill Scores")
 
@@ -40,7 +40,7 @@ def run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, mask):
         obs_dir=obs_dir,
         out_dir=out_score_dir,
         region_name=region_name,
-        mask=mask
+        lsmask=lsmask
     )
 
     if var in ['t2m', 'prcp']:
@@ -54,9 +54,10 @@ def run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, mask):
             # 필요 시 True (이미 만들어 둔 **shard(월별 CSV)**가 있어도 강제로 다시 계산·덮어쓰기)
             recompute=True,   
             # 필요 시 True (가용한 모든 월을 항상 계산)
-            discover=False     )
+            discover=False
+            )
 
-def run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, mask):
+def run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, lsmask):
 
     logger.info("📌 Step 2: Probabilistic Skill Scores")
 
@@ -67,7 +68,7 @@ def run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, mask):
         prob_dir=f"{verification_out_dir}/CATE/PROB",
         out_dir=f"{verification_out_dir}/SCORE/{region_name}/{var}",
         region_name=region_name,
-        mask=mask
+        lsmask=lsmask
     )
 
 def main():
@@ -86,16 +87,16 @@ def main():
 
     obs_name = "OISST" if var == "sst" else "ERA5"
     obs_dir = sst_out_dir if var == "sst" else era5_out_dir
-    mask = get_combined_mask(model_name=model, obs_name=obs_name) if var == "sst" else None
+    lsmask = get_combined_mask() if var == "sst" else None
 
     if run_mode == "auto":
-        run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, mask)
-        run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, mask)
+        run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, lsmask)
+        run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, lsmask)
     else:
         if input('Process model Deterministic analysis? [y/n] ').strip().lower() == 'y':
-            run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, mask)
+            run_deterministic_analysis(var, yyyymm_list, region_name, obs_dir, lsmask)
         if input('Process model Probabilistic analysis? [y/n] ').strip().lower() == 'y':
-            run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, mask)
+            run_probabilistic_analysis(var, yyyymm_list, region_name, obs_dir, lsmask)
 
     logger.info("✅ Analysis completed successfully.")
 
