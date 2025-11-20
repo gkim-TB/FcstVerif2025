@@ -1,15 +1,30 @@
-# pyproject.toml
-
 [project]
 name = "fcstverif"
-version = "0.1.0"
+version = "1.2.0"
 description = "Forecast Verification Framework"
-authors = [{name="Gaeun Kim", email="gaeun.kim0921@gmail.com"}]
-dependencies = ["xarray", "numpy", "pandas", "matplotlib", "pygrib"]
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+  { name = "Gaeun Kim", email = "gaeun.kim0921@gmail.com" }
+]
+# 최소 의존성 나열 (필요시 버전 범위 추가 권장)
+dependencies = [
+  "xarray",
+  "numpy",
+  "pandas",
+  "matplotlib",
+  "pygrib",
+  "xskillscore",
+  "netCDF4",
+  "scipy"
+]
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
-where = ["fcstverif"]
+where = ["."]

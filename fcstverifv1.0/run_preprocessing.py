@@ -1,0 +1,119 @@
+#fcstverif/run_preprocessing.py
+
+import argparse
+import os
+import logging
+
+from fcstverif.config import (
+    VARIABLES, model, fcst_start, fcst_end, verify_start, verify_end, fyears, clim_start, clim_end,
+    model_raw_dir, model_out_dir, sst_out_dir, era5_base_dir, era5_out_dir,
+    log_path
+)
+from fcstverif.config import RUN_MODE as CONFIG_RUN_MODE
+from fcstverif.src.data_prep import settingUpGloSea, settingUpOISST, settingUpERA5
+
+from fcstverif.src.utils.logging_utils import init_logger, get_logger
+logger = logging.getLogger("fcstverif")
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Preprocessing for single var")
+    parser.add_argument("--var", required=True, choices=VARIABLES, help="Variable to process")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging") 
+    parser.add_argument("--run_mode", default=None, choices=["auto", "manual"], help="Execution mode (auto/manual)")
+    return parser.parse_args()
+
+def run_model_preprocessing(var, run_mode="auto", init_rule=None):
+    
+    if model != 'GS6':
+        logger.warning("MODEL NOT SUPPORTED")
+        return
+
+    if run_mode == 'auto':
+        init_rule = 'last'
+    else:
+        init_rule = input("Init‑date rule?  (l)ast  |  (m)id (9–17일 월요일)  [l]: ").strip().lower()
+        init_rule = 'mid' if init_rule == 'm' else 'last'
+    logger.info(f"[INFO] Init‑date rule = {init_rule}")
+
+    logger.info(f"[INFO] === GloSea : {var} ===")
+    forecast_range = dict(
+        forecast_start=f'{fcst_start}01',
+        forecast_end=f'{fcst_end}01',
+        var=var,
+        init_rule=init_rule
+    )
+
+    # 1. Hindcast
+    settingUpGloSea.convert_monthly_hindcast(
+        **forecast_range,
+        data_dir=f'{model_raw_dir}/hindcast', 
+        file_prefix='glos_conv_kma_hcst_6mon_mon_',
+        out_dir=f'{model_out_dir}/hindcast'
+    )
+
+    # 2. Forecast
+    settingUpGloSea.convert_monthly_forecast_from_mem(
+        **forecast_range,
+        data_dir=f'{model_raw_dir}/forecast',
+        file_prefix='glos_conv_kma_fcst_6mon_mon_',
+        out_dir=f'{model_out_dir}/forecast'
+    )
+
+    # 3. Anomaly
+    logger.info(f"[INFO] Processing anomaly for variable: {var}")
+    settingUpGloSea.compute_anomaly(
+        **forecast_range,
+        # var=var,
+        # year_start=fyears[0],
+        # year_end=fyears[-1],
+        hindcast_dir=f'{model_out_dir}/hindcast',
+        forecast_dir=f'{model_out_dir}/forecast',
+        out_dir=f'{model_out_dir}/anomaly'
+    )
+
+def run_obs_preprocessing(var):
+    
+    logger.info(f"[INFO] === OBS : {var} ===")
+    # process obs data
+    if var == 'sst':
+        missing_years = [
+            year for year in range(fcst_start, fcst_end + 1)
+            if not os.path.exists(f"{sst_out_dir}/sst_anom_{year}.nc")
+        ]
+        regrid = 'y' if missing_years else 'n'
+        logger.info(f"[INFO] Processing OISST regridding ({regrid}) ...")
+        settingUpOISST.oisst_anomaly(regrid_option=regrid)
+    else:
+        logger.info(f"[INFO] Processing ERA5 for variable: {var}")
+        settingUpERA5.compute_era5_clim_and_anom(
+            era5_base_dir=era5_base_dir,
+            var=var,
+            clim_start=clim_start,
+            clim_end=clim_end,
+            anom_start=verify_start, #fcst_start,
+            anom_end=verify_end, #fcst_end,
+            era5_out_dir=era5_out_dir
+        )
+
+def main():
+    args = parse_args()
+    var = args.var
+    run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
+    log_level = logging.DEBUG if args.debug else logging.INFO
+
+    if not any(isinstance(h, logging.FileHandler) for h in logging.getLogger("fcstverif").handlers):
+        init_logger(logfile=log_path, level=log_level)
+    logger = get_logger()
+
+    logger.info(f"🔧 Starting preprocessing: var={var}")
+    if run_mode == "auto":
+        run_model_preprocessing(var)
+        run_obs_preprocessing(var)
+    else:
+        if input('Proceed model processing? [y/n] ').strip().lower() == 'y':
+            run_model_preprocessing(var)
+        if input('Proceed ERA5/OISST processing? [y/n] ').strip().lower() == 'y':
+            run_obs_preprocessing(var)
+
+if __name__ == '__main__':
+    main()
