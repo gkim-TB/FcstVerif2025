@@ -7,10 +7,11 @@ __pycache__/
 *.py[cod]
 *.so
 *.egg-info/
+typings/
 
 # 로그파일 및 디버깅 출력
 *.log
-LOG/
+logs/
 fcstverif/trash/
 
 # 시각화 출력 및 결과
@@ -18,9 +19,11 @@ fcstverif/trash/
 fcstverif/OUT/
 ERA5_monthly_GS6grid/
 ERA5_OUT/
-GS6_KMApost_raw/
-GS6_KMApost_monthly/
+GS6/
 OISST/
+MODEL_OUT/
+OISST/
+
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
@@ -35,6 +38,9 @@ OISST/
 .env
 
 # others
+.git/
 .dump/
 .devcontainer/
 .fcstverif/src/.backups
+fcstverifv1.1/
+fcstverifv1.0/
