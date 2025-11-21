@@ -20,8 +20,7 @@ from fcstverif.src.utils.general_utils import generate_yyyymm_list
 from fcstverif.src.plotting.plotDetermSkillScore import (
     plot_skill_initialized_month,
     plot_det_skill_heatmap,
-    plot_skill_target_month,
-    #plot_skill_by_initialized_line,
+    plot_skill_target_line,
     plot_trajectory_w_acc_by_initialized_line,
     plot_spatial_pattern_fcst_vs_obs,
     plot_nino34_hovmoller,
@@ -58,8 +57,8 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
                 data_dir=data_dir, fig_dir=fig_dir, score1='acc', score2='rmse'
             ) for y in fyears
         ],
-        "target_month": lambda: [
-            plot_skill_target_month(
+        "target_line": lambda: [
+            plot_skill_target_line(
                 var=var, target_year=y, region_name=region_name,
                 score=score, data_dir=data_dir, fig_dir=fig_dir
             ) for y in fyears for score in ['acc', 'rmse']
@@ -73,7 +72,7 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
                 mode="trajectory"  # ✨ mode 지정
             )
         ],
-        "target_line": lambda: [
+        "traj_skill": lambda: [
             plot_trajectory_w_acc_by_initialized_line(
                 var=var,
                 region=region_name,
@@ -130,13 +129,17 @@ def define_plot_tasks(var, region_name, data_dir, idx_dir, fig_dir, yyyymm_list)
         ],
         "nino34_hovmoller": lambda: [
              plot_nino34_hovmoller(
+                 var = var,
                  yyyymm=ym,
                 ) for ym in yyyymm_list
          ] if (var =='sst' and region_name == 'GL') else logger.info(
              f"[SKIP] {var} not supported for Nino3.4 Hovmoller plot."
              ),
         "iod_hovmoller": lambda: [
-            plot_iod_hovmoller(ym) for ym in yyyymm_list
+            plot_iod_hovmoller(
+                var=var,
+                yyyymm=ym
+                ) for ym in yyyymm_list
         ] if (var == 'sst' and region_name == 'GL') else logger.info(
             f"[SKIP] Hovmöller runs only for var=sst & region=GL (got var={var}, region={region_name})."
         ),
@@ -168,8 +171,8 @@ def main():
     run_mode = args.run_mode if args.run_mode else CONFIG_RUN_MODE
     log_level = logging.DEBUG if args.debug else logging.INFO
 
-    if not any(isinstance(h, logging.FileHandler) for h in logging.getLogger("fcstverif").handlers):
-        init_logger(logfile=log_path, level=log_level)
+    init_logger(logfile=log_path, level=log_level)
+    global logger
     logger = get_logger()
 
     var = args.var

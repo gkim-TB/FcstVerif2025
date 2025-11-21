@@ -7,7 +7,6 @@ __pycache__/
 *.py[cod]
 *.so
 *.egg-info/
-typings/
 
 # 로그파일 및 디버깅 출력
 *.log
@@ -44,3 +43,4 @@ OISST/
 .fcstverif/src/.backups
 fcstverifv1.1/
 fcstverifv1.0/
+typings/

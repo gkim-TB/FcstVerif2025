@@ -15,7 +15,7 @@ import logging
 logger = logging.getLogger("fcstverif")
 
 
-def calculate_enso_index(sst, mask=None):
+def calculate_enso_index(sst, lsmask=None):
     """Calculate ENSO index based on SST anomalies in a specific region."""
     # from config.py region BOX = [lonL, lonR, latS, latN]
     lonL, lonR, latS, latN = ENSO_BOX 
@@ -23,8 +23,8 @@ def calculate_enso_index(sst, mask=None):
 
     sst_region = sst.sel(lat=slice(latS, latN), lon=slice(lonL, lonR))
     
-    if mask is not None:
-        mask_region = mask.sel(lat=slice(latS, latN), lon=slice(lonL, lonR))
+    if lsmask is not None:
+        mask_region = lsmask.sel(lat=slice(latS, latN), lon=slice(lonL, lonR))
         sst_region = sst_region.where(mask_region)  # 🔵 마스킹
 
     # 공간 평균만 계산하고 시간 차원은 유지
@@ -34,7 +34,7 @@ def calculate_enso_index(sst, mask=None):
     #logger.info("Calculated ENSO index successfully.")
     return enso_index
 
-def calculate_iod_index(sst, mask=None):
+def calculate_iod_index(sst, lsmask=None):
     """Calculate IOD index based on SST anomalies in two regions."""
     w_lonL, w_lonR, w_latS, w_latN = IOD_WEST_BOX
     e_lonL, e_lonR, e_latS, e_latN = IOD_EAST_BOX
@@ -43,9 +43,9 @@ def calculate_iod_index(sst, mask=None):
 
     sst_west = sst.sel(lat=slice(w_latS, w_latN), lon=slice(w_lonL, w_lonR))
     sst_east = sst.sel(lat=slice(e_latS, e_latN), lon=slice(e_lonL, e_lonR))
-    if mask is not None:
-        sst_west = sst_west.where(mask.sel(lat=sst_west.lat, lon=sst_west.lon))
-        sst_east = sst_east.where(mask.sel(lat=sst_east.lat, lon=sst_east.lon))
+    if lsmask is not None:
+        sst_west = sst_west.where(lsmask.sel(lat=sst_west.lat, lon=sst_west.lon))
+        sst_east = sst_east.where(lsmask.sel(lat=sst_east.lat, lon=sst_east.lon))
 
     dims_to_mean = [dim for dim in ['lat', 'lon'] if dim in sst_west.dims] # 공간 평균만 안정적으로 계산
     return sst_west.mean(dim=dims_to_mean, skipna=True, keep_attrs=True) - sst_east.mean(dim=dims_to_mean, skipna=True, keep_attrs=True)
@@ -67,10 +67,15 @@ def plot_index_plum_by_init(fcst, obs, idx, yyyymm, fig_dir):
     """
 
     fig, ax = plt.subplots()
+    ftime = pd.to_datetime(fcst.time.values)
+    otime = pd.to_datetime(obs.time.values)
+    logger.debug(ftime)
+    logger.debug(otime)
+
     for ens in range(len(fcst.ens)):
-        ax.plot(fcst.time, fcst.isel(ens=ens).values, color='indianred', linestyle='--', linewidth=.5, alpha=.7)
-    ax.plot(fcst.time, fcst.mean("ens").values, 'ro-')
-    ax.plot(obs.time, obs.values, 'ko-')
+        ax.plot(ftime, fcst.isel(ens=ens).values, color='indianred', linestyle='--', linewidth=.5, alpha=.7)
+    ax.plot(ftime, fcst.mean("ens").values, 'ro-') # ensemble mean
+    ax.plot(otime, obs.values, 'ko-') # OBS
 
     ax.set_title(f'{idx} Index (Init: {yyyymm})', fontsize=14)
     ax.set_xlabel('Time', fontsize=14)
@@ -83,10 +88,15 @@ def plot_index_plum_by_init(fcst, obs, idx, yyyymm, fig_dir):
     ax.tick_params(axis='y', labelsize=14)
     ax.tick_params(axis='x', labelsize=12)
 
+    ax.set_xlim(ftime[0], ftime[-1])
+    ax.set_xticks(ftime)
+    ax.set_xticklabels([t.strftime('%Y-%m') for t in ftime])
+
     figname = os.path.join(fig_dir, f'{idx}_plum_{yyyymm}.png')
     plt.savefig(figname, dpi=300, bbox_inches='tight')
     #plt.show()
     plt.close()
+
 
 def plot_spatial(fcst, obs, yyyymm):
     """
@@ -234,12 +244,12 @@ def calculate_index(var, yyyymm_list, model, fcst_dir, obs_dir, idx_dir, fig_dir
         return
     #print(obs_data)
 
-    mask = get_combined_mask(model_name=model, obs_name='OISST')
-    #print(mask)
+    lsmask = get_combined_mask()
+    #print(lsmask)
 
     # 관측 index 계산 
-    iod_index_obs = calculate_iod_index(obs_data, mask)
-    enso_index_obs = calculate_enso_index(obs_data, mask)
+    iod_index_obs = calculate_iod_index(obs_data, lsmask)
+    enso_index_obs = calculate_enso_index(obs_data, lsmask)
     #logger.debug(f"enso_index_obs.dims: {enso_index_obs.dims}")
     #logger.info(f"[INFO] obs index calculated for {fyears}")
 
@@ -272,7 +282,7 @@ def calculate_index(var, yyyymm_list, model, fcst_dir, obs_dir, idx_dir, fig_dir
                 
                 # Calculate ENSO and IOD indices
                 if mode in ['ENSO', 'ALL']:
-                    enso_index_fcst = calculate_enso_index(fcst_da, mask=mask)
+                    enso_index_fcst = calculate_enso_index(fcst_da, lsmask=lsmask)
                     fcst_dict[yyyymm] = enso_index_fcst
 
                     # Save indices
@@ -290,7 +300,7 @@ def calculate_index(var, yyyymm_list, model, fcst_dir, obs_dir, idx_dir, fig_dir
                         continue
 
                     # forecast index was already computed earlier as enso_index_fcst (time dim)
-                    enso_index_fcst = enso_index_fcst.isel(time=fc_idx).assign_coords(time=("time", common_time))
+                    #enso_index_fcst_sel = enso_index_fcst.isel(time=fc_idx).assign_coords(time=("time", common_time))
                     obs_enso_sel = enso_index_obs.isel(time=ob_idx).assign_coords(time=("time", common_time))
                     # obs_enso_sel = enso_index_obs.sel(time=common_times)
                     
@@ -307,7 +317,7 @@ def calculate_index(var, yyyymm_list, model, fcst_dir, obs_dir, idx_dir, fig_dir
                     
                 
                 elif mode in ['IOD', 'ALL']:
-                    iod_index_fcst = calculate_iod_index(fcst_da, mask=mask)
+                    iod_index_fcst = calculate_iod_index(fcst_da, lsmask=lsmask)
                     fcst_dict[yyyymm] = iod_index_fcst
 
                     # Save indices
@@ -332,7 +342,7 @@ def calculate_index(var, yyyymm_list, model, fcst_dir, obs_dir, idx_dir, fig_dir
                         })
                                             
 
-    # time series all init
+    # time series trajectory of all init
     if mode == "ENSO":
         plot_index_timeseries_all_init(mode, enso_index_obs, fcst_dict, fig_dir)
     elif mode == "IOD":

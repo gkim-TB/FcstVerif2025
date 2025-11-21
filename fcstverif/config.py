@@ -8,18 +8,22 @@ ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 # ================ USER SETTINGS =================
 # --- 실행 모드 ---
 RUN_MODE = "auto" #"manual" or "auto"
-log_path = f"/mnt/d/2025FcstVerif/logs/run_{ts}.log"
+log_path = f"./logs/run_{ts}.log"
 # --- 재계산 옵션 ---
 recompute = True # 필요 시 True (이미 만들어 둔 **shard(월별 CSV)**가 있어도 강제로 다시 계산·덮어쓰기)
 discover = False # 필요 시 True (가용한 모든 월을 항상 계산)
 
 # --- 모델 ---
+#model = "SCOPS"
 model = "GS6"
+
 model_leadtime = 6 # in months
 
-# === forecast data available period ===
-fcst_start = 202201
+# === forecast data available period (initialized month)===
+fcst_start = 202201 
 fcst_end = 202412
+hcst_styr = 1991
+hcst_enyr = 2010
 
 # --- forecast to verify : initialized months---
 # verification is done for all months between verify_start and verify_end
@@ -27,7 +31,7 @@ fcst_end = 202412
 # e.g., if verify_start = 202201 and verify_end = 202212,
 #       verification will be done for all initialized months from Jan 2022 to Dec 2022
 verify_start = fcst_start
-verify_end = 202506 # extend to the last forecast target month of last initialized month
+verify_end = 202504 # extend to the last forecast target month of last initialized month
 fyears = np.arange(verify_start // 100, verify_end // 100 + 1)
 
 # == obs hindcast period
@@ -38,6 +42,7 @@ clim_end   = 2020
 # --- List of variables to verify ---
 # list all variables in case manually select in command line
 VARIABLES = ["z500", "t2m", "prcp", "sst"]
+
 
 # --- Regions to verify ---
 REGIONS = {
@@ -50,17 +55,17 @@ REGIONS = {
 
 # --- Directory Path ---
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..")) # working directory
-#root_dir =  "../" #"/home/gkim/2025FcstVerif/"
 base_dir: str = f"{root_dir}/fcstverif/" # base directory for fcstverif (source code + checkpointing files)
 
-model_raw_dir: str = f"{root_dir}/{model}_KMApost_raw/" # raw forecast data directory
+model_raw_dir: str = f"{root_dir}/{model}/" # raw forecast data directory
 model_out_dir: str = f"{root_dir}/MODEL_OUT/{model}" # regridded forecast data directory
 
 era5_base_dir: str = f"{root_dir}/ERA5_monthly_{model}grid" # raw ERA5 data directory
-#era5_base_dir = f"/home/gkim/DATA/ERA5/Monthly" # ERA5 raw
+#era5_base_dir: str = f"/data/TBDB/ERA5/Monthly/" # raw ERA5 data directory
 era5_out_dir: str  = f"{root_dir}/ERA5_OUT/{model}_grid" # regridded ERA5 data directory
 
 sst_base_dir: str = f"{root_dir}/OISST" # raw OISST data directory
+#sst_base_dir: str = f"/data/TBDB/OISST/Monthly/" # raw OISST data directory
 sst_out_dir: str  = era5_out_dir #f"{sst_base_dir}/{model}_grid/" # regridded OISST data directory
 
 verification_out_dir: str = f"{base_dir}/OUT/{model}" # output directory for verification results
@@ -68,19 +73,21 @@ score_dir: str = f"{verification_out_dir}/SCORE/" # score output directory
 idx_dir: str = f"{verification_out_dir}/IDX/" # index output directory
 tercile_dir: str = f"{verification_out_dir}/CATE/"  # tercile category output directory
 
-output_fig_dir: str = os.path.join(root_dir, "fig", model) # figure output directory
-#output_fig_dir = f"{root_dir}/fig/{model}"
+output_fig_dir: str = os.path.join(root_dir, "FIG", model) # figure output directory
+
+GITHUB_RAW_BASE: str = "https://raw.githubusercontent.com/gkim-TB/FcstVerif2025/main"
+#GITHUB_RAW_BASE: str = None
 
 # --- Plot list ---
 enabled_plots = [
     # -- detailed plots
     "init_line",       # Timeseries of deterministic skill score by lead, every initialized month
-    "target_month",    # Timeseries of deterministic skill score by lead, every target month
+    "target_line",    # Timeseries of deterministic skill score by lead, every target month
     "target_pattern",  # Spatial distribution comparison btw obs and fcst anomaly, every target month
     "rpss_map",        # (Probabilistic skill score) RPSS map, every initialized month
     "roc_curve",        # (Probabilistic skill score) ROC curve with AUC, every initialized month
     # -- overview plots
-    "target_line",      # Timeseries of all forecast initialization (ACC)
+    "traj_skill",      # Timeseries of all forecast initialization (ACC)
     "traj_line",        # Trajectory lines of all forecast initialization
     "init_heatmap",    # Deterministic skill score heatmap
     "cate_heatmap",    # (only t2m, prcp) Deterministic Multi-category score heat map, every year
@@ -120,17 +127,15 @@ var2grib_name = {
     "v": "V component of wind"
 }
 
+# universial : MME participating models
+# MME model data is copied from /lfs/apccdb/Prediction/Seasonal/
+MMEvar2rename = {
+        'prcp':'prec',
+        }
+
 # --- variable groups --- 
 SURFACE_VARS = {"t2m", "prcp", "mslp", "tsfc"}
 PRESSURE_VARS = {"u", "v", "t", "q", "z"}
-
-# --- land sea mask ---
-MODEL_MASKS = {
-}  
-
-OBS_MASKS = {
-    "OISST": f"{base_dir}/MASK/oisst_mask_to_{model}.nc"
-}
 
 # Define ENSO and IOD regions in list format
 # region BOX = [lonL, lonR, latS, latN]

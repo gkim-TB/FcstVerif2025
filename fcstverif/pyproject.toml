@@ -2,9 +2,9 @@
 
 [project]
 name = "fcstverif"
-version = "0.1.0"
+version = "1.2.1"
 description = "Forecast Verification Framework"
-authors = [{name="Gaeun Kim", email="gaeun.kim0921@gmail.com"}]
+authors = [{name="Gaeun Kim", email="gkim@apcc21.org"}]
 dependencies = ["xarray", "numpy", "pandas", "matplotlib", "pygrib"]
 
 [build-system]
